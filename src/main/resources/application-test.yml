@@ -15,10 +15,11 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:0/realms/test}
 
 management:
-  otlp:
+  opentelemetry:
     tracing:
       export:
         enabled: false
+  otlp:
     metrics:
       export:
         enabled: false
