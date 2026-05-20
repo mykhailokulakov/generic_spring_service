@@ -149,6 +149,13 @@ jobs:
           name: coverage-unit
           path: target/site/jacoco/
 
+      # jacoco:check needs target/classes to evaluate the rules against
+      # actual bytecode. Without it the bundle is empty, the COVEREDRATIO
+      # limits have 0 instructions, and the gate silently passes — so we
+      # rebuild classes here before running the check.
+      - name: Compile main sources
+        run: ./mvnw -q -DskipTests compile
+
       - name: Enforce coverage gate (TEMPORARY 60%/50% floor)
         run: ./mvnw -q jacoco:check -Pci-coverage-initial
 
