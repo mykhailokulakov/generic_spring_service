@@ -54,3 +54,110 @@ jobs:
           name: jar
           path: target/*.jar
           if-no-files-found: ignore
+
+  unit-test:
+    name: Unit tests (mvn test)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Run unit tests
+        run: ./mvnw -q test
+
+      - name: Generate JaCoCo report
+        if: always()
+        run: ./mvnw -q jacoco:report
+
+      - name: Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/*.xml
+          if-no-files-found: warn
+
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
+        with:
+          name: Unit tests
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
+          fail-on-error: 'false'
+
+      - name: Upload JaCoCo unit coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-unit
+          path: target/site/jacoco/
+          if-no-files-found: warn
+
+      - name: Upload JaCoCo exec data
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: jacoco-exec
+          path: target/jacoco.exec
+          if-no-files-found: warn
+
+  coverage-gate:
+    # TEMPORARY: runs jacoco:check with the `ci-coverage-initial` profile, which
+    # lowers the JaCoCo gate to 60% line / 50% branch. The project default
+    # remains 80%/80% (see pom.xml). This lower CI floor exists ONLY because the
+    # integration test suite has not yet landed (it arrives in prompt 14). When
+    # that suite lands, both the `ci-coverage-initial` profile AND this notice
+    # must be removed so CI enforces the full project default.
+    name: Coverage gate (60%/50% TEMPORARY floor)
+    runs-on: ubuntu-24.04
+    needs: [unit-test]
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Download JaCoCo exec data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: jacoco-exec
+          path: target/
+
+      - name: Download JaCoCo coverage report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage-unit
+          path: target/site/jacoco/
+
+      - name: Enforce coverage gate (TEMPORARY 60%/50% floor)
+        run: ./mvnw -q jacoco:check -Pci-coverage-initial
+
+      - name: Comment coverage diff on PR
+        if: github.event_name == 'pull_request'
+        uses: madrapps/jacoco-report@50d3aff4548aa991e6753342d9ba291084e63848 # v1.7.2
+        with:
+          paths: target/site/jacoco/jacoco.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: Coverage report (unit)
+          min-coverage-overall: 60
+          min-coverage-changed-files: 60
