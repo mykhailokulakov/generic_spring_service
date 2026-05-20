@@ -3,6 +3,7 @@ package io.github.mykhailokulakov.genericspringservice.web.dto;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -20,7 +21,9 @@ public record CreateExampleRequest(
     @Schema(description = "Free-form description.") String description,
     @Schema(description = "Quantity on hand. Must be >= 0.", example = "10") @Min(0)
         Integer quantity,
-    @Schema(description = "Unit price. Must be >= 0.", example = "19.99") @DecimalMin("0.0")
+    @Schema(description = "Unit price. Must be >= 0.", example = "19.99")
+        @DecimalMin("0.0")
+        @Digits(integer = 17, fraction = 2)
         BigDecimal price,
     @Schema(description = "Business event timestamp (UTC).") Instant occurredAt,
     @Schema(description = "Lifecycle status.", example = "DRAFT") @NotNull ExampleStatus status,
