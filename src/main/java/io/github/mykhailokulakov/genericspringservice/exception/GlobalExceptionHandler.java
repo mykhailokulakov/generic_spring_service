@@ -13,6 +13,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -55,13 +56,16 @@ public class GlobalExceptionHandler {
     pd.setDetail(messages.getMessage(ErrorCode.VALIDATION_FAILED.key(), null, locale));
     pd.setProperty("code", ErrorCode.VALIDATION_FAILED.key());
     List<Map<String, Object>> violations =
-        ex.getBindingResult().getFieldErrors().stream()
+        ex.getBindingResult().getAllErrors().stream()
             .map(
-                fe ->
+                error ->
                     Map.<String, Object>of(
-                        "field", fe.getField(),
-                        "code", fe.getCode() == null ? "" : fe.getCode(),
-                        "message", messages.getMessage(fe, locale)))
+                        "field",
+                        (error instanceof FieldError fe) ? fe.getField() : error.getObjectName(),
+                        "code",
+                        error.getCode() == null ? "" : error.getCode(),
+                        "message",
+                        messages.getMessage(error, locale)))
             .toList();
     pd.setProperty("violations", violations);
     return pd;
