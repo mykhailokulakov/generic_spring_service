@@ -30,4 +30,4 @@ public record UpdateExampleRequest(
         BigDecimal price,
     @Schema(description = "Business event timestamp (UTC).") @NotNull Instant occurredAt,
     @Schema(description = "Lifecycle status.", example = "ACTIVE") @NotNull ExampleStatus status,
-    @Schema(description = "Free-form tags.") @NotNull Set<@Size(min = 1, max = 64) String> tags) {}
+    @Schema(description = "Free-form tags.") @NotNull Set<@NotBlank @Size(max = 64) String> tags) {}

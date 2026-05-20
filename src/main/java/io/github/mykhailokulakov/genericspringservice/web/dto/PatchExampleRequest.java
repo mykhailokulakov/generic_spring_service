@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -28,4 +29,4 @@ public record PatchExampleRequest(
     @Schema(description = "Business event timestamp (UTC).") Instant occurredAt,
     @Schema(description = "Lifecycle status.") ExampleStatus status,
     @Schema(description = "Free-form tags. When provided, replaces the entire set.")
-        Set<@Size(min = 1, max = 64) String> tags) {}
+        Set<@NotBlank @Size(max = 64) String> tags) {}

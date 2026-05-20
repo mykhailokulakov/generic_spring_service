@@ -27,4 +27,4 @@ public record CreateExampleRequest(
         BigDecimal price,
     @Schema(description = "Business event timestamp (UTC).") Instant occurredAt,
     @Schema(description = "Lifecycle status.", example = "DRAFT") @NotNull ExampleStatus status,
-    @Schema(description = "Free-form tags.") Set<@Size(min = 1, max = 64) String> tags) {}
+    @Schema(description = "Free-form tags.") Set<@NotBlank @Size(max = 64) String> tags) {}
