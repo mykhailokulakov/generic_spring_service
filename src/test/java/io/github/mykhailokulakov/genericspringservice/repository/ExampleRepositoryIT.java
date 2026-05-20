@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
+import io.github.mykhailokulakov.genericspringservice.support.containers.postgres.WithPostgres;
 import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleFilter;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -23,21 +24,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
- * Inline Testcontainers setup — the reusable {@code @WithPostgres} extension lands in prompt 11.
- *
- * <p>Spring Boot 4 dropped the {@code @DataJpaTest} slice in favor of full {@code @SpringBootTest}
+ * Spring Boot 4 dropped the {@code @DataJpaTest} slice in favor of full {@code @SpringBootTest}
  * with explicit autoconfig excludes; we exclude the security + OAuth2 resource-server
  * autoconfigurations so this slice does not need a live Keycloak.
  */
-@Testcontainers
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.NONE,
     properties = {
@@ -47,21 +40,8 @@ import org.testcontainers.utility.DockerImageName;
     })
 @ActiveProfiles("test")
 @Transactional
+@WithPostgres
 class ExampleRepositoryIT {
-
-  static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"));
-
-  static {
-    POSTGRES.start();
-  }
-
-  @DynamicPropertySource
-  static void datasourceProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
-  }
 
   @Autowired ExampleRepository repository;
   @Autowired EntityManager em;

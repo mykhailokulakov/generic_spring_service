@@ -6,6 +6,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
+import io.github.mykhailokulakov.genericspringservice.support.containers.postgres.WithPostgres;
 import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleFilter;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -22,14 +23,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
-@Testcontainers
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.NONE,
     properties = {
@@ -39,21 +34,8 @@ import org.testcontainers.utility.DockerImageName;
     })
 @ActiveProfiles("test")
 @Transactional
+@WithPostgres
 class ExampleSearchNPlusOneIT {
-
-  static final PostgreSQLContainer<?> POSTGRES =
-      new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"));
-
-  static {
-    POSTGRES.start();
-  }
-
-  @DynamicPropertySource
-  static void datasourceProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
-  }
 
   @Autowired ExampleRepository repository;
   @Autowired EntityManager em;
