@@ -1,7 +1,6 @@
 {
   "realm": "generic",
   "enabled": true,
-  "description": "Non-production test realm used by the integration test Keycloak container.",
   "sslRequired": "none",
   "accessTokenLifespan": 3600,
   "roles": {
@@ -27,12 +26,22 @@
     {
       "username": "admin",
       "enabled": true,
+      "emailVerified": true,
+      "email": "admin@example.com",
+      "firstName": "Admin",
+      "lastName": "User",
+      "requiredActions": [],
       "credentials": [{ "type": "password", "value": "admin", "temporary": false }],
       "realmRoles": ["ADMIN", "USER"]
     },
     {
       "username": "user",
       "enabled": true,
+      "emailVerified": true,
+      "email": "user@example.com",
+      "firstName": "Test",
+      "lastName": "User",
+      "requiredActions": [],
       "credentials": [{ "type": "password", "value": "user", "temporary": false }],
       "realmRoles": ["USER"]
     }
