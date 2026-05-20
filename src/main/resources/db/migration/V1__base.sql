@@ -1,0 +1,18 @@
+-- V1__base.sql
+--
+-- Baseline migration. Intentionally empty.
+--
+-- Migration strategy: each entity owns its own forward migration
+-- (V2__example.sql, V3__..., and so on). This baseline exists only
+-- to anchor the Flyway history table and to document the policy:
+--
+--   * No shared schema is provided here. The four-class persistence
+--     chain (Identifiable -> Auditable -> Versioned -> SoftDeletable)
+--     is @MappedSuperclass only; the columns it contributes (id,
+--     created_at, updated_at, version, deleted_at) are emitted by
+--     each concrete entity's own table.
+--   * Per-entity migrations add the table, its indexes, and any
+--     entity-specific columns. They never touch another entity's
+--     schema.
+--   * ddl-auto is `validate`; the database is the source of truth
+--     and JPA mappings must match.
