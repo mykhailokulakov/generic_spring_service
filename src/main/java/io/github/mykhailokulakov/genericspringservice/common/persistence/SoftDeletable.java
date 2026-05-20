@@ -1,29 +1,16 @@
 package io.github.mykhailokulakov.genericspringservice.common.persistence;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
-import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.SoftDelete;
+import org.hibernate.annotations.SoftDeleteType;
 
 @MappedSuperclass
+@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public abstract class SoftDeletable extends Versioned {
-
-  @Column(name = "deleted_at")
-  @Setter(AccessLevel.PROTECTED)
-  private Instant deletedAt;
-
-  public void markDeleted() {
-    this.deletedAt = Instant.now();
-  }
-
-  public boolean isDeleted() {
-    return deletedAt != null;
-  }
-}
+public abstract class SoftDeletable extends Versioned {}
