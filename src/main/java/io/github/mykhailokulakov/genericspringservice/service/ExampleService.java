@@ -7,10 +7,14 @@ import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.ExampleEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
+import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
+import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +36,11 @@ public class ExampleService {
         .findById(id)
         .map(mapper::toModel)
         .orElseThrow(() -> new NotFoundException(ErrorCode.EXAMPLE_NOT_FOUND, id));
+  }
+
+  @Transactional(readOnly = true)
+  public Page<Example> search(ExampleFilter filter, Pageable pageable) {
+    return repository.findAll(ExampleSpecifications.matches(filter), pageable).map(mapper::toModel);
   }
 
   public Example replace(UUID id, Long expectedVersion, Example replacement) {

@@ -46,7 +46,7 @@ jobs:
           cache: maven
 
       - name: Build
-        run: ./mvnw -q -DskipTests verify
+        run: ./mvnw -q -DskipTests -Djacoco.check.skip=true verify
 
       - name: Upload jar artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -113,16 +113,86 @@ jobs:
           path: target/jacoco.exec
           if-no-files-found: warn
 
+  integration-test:
+    name: Integration tests (mvn verify, skip unit)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # Docker is preinstalled on ubuntu-24.04 runners; Testcontainers' ryuk
+      # reaper works against the default Docker socket without extra setup.
+      # We configure mirror.gcr.io as a registry mirror so Docker Hub pulls
+      # (postgres, testcontainers/ryuk) fall through the mirror — unauthenticated
+      # Docker Hub pulls from GitHub Actions runners frequently hit the rate
+      # limit, and mirror.gcr.io has no such limit for public images.
+      - name: Configure Docker registry mirror
+        run: |
+          sudo mkdir -p /etc/docker
+          echo '{"registry-mirrors":["https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker version
+
+      - name: Run integration tests
+        run: ./mvnw -q verify -DskipUnitTests=true -Djacoco.check.skip=true
+
+      - name: Upload Failsafe reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: failsafe-reports
+          path: target/failsafe-reports/*.xml
+          if-no-files-found: warn
+
+      - name: Publish IT test report
+        if: always()
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
+        with:
+          name: Integration tests
+          # Failsafe writes both per-class TEST-*.xml (JUnit format) and a
+          # failsafe-summary.xml (its own schema) — the reporter can't parse
+          # the summary, so we match only the per-class JUnit files.
+          path: target/failsafe-reports/TEST-*.xml
+          reporter: java-junit
+          fail-on-error: 'false'
+
+      - name: Upload JaCoCo integration coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-integration
+          path: target/site/jacoco-it/
+          if-no-files-found: warn
+
+      - name: Upload JaCoCo IT exec data
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: jacoco-it-exec
+          path: target/jacoco-it.exec
+          if-no-files-found: warn
+
   coverage-gate:
     # TEMPORARY: runs jacoco:check with the `ci-coverage-initial` profile, which
-    # lowers the JaCoCo gate to 60% line / 50% branch. The project default
-    # remains 80%/80% (see pom.xml). This lower CI floor exists ONLY because the
-    # integration test suite has not yet landed (it arrives in prompt 14). When
-    # that suite lands, both the `ci-coverage-initial` profile AND this notice
-    # must be removed so CI enforces the full project default.
-    name: Coverage gate (60%/50% TEMPORARY floor)
+    # currently gates at 70% line / 60% branch (stepped up from prompt 5's
+    # 60%/50%). The project default remains 80%/80% (see pom.xml). This stepped
+    # floor exists ONLY while we grow the test suite toward the 80%/80% target,
+    # which lands in prompt 14. When that lands, both the `ci-coverage-initial`
+    # profile AND this notice must be removed so CI enforces the project default.
+    name: Coverage gate (70%/60% TEMPORARY floor)
     runs-on: ubuntu-24.04
-    needs: [unit-test]
+    needs: [unit-test, integration-test]
     permissions:
       contents: read
       pull-requests: write
@@ -137,34 +207,71 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Download JaCoCo exec data
+      - name: Download unit JaCoCo exec data
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: jacoco-exec
           path: target/
 
-      - name: Download JaCoCo coverage report
+      - name: Download IT JaCoCo exec data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: jacoco-it-exec
+          path: target/
+
+      - name: Download unit JaCoCo coverage report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: coverage-unit
           path: target/site/jacoco/
 
-      # jacoco:check needs target/classes to evaluate the rules against
-      # actual bytecode. Without it the bundle is empty, the COVEREDRATIO
-      # limits have 0 instructions, and the gate silently passes — so we
-      # rebuild classes here before running the check.
+      # jacoco:check / jacoco:merge / jacoco:report need target/classes to
+      # evaluate against actual bytecode. Without it the bundle is empty,
+      # the COVEREDRATIO limits have 0 instructions, and the gate silently
+      # passes — so we rebuild classes here before running.
       - name: Compile main sources
         run: ./mvnw -q -DskipTests compile
 
-      - name: Enforce coverage gate (TEMPORARY 60%/50% floor)
-        run: ./mvnw -q jacoco:check -Pci-coverage-initial
+      - name: Merge unit + IT JaCoCo exec data
+        run: ./mvnw -q jacoco:merge@merge
 
-      - name: Comment coverage diff on PR
-        if: github.event_name == 'pull_request'
-        uses: madrapps/jacoco-report@50d3aff4548aa991e6753342d9ba291084e63848 # v1.7.2
-        with:
-          paths: target/site/jacoco/jacoco.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          title: Coverage report (unit)
-          min-coverage-overall: 60
-          min-coverage-changed-files: 60
+      - name: Generate merged JaCoCo report
+        run: ./mvnw -q jacoco:report -Djacoco.dataFile=target/jacoco-merged.exec
+
+      - name: Enforce merged coverage gate (TEMPORARY 70%/60% floor)
+        run: ./mvnw -q jacoco:check@check -Pci-coverage-initial
+
+      # Surface bundle coverage in the job summary instead of as a PR comment.
+      - name: Write coverage summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          import os
+
+          report = "target/site/jacoco/jacoco.xml"
+          if not os.path.exists(report):
+              print("## Coverage report (unit + integration)\n")
+              print("_No JaCoCo report found._")
+              raise SystemExit(0)
+
+          root = ET.parse(report).getroot()
+          counters = {c.get("type"): (int(c.get("missed")), int(c.get("covered")))
+                      for c in root.findall("counter")}
+
+          def fmt(t):
+              m, cov = counters.get(t, (0, 0))
+              total = m + cov
+              pct = f"{100.0 * cov / total:.2f}%" if total else "n/a"
+              return f"| {t.title()} | {cov} / {total} | {pct} |"
+
+          print("## Coverage report (unit + integration)")
+          print()
+          print("Gate (temporary): 70% line, 60% branch. Project default: 80% / 80%.")
+          print()
+          print("| Counter | Covered / Total | Percentage |")
+          print("| --- | --- | --- |")
+          for t in ("INSTRUCTION", "BRANCH", "LINE", "COMPLEXITY", "METHOD", "CLASS"):
+              if t in counters:
+                  print(fmt(t))
+          PY

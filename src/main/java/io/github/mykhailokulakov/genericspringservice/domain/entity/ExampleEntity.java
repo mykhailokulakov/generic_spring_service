@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.BatchSize;
 
 @Entity
 @Table(
@@ -54,12 +55,19 @@ public class ExampleEntity extends SoftDeletable {
   @Column(name = "status", nullable = false, length = 32)
   private ExampleStatus status;
 
+  // @BatchSize bounds tag fetching when iterating a page of entities: instead
+  // of one SELECT per entity (the N+1 trap), Hibernate batches up to 50 owner
+  // IDs into a single `WHERE example_id IN (...)` query. Combined with the
+  // repository's plain (non-fetch-joined) paginated method, this keeps the
+  // main query paginated at SQL level — fetch-joining the collection would
+  // force Hibernate to apply firstResult/maxResults in memory.
   @ElementCollection(fetch = FetchType.LAZY)
   @CollectionTable(
       name = "example_tag",
       joinColumns = @JoinColumn(name = "example_id"),
       indexes = @Index(name = "ix_example_tag_value", columnList = "tag"))
   @Column(name = "tag", nullable = false, length = 64)
+  @BatchSize(size = 50)
   @Builder.Default
   private Set<String> tags = new HashSet<>();
 }
