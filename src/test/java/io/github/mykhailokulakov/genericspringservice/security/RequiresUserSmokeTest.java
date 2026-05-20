@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
@@ -64,7 +65,7 @@ class RequiresUserSmokeTest {
   static class SmokeSecurityConfig {
     @Bean
     SecurityFilterChain smokeFilterChain(HttpSecurity http) throws Exception {
-      http.csrf(csrf -> csrf.disable())
+      http.csrf(AbstractHttpConfigurer::disable)
           .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
           .exceptionHandling(ex -> ex.authenticationEntryPoint(new Http403ForbiddenEntryPoint()));
       return http.build();
