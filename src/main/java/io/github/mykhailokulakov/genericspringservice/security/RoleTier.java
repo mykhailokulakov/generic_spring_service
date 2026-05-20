@@ -9,9 +9,11 @@ public enum RoleTier {
   ADMIN_TIER(EnumSet.of(Role.ADMIN));
 
   private final Set<Role> roles;
+  private final String[] names;
 
   RoleTier(Set<Role> roles) {
     this.roles = Collections.unmodifiableSet(roles);
+    this.names = roles.stream().map(Enum::name).toArray(String[]::new);
   }
 
   public Set<Role> roles() {
@@ -19,6 +21,6 @@ public enum RoleTier {
   }
 
   public String[] names() {
-    return roles.stream().map(Enum::name).toArray(String[]::new);
+    return names.clone();
   }
 }
