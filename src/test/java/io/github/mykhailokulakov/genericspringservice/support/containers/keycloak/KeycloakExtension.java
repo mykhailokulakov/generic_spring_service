@@ -14,7 +14,7 @@ import org.testcontainers.utility.DockerImageName;
 
 public class KeycloakExtension implements BeforeAllCallback {
 
-  private static final Map<String, Holder> CONTAINERS = new ConcurrentHashMap<>();
+  private static final Map<ContainerKey, Holder> CONTAINERS = new ConcurrentHashMap<>();
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   @Override
@@ -26,19 +26,20 @@ public class KeycloakExtension implements BeforeAllCallback {
     }
 
     for (WithKeycloak decl : declarations) {
+      ContainerKey key = new ContainerKey(decl.name(), decl.image(), decl.realmImport());
       Holder holder =
           CONTAINERS.computeIfAbsent(
-              decl.name(),
-              name -> {
+              key,
+              k -> {
                 KeycloakContainer container =
                     new KeycloakContainer(
-                            DockerImageName.parse(decl.image())
+                            DockerImageName.parse(k.image())
                                 .asCompatibleSubstituteFor("quay.io/keycloak/keycloak")
                                 .toString())
-                        .withRealmImportFile(decl.realmImport())
+                        .withRealmImportFile(k.realmImport())
                         .withReuse(true);
-                container.withLabel("tc.name", name);
-                return new Holder(container, readRealmName(decl.realmImport()));
+                container.withLabel("tc.name", k.name());
+                return new Holder(container, readRealmName(k.realmImport()));
               });
       if (!holder.container.isRunning()) {
         holder.container.start();
@@ -106,6 +107,8 @@ public class KeycloakExtension implements BeforeAllCallback {
       }
     };
   }
+
+  private record ContainerKey(String name, String image, String realmImport) {}
 
   private record Holder(KeycloakContainer container, String realmName) {}
 }

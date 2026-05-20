@@ -10,7 +10,8 @@ import org.testcontainers.utility.DockerImageName;
 
 public class PostgresExtension implements BeforeAllCallback {
 
-  private static final Map<String, PostgreSQLContainer<?>> CONTAINERS = new ConcurrentHashMap<>();
+  private static final Map<ContainerKey, PostgreSQLContainer<?>> CONTAINERS =
+      new ConcurrentHashMap<>();
 
   @Override
   public void beforeAll(ExtensionContext ctx) {
@@ -21,12 +22,13 @@ public class PostgresExtension implements BeforeAllCallback {
     }
 
     for (WithPostgres decl : declarations) {
+      ContainerKey key = new ContainerKey(decl.name(), decl.image());
       PostgreSQLContainer<?> container =
           CONTAINERS.computeIfAbsent(
-              decl.name(),
-              name ->
-                  new PostgreSQLContainer<>(DockerImageName.parse(decl.image()))
-                      .withLabel("tc.name", name)
+              key,
+              k ->
+                  new PostgreSQLContainer<>(DockerImageName.parse(k.image()))
+                      .withLabel("tc.name", k.name())
                       .withReuse(true));
       if (!container.isRunning()) {
         container.start();
@@ -34,6 +36,8 @@ public class PostgresExtension implements BeforeAllCallback {
       exportProperties(decl.name(), container);
     }
   }
+
+  private record ContainerKey(String name, String image) {}
 
   private void exportProperties(String name, PostgreSQLContainer<?> container) {
     if ("default".equals(name)) {

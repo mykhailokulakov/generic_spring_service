@@ -49,11 +49,25 @@ public class TestJwtFactory {
 
   /** Build a factory pointed at the default {@code @WithKeycloak} container without Spring DI. */
   public static TestJwtFactory forDefaultContainer() {
-    String issuerUri = System.getProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri");
+    return forContainer("default");
+  }
+
+  /**
+   * Build a factory pointed at a named {@code @WithKeycloak} container without Spring DI. Pass
+   * {@code "default"} for the unnamed container.
+   */
+  public static TestJwtFactory forContainer(String name) {
+    String property =
+        "default".equals(name)
+            ? "spring.security.oauth2.resourceserver.jwt.issuer-uri"
+            : "testcontainers.keycloak." + name + ".issuer-uri";
+    String issuerUri = System.getProperty(property);
     if (issuerUri == null) {
       throw new IllegalStateException(
-          "spring.security.oauth2.resourceserver.jwt.issuer-uri is not set — "
-              + "did you forget @WithKeycloak on the test class?");
+          property
+              + " is not set — did you forget @WithKeycloak(name=\""
+              + name
+              + "\") on the test class?");
     }
     return new TestJwtFactory(issuerUri, DEFAULT_CLIENT_ID, DEFAULT_CLIENT_SECRET);
   }
