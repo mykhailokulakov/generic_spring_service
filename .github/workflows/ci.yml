@@ -133,8 +133,16 @@ jobs:
 
       # Docker is preinstalled on ubuntu-24.04 runners; Testcontainers' ryuk
       # reaper works against the default Docker socket without extra setup.
-      - name: Verify Docker is available
-        run: docker version
+      # We configure mirror.gcr.io as a registry mirror so Docker Hub pulls
+      # (postgres, testcontainers/ryuk) fall through the mirror — unauthenticated
+      # Docker Hub pulls from GitHub Actions runners frequently hit the rate
+      # limit, and mirror.gcr.io has no such limit for public images.
+      - name: Configure Docker registry mirror
+        run: |
+          sudo mkdir -p /etc/docker
+          echo '{"registry-mirrors":["https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker version
 
       - name: Run integration tests
         run: ./mvnw -q verify -DskipUnitTests=true -Djacoco.check.skip=true
@@ -152,7 +160,10 @@ jobs:
         uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
         with:
           name: Integration tests
-          path: target/failsafe-reports/*.xml
+          # Failsafe writes both per-class TEST-*.xml (JUnit format) and a
+          # failsafe-summary.xml (its own schema) — the reporter can't parse
+          # the summary, so we match only the per-class JUnit files.
+          path: target/failsafe-reports/TEST-*.xml
           reporter: java-junit
           fail-on-error: 'false'
 
