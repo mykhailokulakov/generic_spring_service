@@ -147,6 +147,18 @@ Lombok keeps these responsibilities — the language does not have an equivalent
 - `@SuperBuilder` — on the persistence chain.
 - `@NoArgsConstructor(access = PROTECTED)` — on `@MappedSuperclass` and `@Entity` classes (JPA requirement).
 
+### 3.11 Design vs argument
+
+DESIGN.md records decisions that have been reasoned through. Each entry captures what was chosen, what was rejected, and the rationale behind both. It is the source of truth for settled architectural and engineering choices in this project.
+
+It is not a shield against new arguments. It does not preempt review. It does not authorize dismissing a concern by citation alone. "DESIGN.md says so" is never a sufficient response to a substantive objection — from a human, from an automated tool, from a future contributor, or from Claude Code itself. A decision is only as good as the reasoning that produced it, and that reasoning is always open to a better one.
+
+When a reviewer raises a concern that conflicts with the current design, engage with the argument on its merits. The question is whether the new argument is stronger than the reasoning DESIGN.md already records. If it is, update DESIGN.md and the code together, in the same commit — the design changes because the reasoning changed. If the existing design is stronger, record the rejection here, with the counter-argument and why it didn't carry; the next reviewer should find the analysis already done and not have to re-litigate from scratch. If it is genuinely unclear which is stronger, that means the design hasn't been thought through enough yet — pause, think it through, decide, document.
+
+Disagreement is the work, not friction. A reviewer raising a real concern has already done part of the design work: they have identified a weakness worth examining. Engaging is required; capitulating is not. The goal is the right answer, not consensus.
+
+Automated reviewers generate noise alongside signal. The right response to noise is to acknowledge and reject with reasoning, not to mute. If the same bot raises the same noise repeatedly, that is itself a signal worth investigating — either the bot is right and we are underweighting it, or the rule the bot encodes belongs in our own enforcement (lint config, ArchUnit rule, CI check) where we control it and the noise stops at the source.
+
 ---
 
 ## 4. Architectural overview
