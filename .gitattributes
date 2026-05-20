@@ -1,0 +1,43 @@
+# Normalize line endings to LF on checkin
+* text=auto eol=lf
+
+# Source
+*.java     text eol=lf
+*.kt       text eol=lf
+*.groovy   text eol=lf
+*.scala    text eol=lf
+*.xml      text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.json     text eol=lf
+*.properties text eol=lf
+*.md       text eol=lf
+*.sql      text eol=lf
+*.sh       text eol=lf
+*.txt      text eol=lf
+*.html     text eol=lf
+*.css      text eol=lf
+*.js       text eol=lf
+Dockerfile text eol=lf
+
+# Scripts
+mvnw       text eol=lf
+gradlew    text eol=lf
+
+# Windows batch files keep CRLF
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+
+# Binary
+*.jar      binary
+*.war      binary
+*.ear      binary
+*.zip      binary
+*.tar.gz   binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.ico      binary
+*.pdf      binary
+*.class    binary

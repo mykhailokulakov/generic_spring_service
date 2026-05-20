@@ -20,7 +20,7 @@ This document is the source of truth for *what* we are building and *why*. The C
 | Maven | 3.9.x | |
 | MapStruct | 1.6.x | |
 | Lombok | 1.18.x | + lombok-mapstruct-binding |
-| springdoc-openapi | 2.x | OpenAPI 3.1 + Swagger UI |
+| springdoc-openapi | 3.x | OpenAPI 3.1 + Swagger UI. 3.x targets Spring Boot 4; 2.x is for Spring Boot 3. |
 | Testcontainers | 1.20.x | Postgres + Keycloak modules |
 | RestAssured | 5.5.x | Integration tests |
 | ArchUnit | 1.3.x | Architectural rule enforcement |
@@ -1022,12 +1022,13 @@ Dependencies grouped by vendor, separated by comment lines. Section order is fix
 
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
-        <springdoc.version>2.7.0</springdoc.version>
-        <testcontainers.version>1.20.4</testcontainers.version>
-        <testcontainers-keycloak.version>3.5.1</testcontainers-keycloak.version>
-        <restassured.version>5.5.0</restassured.version>
-        <archunit.version>1.3.0</archunit.version>
-        <logstash-logback-encoder.version>8.0</logstash-logback-encoder.version>
+        <springdoc.version>3.0.3</springdoc.version>
+        <testcontainers.version>1.20.6</testcontainers.version>
+        <testcontainers-keycloak.version>3.7.0</testcontainers-keycloak.version>
+        <restassured.version>5.5.7</restassured.version>
+        <archunit.version>1.3.2</archunit.version>
+        <logstash-logback-encoder.version>8.1</logstash-logback-encoder.version>
+        <spotless-maven-plugin.version>2.44.5</spotless-maven-plugin.version>
 
         <jacoco.minimum.line.coverage>0.80</jacoco.minimum.line.coverage>
         <jacoco.minimum.branch.coverage>0.80</jacoco.minimum.branch.coverage>
@@ -1099,6 +1100,7 @@ Dependencies grouped by vendor, separated by comment lines. Section order is fix
         <dependency>
             <groupId>org.hibernate.orm</groupId>
             <artifactId>hibernate-jpamodelgen</artifactId>
+            <version>${hibernate.version}</version>
             <scope>provided</scope>
         </dependency>
 
@@ -1207,6 +1209,7 @@ Dependencies grouped by vendor, separated by comment lines. Section order is fix
                         <path>
                             <groupId>org.hibernate.orm</groupId>
                             <artifactId>hibernate-jpamodelgen</artifactId>
+                            <version>${hibernate.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
@@ -1265,9 +1268,12 @@ Dependencies grouped by vendor, separated by comment lines. Section order is fix
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless-maven-plugin.version}</version>
                 <configuration>
                     <java>
-                        <googleJavaFormat/>
+                        <googleJavaFormat>
+                            <version>1.35.0</version>
+                        </googleJavaFormat>
                         <removeUnusedImports/>
                         <importOrder/>
                         <trimTrailingWhitespace/>
