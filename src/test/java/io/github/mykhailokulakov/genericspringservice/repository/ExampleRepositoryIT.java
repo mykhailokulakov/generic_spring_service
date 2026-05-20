@@ -358,6 +358,34 @@ class ExampleRepositoryIT {
   }
 
   @Test
+  void tagsContainsAny_blanksAreIgnoredAndAllBlanksDropsFilter() {
+    persist("a", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("red"));
+    persist("b", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("blue"));
+
+    // Blank-only tag set must drop the filter entirely, returning every row.
+    Set<String> blanksOnly = new HashSet<>();
+    blanksOnly.add("");
+    blanksOnly.add("   ");
+    ExampleFilter allBlank =
+        new ExampleFilter(null, null, null, null, null, null, null, null, null, blanksOnly);
+    Page<ExampleEntity> allBlankPage =
+        repository.findAll(ExampleSpecifications.matches(allBlank), Pageable.unpaged());
+    assertThat(allBlankPage.getContent())
+        .extracting(ExampleEntity::getName)
+        .containsExactlyInAnyOrder("a", "b");
+
+    // Mix of blank + real tag must filter on the real tag only.
+    Set<String> mixed = new HashSet<>();
+    mixed.add(" ");
+    mixed.add("red");
+    ExampleFilter mixedFilter =
+        new ExampleFilter(null, null, null, null, null, null, null, null, null, mixed);
+    Page<ExampleEntity> mixedPage =
+        repository.findAll(ExampleSpecifications.matches(mixedFilter), Pageable.unpaged());
+    assertThat(mixedPage.getContent()).extracting(ExampleEntity::getName).containsExactly("a");
+  }
+
+  @Test
   void nameContains_treatsPercentAndUnderscoreAsLiterals() {
     persist("100%", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
     persist("1000", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());

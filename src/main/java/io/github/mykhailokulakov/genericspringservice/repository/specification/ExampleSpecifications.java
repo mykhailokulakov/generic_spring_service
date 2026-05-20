@@ -112,14 +112,20 @@ public final class ExampleSpecifications {
   // requested tag — DISTINCT fixes the page query but the separate count query
   // would still report an inflated total. cb.isMember translates to an EXISTS-
   // style check, leaving both data and count queries one-row-per-entity.
+  //
+  // Null/blank tags are filtered out so they don't reach cb.isMember. If the
+  // request contained only blanks, the whole filter is dropped (returns null)
+  // rather than producing a predicate that matches nothing.
   private static Specification<ExampleEntity> hasAnyTag(Set<String> tags) {
     if (tags == null || tags.isEmpty()) return null;
-    return Specification.anyOf(
+    List<Specification<ExampleEntity>> specs =
         tags.stream()
+            .filter(StringUtils::hasText)
             .map(
                 tag ->
                     (Specification<ExampleEntity>)
                         (root, q, cb) -> cb.isMember(tag, root.get(ExampleEntity_.tags)))
-            .toList());
+            .toList();
+    return specs.isEmpty() ? null : Specification.anyOf(specs);
   }
 }
