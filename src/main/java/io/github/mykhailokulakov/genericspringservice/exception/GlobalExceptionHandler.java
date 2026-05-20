@@ -10,18 +10,23 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 @RestControllerAdvice
 @RequiredArgsConstructor
 @Slf4j
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   private static final String PROBLEM_TYPE_BASE = "https://generic-spring-service/problems/";
 
@@ -47,9 +52,13 @@ public class GlobalExceptionHandler {
     return problem(HttpStatus.BAD_REQUEST, ex, locale, "validation");
   }
 
-  @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ProblemDetail handleMethodArgumentNotValid(
-      MethodArgumentNotValidException ex, Locale locale) {
+  @Override
+  protected ResponseEntity<Object> handleMethodArgumentNotValid(
+      MethodArgumentNotValidException ex,
+      HttpHeaders headers,
+      HttpStatusCode status,
+      WebRequest request) {
+    Locale locale = request.getLocale();
     ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
     pd.setType(URI.create(PROBLEM_TYPE_BASE + "validation"));
     pd.setTitle(messages.getMessage("error.validation.title", null, locale));
@@ -68,7 +77,7 @@ public class GlobalExceptionHandler {
                         messages.getMessage(error, locale)))
             .toList();
     pd.setProperty("violations", violations);
-    return pd;
+    return handleExceptionInternal(ex, pd, headers, HttpStatus.BAD_REQUEST, request);
   }
 
   @ExceptionHandler(ConstraintViolationException.class)
