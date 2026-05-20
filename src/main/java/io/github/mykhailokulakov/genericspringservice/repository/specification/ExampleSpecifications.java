@@ -43,14 +43,23 @@ public final class ExampleSpecifications {
 
   private static Specification<ExampleEntity> nameContains(String value) {
     if (!StringUtils.hasText(value)) return null;
-    String pattern = "%" + value.toLowerCase() + "%";
-    return (root, q, cb) -> cb.like(cb.lower(root.get(ExampleEntity_.name)), pattern);
+    String pattern = "%" + escapeLikePattern(value).toLowerCase() + "%";
+    return (root, q, cb) -> cb.like(cb.lower(root.get(ExampleEntity_.name)), pattern, LIKE_ESCAPE);
   }
 
   private static Specification<ExampleEntity> descriptionContains(String value) {
     if (!StringUtils.hasText(value)) return null;
-    String pattern = "%" + value.toLowerCase() + "%";
-    return (root, q, cb) -> cb.like(cb.lower(root.get(ExampleEntity_.description)), pattern);
+    String pattern = "%" + escapeLikePattern(value).toLowerCase() + "%";
+    return (root, q, cb) ->
+        cb.like(cb.lower(root.get(ExampleEntity_.description)), pattern, LIKE_ESCAPE);
+  }
+
+  // Escape character used in LIKE patterns so user-supplied `%` / `_` literals
+  // don't act as wildcards.
+  private static final char LIKE_ESCAPE = '\\';
+
+  private static String escapeLikePattern(String value) {
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
   private static Specification<ExampleEntity> quantityBetween(Integer min, Integer max) {
@@ -97,14 +106,19 @@ public final class ExampleSpecifications {
     return (root, q, cb) -> root.get(ExampleEntity_.status).in(statuses);
   }
 
+  // Uses cb.isMember per tag OR'd together rather than a join. A join on the
+  // @ElementCollection multiplies rows for entities that match more than one
+  // requested tag — DISTINCT fixes the page query but the separate count query
+  // would still report an inflated total. cb.isMember translates to an EXISTS-
+  // style check, leaving both data and count queries one-row-per-entity.
   private static Specification<ExampleEntity> hasAnyTag(Set<String> tags) {
     if (tags == null || tags.isEmpty()) return null;
-    return (root, q, cb) -> {
-      Class<?> resultType = q.getResultType();
-      if (resultType != Long.class && resultType != long.class) {
-        q.distinct(true);
-      }
-      return root.join(ExampleEntity_.tags).in(tags);
-    };
+    return Specification.anyOf(
+        tags.stream()
+            .map(
+                tag ->
+                    (Specification<ExampleEntity>)
+                        (root, q, cb) -> cb.isMember(tag, root.get(ExampleEntity_.tags)))
+            .toList());
   }
 }

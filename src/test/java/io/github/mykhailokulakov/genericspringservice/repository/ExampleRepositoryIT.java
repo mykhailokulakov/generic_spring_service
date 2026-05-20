@@ -340,6 +340,46 @@ class ExampleRepositoryIT {
   }
 
   @Test
+  void tagsContainsAny_doesNotInflatePageCountForMultiMatch() {
+    // Entity has 2 of the 3 requested tags — must still count as ONE row,
+    // not two. A naive root.join(tags).in(...) inflates the count.
+    persist("multi", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("a", "b"));
+    persist("single", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("a"));
+
+    ExampleFilter f =
+        new ExampleFilter(null, null, null, null, null, null, null, null, null, Set.of("a", "b"));
+    Page<ExampleEntity> page =
+        repository.findAll(ExampleSpecifications.matches(f), PageRequest.of(0, 10));
+
+    assertThat(page.getTotalElements()).isEqualTo(2);
+    assertThat(page.getContent())
+        .extracting(ExampleEntity::getName)
+        .containsExactlyInAnyOrder("multi", "single");
+  }
+
+  @Test
+  void nameContains_treatsPercentAndUnderscoreAsLiterals() {
+    persist("100%", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
+    persist("1000", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
+    persist("a_b", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
+    persist("axb", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
+
+    Page<ExampleEntity> pct =
+        repository.findAll(
+            ExampleSpecifications.matches(
+                new ExampleFilter("100%", null, null, null, null, null, null, null, null, null)),
+            Pageable.unpaged());
+    assertThat(pct.getContent()).extracting(ExampleEntity::getName).containsExactly("100%");
+
+    Page<ExampleEntity> underscore =
+        repository.findAll(
+            ExampleSpecifications.matches(
+                new ExampleFilter("a_b", null, null, null, null, null, null, null, null, null)),
+            Pageable.unpaged());
+    assertThat(underscore.getContent()).extracting(ExampleEntity::getName).containsExactly("a_b");
+  }
+
+  @Test
   void nullFilter_returnsAll() {
     persist("a", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
     persist("b", null, 1, new BigDecimal("1"), T0, ExampleStatus.DRAFT, Set.of());
