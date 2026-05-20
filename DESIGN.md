@@ -143,7 +143,7 @@ OAuth2 Resource Server pattern. Service does not manage users. JWT validated aga
 
 ### 4.6 Soft delete + optimistic locking
 
-`SoftDeletable` provides `deletedAt` + `markDeleted()`. `@SQLRestriction("deleted_at IS NULL")` on the subclass hides soft-deleted rows from every query. `DELETE` sets `deletedAt = now()`. No restore endpoint. `Versioned` provides `@Version` for optimistic locking.
+`SoftDeletable` is annotated with Hibernate 7's `@SoftDelete(strategy = TIMESTAMP, columnName = "deleted_at")`. The annotation lives on the mapped superclass once and applies to every subclass: Hibernate auto-adds the equivalent of `WHERE deleted_at IS NULL` to all queries, and translates `repository.delete*()` into `UPDATE <table> SET deleted_at = current_timestamp WHERE id = ? AND version = ?`. Subclasses do not redeclare `@SQLRestriction` or `@SQLDelete`. `DELETE` is therefore safe by default — there is no way to call a repository delete method and have it bypass the soft-delete contract. No restore endpoint. `Versioned` provides `@Version` for optimistic locking; the generated soft-delete UPDATE includes the version check.
 
 ### 4.7 Observability
 
@@ -343,23 +343,11 @@ public abstract class Versioned extends Auditable {
 }
 
 @MappedSuperclass
+@SoftDelete(strategy = SoftDeleteType.TIMESTAMP, columnName = "deleted_at")
 @Getter
 @SuperBuilder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public abstract class SoftDeletable extends Versioned {
-
-    @Column(name = "deleted_at")
-    @Setter(AccessLevel.PROTECTED)
-    private Instant deletedAt;
-
-    public void markDeleted() {
-        this.deletedAt = Instant.now();
-    }
-
-    public boolean isDeleted() {
-        return deletedAt != null;
-    }
-}
+public abstract class SoftDeletable extends Versioned {}
 ```
 
 ### 6.2 `ExampleEntity`
@@ -372,7 +360,6 @@ public abstract class SoftDeletable extends Versioned {
            @Index(name = "ix_example_status", columnList = "status"),
            @Index(name = "ix_example_occurred_at", columnList = "occurred_at")
        })
-@SQLRestriction("deleted_at IS NULL")
 @Getter @Setter
 @SuperBuilder
 @NoArgsConstructor
@@ -524,8 +511,7 @@ public class ExampleService {
     public void softDelete(UUID id) {
         ExampleEntity entity = repository.findById(id)
             .orElseThrow(() -> new NotFoundException(ErrorCode.EXAMPLE_NOT_FOUND, id));
-        entity.markDeleted();
-        repository.save(entity);
+        repository.delete(entity); // @SoftDelete translates this to UPDATE deleted_at = now()
     }
 
     private ExampleEntity loadAndCheckVersion(UUID id, Long expectedVersion) {

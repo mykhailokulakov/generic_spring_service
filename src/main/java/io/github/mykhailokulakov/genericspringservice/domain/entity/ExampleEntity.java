@@ -20,7 +20,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.SQLRestriction;
 
 @Entity
 @Table(
@@ -30,7 +29,6 @@ import org.hibernate.annotations.SQLRestriction;
       @Index(name = "ix_example_status", columnList = "status"),
       @Index(name = "ix_example_occurred_at", columnList = "occurred_at")
     })
-@SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 @SuperBuilder
