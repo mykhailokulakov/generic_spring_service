@@ -44,13 +44,13 @@ public final class ExampleSpecifications {
 
   private static Specification<ExampleEntity> nameContains(String value) {
     if (!StringUtils.hasText(value)) return null;
-    String pattern = "%" + escapeLikePattern(value).toLowerCase(Locale.ROOT) + "%";
+    var pattern = "%" + escapeLikePattern(value).toLowerCase(Locale.ROOT) + "%";
     return (root, q, cb) -> cb.like(cb.lower(root.get(ExampleEntity_.name)), pattern, LIKE_ESCAPE);
   }
 
   private static Specification<ExampleEntity> descriptionContains(String value) {
     if (!StringUtils.hasText(value)) return null;
-    String pattern = "%" + escapeLikePattern(value).toLowerCase(Locale.ROOT) + "%";
+    var pattern = "%" + escapeLikePattern(value).toLowerCase(Locale.ROOT) + "%";
     return (root, q, cb) ->
         cb.like(cb.lower(root.get(ExampleEntity_.description)), pattern, LIKE_ESCAPE);
   }

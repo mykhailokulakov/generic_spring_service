@@ -1,6 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.exception;
 
-public abstract class DomainException extends RuntimeException {
+public abstract sealed class DomainException extends RuntimeException
+    permits NotFoundException, ConflictException, ValidationException, ForbiddenException {
 
   private final String messageKey;
   private final Object[] args;

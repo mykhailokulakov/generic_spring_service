@@ -96,6 +96,57 @@ A scaffolding tool that takes a new entity name and generates Entity + Repositor
 
 Top-level packages are layers, not features. Layer slicing only works if cross-layer leaks are mechanically prevented. ArchUnit enforces every rule listed in section 6.13. CI fails on violation.
 
+### 3.8 Modern Java features — what we use and what we don't
+
+The Java 25 feature set is generous; that is not a license to use everything. Each feature below is opt-in or opt-out for explicit reasons.
+
+- **Records** — used for DTOs and domain models. Required. Lombok `@Value` is not used (records are the idiomatic replacement).
+- **Sealed types** — used wherever a closed hierarchy is design intent. The `DomainException` family is sealed, permitting exactly `NotFoundException`, `ConflictException`, `ValidationException`, `ForbiddenException`. Required where it applies.
+- **Pattern matching for `instanceof`** — required wherever a cast follows an `instanceof` check. No `if (x instanceof Foo) { Foo f = (Foo) x; ... }`.
+- **Pattern matching for `switch`** — **NOT** used to replace `@ExceptionHandler` dispatch. Spring's mechanism is the idiomatic dispatch and a switch-over-type would fight it. Use it where it would otherwise be an `if`/`else` chain over types.
+- **Text blocks** — required for any multi-line string literal (SQL, JSON, expected test bodies). No `String s = "line1\n" + "line2\n" + ...`.
+- **Virtual threads** — enabled at the platform level via `spring.threads.virtual.enabled=true` (see section 8). Nothing application-level to add.
+- **Unnamed variables (`_`)** — use in catch blocks where the exception is unused (`catch (NumberFormatException _)`) and in lambda parameters that are unused (`(a, _) -> a`). Improves readability by signalling "this binding is intentionally ignored."
+- **String templates** — **NOT** used. JEP 459 was withdrawn and the feature is not in JDK 25. Do not reach for it.
+- **Stream gatherers** — not used in this template. Reach for them only if a fork has a genuine sequential-stream-with-state need.
+
+### 3.9 `var` policy
+
+Use `var` when the type is obvious from the right-hand side:
+
+- Constructor calls: `var users = new ArrayList<User>();`
+- Factory methods whose name encodes the type: `var users = List.of(u1, u2);`
+- Builder chains and fluent APIs where the result type appears at the end: `var http = HttpRequest.newBuilder().uri(...).GET().build();`
+- Method-local, short-lived variables (< ~10 lines from declaration to last use).
+
+Do NOT use `var`:
+
+- For primitives — write `int`, `long`, `double`, `boolean` explicitly.
+- When the right-hand side is a method call whose name doesn't reveal the type (`var data = process(input)` is forbidden — read `data` of what?).
+- When the inferred generic type would be misleading or wider than intended. Example: `realm.getOrDefault("roles", List.of())` infers `Object` because `getOrDefault` is `<V> V getOrDefault(K, V)` on a `Map<String, Object>`. Spell the type.
+- On fields — Java doesn't allow `var` on fields, and the principle (declared state deserves an explicit type) applies wherever it might.
+
+### 3.10 Lombok-vs-modern-Java boundary
+
+Lombok pre-dates many features in modern Java. Where the language now covers a Lombok responsibility, the language wins.
+
+| Lombok feature | Status | Replacement |
+|---|---|---|
+| `@Value` | **NOT** used | `record` |
+| `val` | **NOT** used | `var` |
+| `@Data` | **NOT** used | — (too broad; generates `equals`/`hashCode`/`toString` in places they shouldn't exist, especially entities) |
+| `@SneakyThrows` | **NOT** used | Exceptions are part of the contract; don't hide them. |
+| `@Accessors(chain/fluent)` | **NOT** used | Incompatible with Jackson, MapStruct, and JPA conventions. |
+| `@Cleanup` | **NOT** used | `try`-with-resources |
+
+Lombok keeps these responsibilities — the language does not have an equivalent:
+
+- `@Slf4j` — SLF4J logger declaration.
+- `@RequiredArgsConstructor` — constructor injection on services/controllers.
+- `@Getter` / `@Setter` — on JPA entities (records can't be entities).
+- `@SuperBuilder` — on the persistence chain.
+- `@NoArgsConstructor(access = PROTECTED)` — on `@MappedSuperclass` and `@Entity` classes (JPA requirement).
+
 ---
 
 ## 4. Architectural overview
@@ -160,6 +211,21 @@ Each container is its own JUnit 5 extension behind a meta-annotation. Each annot
 
 - Spring Boot Maven Plugin `build-image` goal → Paketo buildpacks → no Dockerfile maintained.
 - Image tagged `ghcr.io/mykhailokulakov/generic-spring-service:<version>`. PRs build the image but only `main` and tagged releases push it.
+
+### 4.10 API documentation via meta-annotations
+
+Sibling pattern to 4.5 — same composition idea, different cross-cutting concern. Lives in `web/annotation/`.
+
+- `ApiResponseDescriptions` — public static final String constants for the standard error descriptions ("Unauthenticated", "Forbidden — insufficient role", etc.). A wording change is one edit, not nine.
+- `@StandardApiResponses` — stacks 401 + 403, both `application/problem+json` with `ProblemDetail` schema. List-style reads.
+- `@ReadApiResponses` — stacks 401 + 403 + 404. Single-resource reads.
+- `@MutatingApiResponses` — stacks 400 + 401 + 403 + 409. POST endpoints.
+- `@VersionedWriteApiResponses` — stacks 400 + 401 + 403 + 404 + 409 + 412. PUT and PATCH endpoints that consume `If-Match`.
+- `@DeleteApiResponses` — stacks 401 + 403 + 404. DELETE endpoints.
+
+Controller methods compose: `@RequiresXxx` (auth, from `..security.annotation..`) + `@XxxApiResponses` (documentation, from `..web.annotation..`) + a method-level `@Operation(summary, description)` + one success `@ApiResponse` (`200`/`201`/`204`). Nothing else.
+
+New error responses must be added to the relevant meta-annotation, never inline on a controller. A forthcoming ArchUnit rule (section 6.13) will enforce that any annotation meta-annotated with `@ApiResponse` resides in `..web.annotation..`.
 
 ---
 
@@ -229,6 +295,14 @@ generic_spring_service/
 │   │   │   │   └── ExampleService.java          # concrete @Service, no interface
 │   │   │   └── web/
 │   │   │       ├── ExampleController.java
+│   │   │       ├── annotation/
+│   │   │       │   ├── ApiResponseDescriptions.java
+│   │   │       │   ├── StandardApiResponses.java
+│   │   │       │   ├── ReadApiResponses.java
+│   │   │       │   ├── MutatingApiResponses.java
+│   │   │       │   ├── VersionedWriteApiResponses.java
+│   │   │       │   ├── DeleteApiResponses.java
+│   │   │       │   └── package-info.java
 │   │   │       └── dto/
 │   │   │           ├── ExampleResponse.java
 │   │   │           ├── CreateExampleRequest.java
@@ -576,8 +650,11 @@ public class ExampleController {
 
     @GetMapping
     @RequiresUser
+    @Operation(summary = "Search examples")
+    @ApiResponse(responseCode = "200", description = "Page of matching examples.")
+    @StandardApiResponses
     public PageResponse<ExampleResponse> search(
-        @Valid ExampleFilter filter,
+        @Valid @ParameterObject ExampleFilter filter,
         @ParameterObject Pageable pageable
     ) {
         return PageResponse.of(service.search(filter, pageable).map(apiMapper::toResponse));
@@ -585,6 +662,9 @@ public class ExampleController {
 
     @GetMapping("/{id}")
     @RequiresUser
+    @Operation(summary = "Get an example by id")
+    @ApiResponse(responseCode = "200", description = "The example.")
+    @ReadApiResponses
     public ExampleResponse get(@PathVariable UUID id) {
         return apiMapper.toResponse(service.getById(id));
     }
@@ -592,15 +672,21 @@ public class ExampleController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @RequiresAdmin
+    @Operation(summary = "Create an example")
+    @ApiResponse(responseCode = "201", description = "The newly-created example.")
+    @MutatingApiResponses
     public ExampleResponse create(@Valid @RequestBody CreateExampleRequest req) {
         return apiMapper.toResponse(service.create(apiMapper.toModel(req)));
     }
 
     @PutMapping("/{id}")
     @RequiresAdmin
+    @Operation(summary = "Replace an example")
+    @ApiResponse(responseCode = "200", description = "The updated example.")
+    @VersionedWriteApiResponses
     public ExampleResponse replace(
         @PathVariable UUID id,
-        @RequestHeader("If-Match") Long expectedVersion,
+        @RequestHeader(value = "If-Match", required = false) Long expectedVersion,
         @Valid @RequestBody UpdateExampleRequest req
     ) {
         return apiMapper.toResponse(
@@ -609,9 +695,12 @@ public class ExampleController {
 
     @PatchMapping("/{id}")
     @RequiresAdmin
+    @Operation(summary = "Patch an example")
+    @ApiResponse(responseCode = "200", description = "The updated example.")
+    @VersionedWriteApiResponses
     public ExampleResponse patch(
         @PathVariable UUID id,
-        @RequestHeader("If-Match") Long expectedVersion,
+        @RequestHeader(value = "If-Match", required = false) Long expectedVersion,
         @Valid @RequestBody PatchExampleRequest req
     ) {
         return apiMapper.toResponse(service.patch(id, expectedVersion, req));
@@ -620,11 +709,16 @@ public class ExampleController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @RequiresAdmin
+    @Operation(summary = "Soft-delete an example")
+    @ApiResponse(responseCode = "204", description = "Deleted.")
+    @DeleteApiResponses
     public void delete(@PathVariable UUID id) {
         service.softDelete(id);
     }
 }
 ```
+
+`If-Match` is bound as `required = false` so the service's `IF_MATCH_REQUIRED` branch can run — Spring's default `required = true` would return a framework 400 before the method body executes, making the domain conflict path unreachable.
 
 ### 6.9 `GlobalExceptionHandler`
 
@@ -652,7 +746,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException ex, Locale locale) {
-        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        var pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         pd.setType(URI.create("https://generic-spring-service/problems/validation"));
         pd.setTitle(messages.getMessage("error.validation.title", null, locale));
         pd.setProperty("code", ErrorCode.VALIDATION_FAILED.key());
@@ -665,8 +759,12 @@ public class GlobalExceptionHandler {
         return pd;
     }
 
+    // Example of pattern-matching-for-instanceof where a cast would otherwise follow.
+    // Spring's @ExceptionHandler is the dispatch mechanism (section 3.8 — we do NOT
+    // hand-roll a switch over the DomainException hierarchy); this helper is invoked
+    // by handlers that already narrowed via @ExceptionHandler.
     private ProblemDetail problem(HttpStatus status, DomainException ex, Locale locale, String slug) {
-        ProblemDetail pd = ProblemDetail.forStatus(status);
+        var pd = ProblemDetail.forStatus(status);
         pd.setType(URI.create("https://generic-spring-service/problems/" + slug));
         pd.setTitle(messages.getMessage("error." + slug + ".title", null, locale));
         pd.setDetail(messages.getMessage(ex.getMessageKey(), ex.getArgs(), locale));
@@ -675,6 +773,8 @@ public class GlobalExceptionHandler {
     }
 }
 ```
+
+The exception hierarchy is sealed (section 3.8). `DomainException` permits exactly the four subclasses above; each subclass is `final`. New domain error types are added by extending the `permits` clause, not by sneaking a sibling in.
 
 ### 6.10 `SecurityConfig` + `JwtAuthConverter`
 
@@ -703,6 +803,9 @@ public class SecurityConfig {
 public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationToken> {
     @Override
     public AbstractAuthenticationToken convert(Jwt jwt) {
+        // NOT `var realm = jwt.getClaim(...)` — the inferred type would be Object
+        // (the raw claim value), wider than the Map<String,Object> we intend.
+        // Per section 3.9, spell the type when var would be misleading.
         Map<String, Object> realm = jwt.getClaim("realm_access");
         Collection<String> roles = realm == null
             ? List.of()
@@ -864,8 +967,54 @@ class ArchitectureTest {
     static final ArchRule dtosAreRecords = classes()
         .that().resideInAPackage("..web.dto..")
         .should().beRecords();
+
+    // Lands in prompt 18. Mirrors `preAuthorizeOnlyInAnnotationPackage` for the
+    // OpenAPI documentation cross-cut (section 4.10).
+    @ArchTest
+    static final ArchRule apiResponseOnlyInAnnotationPackage = classes()
+        .that().areAnnotatedWith("io.swagger.v3.oas.annotations.responses.ApiResponses")
+        .or().areAnnotatedWith("io.swagger.v3.oas.annotations.responses.ApiResponse")
+        .should().resideInAPackage("..web.annotation..");
 }
 ```
+
+### 6.14 OpenAPI meta-annotation example
+
+```java
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@ApiResponses({
+    @ApiResponse(
+        responseCode = "401",
+        description = ApiResponseDescriptions.UNAUTHENTICATED,
+        content = @Content(
+            mediaType = "application/problem+json",
+            schema = @Schema(implementation = ProblemDetail.class))),
+    @ApiResponse(
+        responseCode = "403",
+        description = ApiResponseDescriptions.FORBIDDEN,
+        content = @Content(
+            mediaType = "application/problem+json",
+            schema = @Schema(implementation = ProblemDetail.class)))
+})
+public @interface StandardApiResponses {}
+```
+
+A controller method using both cross-cuts (auth + documentation) reads as:
+
+```java
+@PutMapping("/{id}")
+@RequiresAdmin
+@Operation(summary = "Replace an example")
+@ApiResponse(responseCode = "200", description = "The updated example.")
+@VersionedWriteApiResponses
+public ExampleResponse replace(
+    @PathVariable UUID id,
+    @RequestHeader(value = "If-Match", required = false) Long expectedVersion,
+    @Valid @RequestBody UpdateExampleRequest req) { ... }
+```
+
+Two cross-cuts (`@RequiresAdmin`, `@VersionedWriteApiResponses`), one operation summary, one success response. The six error responses (400/401/403/404/409/412) come from the meta-annotation. Adding a new error response is one edit to `VersionedWriteApiResponses` — every PUT/PATCH endpoint picks it up.
 
 ---
 
