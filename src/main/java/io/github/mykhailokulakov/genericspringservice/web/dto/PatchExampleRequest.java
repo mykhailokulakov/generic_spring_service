@@ -1,15 +1,26 @@
 package io.github.mykhailokulakov.genericspringservice.web.dto;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
 
+@Schema(
+    description =
+        "Partial-update payload for an Example. Patch semantics: a null field means \"leave"
+            + " unchanged\". There is no way to clear a field via PATCH (see DESIGN.md section"
+            + " 3.4).")
 public record PatchExampleRequest(
-    String name,
-    String description,
-    Integer quantity,
-    BigDecimal price,
-    Instant occurredAt,
-    ExampleStatus status,
-    Set<String> tags) {}
+    @Schema(description = "Human-readable name.", maxLength = 200) @Size(min = 1, max = 200)
+        String name,
+    @Schema(description = "Free-form description.") String description,
+    @Schema(description = "Quantity on hand. Must be >= 0.") @Min(0) Integer quantity,
+    @Schema(description = "Unit price. Must be >= 0.") @DecimalMin("0.0") BigDecimal price,
+    @Schema(description = "Business event timestamp (UTC).") Instant occurredAt,
+    @Schema(description = "Lifecycle status.") ExampleStatus status,
+    @Schema(description = "Free-form tags. When provided, replaces the entire set.")
+        Set<@Size(min = 1, max = 64) String> tags) {}
