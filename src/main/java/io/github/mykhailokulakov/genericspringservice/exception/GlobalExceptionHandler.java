@@ -1,0 +1,143 @@
+package io.github.mykhailokulakov.genericspringservice.exception;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import java.net.URI;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+@RestControllerAdvice
+@RequiredArgsConstructor
+@Slf4j
+public class GlobalExceptionHandler {
+
+  private static final String PROBLEM_TYPE_BASE = "https://generic-spring-service/problems/";
+
+  private final MessageSource messages;
+
+  @ExceptionHandler(NotFoundException.class)
+  public ProblemDetail handleNotFound(NotFoundException ex, Locale locale) {
+    return problem(HttpStatus.NOT_FOUND, ex, locale, "not-found");
+  }
+
+  @ExceptionHandler(ConflictException.class)
+  public ProblemDetail handleConflict(ConflictException ex, Locale locale) {
+    return problem(HttpStatus.CONFLICT, ex, locale, "conflict");
+  }
+
+  @ExceptionHandler(ForbiddenException.class)
+  public ProblemDetail handleForbidden(ForbiddenException ex, Locale locale) {
+    return problem(HttpStatus.FORBIDDEN, ex, locale, "forbidden");
+  }
+
+  @ExceptionHandler(ValidationException.class)
+  public ProblemDetail handleDomainValidation(ValidationException ex, Locale locale) {
+    return problem(HttpStatus.BAD_REQUEST, ex, locale, "validation");
+  }
+
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ProblemDetail handleMethodArgumentNotValid(
+      MethodArgumentNotValidException ex, Locale locale) {
+    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+    pd.setType(URI.create(PROBLEM_TYPE_BASE + "validation"));
+    pd.setTitle(messages.getMessage("error.validation.title", null, locale));
+    pd.setDetail(messages.getMessage(ErrorCode.VALIDATION_FAILED.key(), null, locale));
+    pd.setProperty("code", ErrorCode.VALIDATION_FAILED.key());
+    List<Map<String, Object>> violations =
+        ex.getBindingResult().getFieldErrors().stream()
+            .map(
+                fe ->
+                    Map.<String, Object>of(
+                        "field", fe.getField(),
+                        "code", fe.getCode() == null ? "" : fe.getCode(),
+                        "message", messages.getMessage(fe, locale)))
+            .toList();
+    pd.setProperty("violations", violations);
+    return pd;
+  }
+
+  @ExceptionHandler(ConstraintViolationException.class)
+  public ProblemDetail handleConstraintViolation(ConstraintViolationException ex, Locale locale) {
+    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+    pd.setType(URI.create(PROBLEM_TYPE_BASE + "validation"));
+    pd.setTitle(messages.getMessage("error.validation.title", null, locale));
+    pd.setDetail(messages.getMessage(ErrorCode.VALIDATION_FAILED.key(), null, locale));
+    pd.setProperty("code", ErrorCode.VALIDATION_FAILED.key());
+    List<Map<String, Object>> violations =
+        ex.getConstraintViolations().stream()
+            .map(
+                cv ->
+                    Map.<String, Object>of(
+                        "field", pathLeaf(cv),
+                        "code", constraintCode(cv),
+                        "message", cv.getMessage()))
+            .toList();
+    pd.setProperty("violations", violations);
+    return pd;
+  }
+
+  @ExceptionHandler(OptimisticLockingFailureException.class)
+  public ProblemDetail handleOptimisticLocking(
+      OptimisticLockingFailureException ex, Locale locale) {
+    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+    pd.setType(URI.create(PROBLEM_TYPE_BASE + "conflict"));
+    pd.setTitle(messages.getMessage("error.conflict.title", null, locale));
+    pd.setDetail(messages.getMessage(ErrorCode.OPTIMISTIC_LOCK.key(), null, locale));
+    pd.setProperty("code", ErrorCode.OPTIMISTIC_LOCK.key());
+    return pd;
+  }
+
+  @ExceptionHandler(AccessDeniedException.class)
+  public ProblemDetail handleAccessDenied(AccessDeniedException ex, Locale locale) {
+    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+    pd.setType(URI.create(PROBLEM_TYPE_BASE + "forbidden"));
+    pd.setTitle(messages.getMessage("error.forbidden.title", null, locale));
+    pd.setDetail(messages.getMessage(ErrorCode.FORBIDDEN.key(), null, locale));
+    pd.setProperty("code", ErrorCode.FORBIDDEN.key());
+    return pd;
+  }
+
+  @ExceptionHandler(Exception.class)
+  public ProblemDetail handleUnexpected(Exception ex, Locale locale) {
+    log.error("Unhandled exception", ex);
+    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+    pd.setType(URI.create(PROBLEM_TYPE_BASE + "internal"));
+    pd.setTitle(messages.getMessage("error.internal.title", null, locale));
+    pd.setDetail(messages.getMessage("error.internal", null, locale));
+    pd.setProperty("code", "error.internal");
+    return pd;
+  }
+
+  private ProblemDetail problem(HttpStatus status, DomainException ex, Locale locale, String slug) {
+    ProblemDetail pd = ProblemDetail.forStatus(status);
+    pd.setType(URI.create(PROBLEM_TYPE_BASE + slug));
+    pd.setTitle(messages.getMessage("error." + slug + ".title", null, locale));
+    pd.setDetail(messages.getMessage(ex.getMessageKey(), ex.getArgs(), locale));
+    pd.setProperty("code", ex.getMessageKey());
+    return pd;
+  }
+
+  private static String pathLeaf(ConstraintViolation<?> cv) {
+    String path = cv.getPropertyPath() == null ? "" : cv.getPropertyPath().toString();
+    int dot = path.lastIndexOf('.');
+    return dot >= 0 ? path.substring(dot + 1) : path;
+  }
+
+  private static String constraintCode(ConstraintViolation<?> cv) {
+    return cv.getConstraintDescriptor() == null
+            || cv.getConstraintDescriptor().getAnnotation() == null
+        ? ""
+        : cv.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName();
+  }
+}
