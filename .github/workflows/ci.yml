@@ -46,7 +46,7 @@ jobs:
           cache: maven
 
       - name: Build
-        run: ./mvnw -q -DskipTests verify
+        run: ./mvnw -q -DskipTests -Djacoco.check.skip=true verify
 
       - name: Upload jar artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -113,16 +113,75 @@ jobs:
           path: target/jacoco.exec
           if-no-files-found: warn
 
+  integration-test:
+    name: Integration tests (mvn verify, skip unit)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # Docker is preinstalled on ubuntu-24.04 runners; Testcontainers' ryuk
+      # reaper works against the default Docker socket without extra setup.
+      - name: Verify Docker is available
+        run: docker version
+
+      - name: Run integration tests
+        run: ./mvnw -q verify -DskipUnitTests=true -Djacoco.check.skip=true
+
+      - name: Upload Failsafe reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: failsafe-reports
+          path: target/failsafe-reports/*.xml
+          if-no-files-found: warn
+
+      - name: Publish IT test report
+        if: always()
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
+        with:
+          name: Integration tests
+          path: target/failsafe-reports/*.xml
+          reporter: java-junit
+          fail-on-error: 'false'
+
+      - name: Upload JaCoCo integration coverage
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-integration
+          path: target/site/jacoco-it/
+          if-no-files-found: warn
+
+      - name: Upload JaCoCo IT exec data
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: jacoco-it-exec
+          path: target/jacoco-it.exec
+          if-no-files-found: warn
+
   coverage-gate:
     # TEMPORARY: runs jacoco:check with the `ci-coverage-initial` profile, which
-    # lowers the JaCoCo gate to 60% line / 50% branch. The project default
-    # remains 80%/80% (see pom.xml). This lower CI floor exists ONLY because the
-    # integration test suite has not yet landed (it arrives in prompt 14). When
-    # that suite lands, both the `ci-coverage-initial` profile AND this notice
-    # must be removed so CI enforces the full project default.
-    name: Coverage gate (60%/50% TEMPORARY floor)
+    # currently gates at 70% line / 60% branch (stepped up from prompt 5's
+    # 60%/50%). The project default remains 80%/80% (see pom.xml). This stepped
+    # floor exists ONLY while we grow the test suite toward the 80%/80% target,
+    # which lands in prompt 14. When that lands, both the `ci-coverage-initial`
+    # profile AND this notice must be removed so CI enforces the project default.
+    name: Coverage gate (70%/60% TEMPORARY floor)
     runs-on: ubuntu-24.04
-    needs: [unit-test]
+    needs: [unit-test, integration-test]
     permissions:
       contents: read
       pull-requests: write
@@ -137,27 +196,39 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Download JaCoCo exec data
+      - name: Download unit JaCoCo exec data
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: jacoco-exec
           path: target/
 
-      - name: Download JaCoCo coverage report
+      - name: Download IT JaCoCo exec data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: jacoco-it-exec
+          path: target/
+
+      - name: Download unit JaCoCo coverage report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: coverage-unit
           path: target/site/jacoco/
 
-      # jacoco:check needs target/classes to evaluate the rules against
-      # actual bytecode. Without it the bundle is empty, the COVEREDRATIO
-      # limits have 0 instructions, and the gate silently passes — so we
-      # rebuild classes here before running the check.
+      # jacoco:check / jacoco:merge / jacoco:report need target/classes to
+      # evaluate against actual bytecode. Without it the bundle is empty,
+      # the COVEREDRATIO limits have 0 instructions, and the gate silently
+      # passes — so we rebuild classes here before running.
       - name: Compile main sources
         run: ./mvnw -q -DskipTests compile
 
-      - name: Enforce coverage gate (TEMPORARY 60%/50% floor)
-        run: ./mvnw -q jacoco:check -Pci-coverage-initial
+      - name: Merge unit + IT JaCoCo exec data
+        run: ./mvnw -q jacoco:merge@merge
+
+      - name: Generate merged JaCoCo report
+        run: ./mvnw -q jacoco:report -Djacoco.dataFile=target/jacoco-merged.exec
+
+      - name: Enforce merged coverage gate (TEMPORARY 70%/60% floor)
+        run: ./mvnw -q jacoco:check@check -Pci-coverage-initial
 
       - name: Comment coverage diff on PR
         if: github.event_name == 'pull_request'
@@ -165,6 +236,6 @@ jobs:
         with:
           paths: target/site/jacoco/jacoco.xml
           token: ${{ secrets.GITHUB_TOKEN }}
-          title: Coverage report (unit)
-          min-coverage-overall: 60
-          min-coverage-changed-files: 60
+          title: Coverage report (unit + integration)
+          min-coverage-overall: 70
+          min-coverage-changed-files: 70
