@@ -36,7 +36,9 @@ public class TestJwtFactory {
   private final String tokenUrl;
   private final String clientId;
   private final String clientSecret;
-  private final Map<String, String> cache = new ConcurrentHashMap<>();
+  private final Map<CacheKey, String> cache = new ConcurrentHashMap<>();
+
+  private record CacheKey(String username, String password) {}
 
   public TestJwtFactory(
       @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuerUri,
@@ -73,7 +75,7 @@ public class TestJwtFactory {
   }
 
   public String tokenFor(String username, String password) {
-    return cache.computeIfAbsent(username + ":" + password, k -> fetch(username, password));
+    return cache.computeIfAbsent(new CacheKey(username, password), k -> fetch(username, password));
   }
 
   public String adminToken() {
