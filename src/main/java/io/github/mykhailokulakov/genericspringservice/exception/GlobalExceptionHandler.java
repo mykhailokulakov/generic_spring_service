@@ -9,6 +9,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -39,6 +40,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler(ConflictException.class)
   public ProblemDetail handleConflict(ConflictException ex, Locale locale) {
+    if (ErrorCode.IF_MATCH_REQUIRED.key().equals(ex.getMessageKey())) {
+      return problem(HttpStatus.PRECONDITION_FAILED, ex, locale, "precondition-failed");
+    }
     return problem(HttpStatus.CONFLICT, ex, locale, "conflict");
   }
 
@@ -58,7 +62,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
       HttpHeaders headers,
       HttpStatusCode status,
       WebRequest request) {
-    Locale locale = request.getLocale();
+    Locale locale = LocaleContextHolder.getLocale();
     ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
     pd.setType(URI.create(PROBLEM_TYPE_BASE + "validation"));
     pd.setTitle(messages.getMessage("error.validation.title", null, locale));
