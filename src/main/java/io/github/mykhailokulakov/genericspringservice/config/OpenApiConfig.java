@@ -20,7 +20,6 @@ public class OpenApiConfig {
   @Bean
   public OpenAPI openAPI(
       @Value("${spring.application.name:generic-spring-service}") String applicationName,
-      @Value("${server.port:8080}") int serverPort,
       ObjectProvider<BuildProperties> buildPropertiesProvider) {
     BuildProperties buildProperties = buildPropertiesProvider.getIfAvailable();
     String title = buildProperties != null ? buildProperties.getName() : applicationName;
@@ -28,7 +27,7 @@ public class OpenApiConfig {
 
     return new OpenAPI()
         .info(new Info().title(title).version(version).description("REST API for " + title + "."))
-        .addServersItem(new Server().url("http://localhost:" + serverPort).description("Local"))
+        .addServersItem(new Server().url("/").description("Default"))
         .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
         .components(
             new Components()

@@ -41,7 +41,7 @@ public class ExampleController {
   @GetMapping
   @RequiresUser
   public PageResponse<ExampleResponse> search(
-      @Valid ExampleFilter filter, @ParameterObject Pageable pageable) {
+      @Valid @ParameterObject ExampleFilter filter, @ParameterObject Pageable pageable) {
     return PageResponse.of(service.search(filter, pageable).map(apiMapper::toResponse));
   }
 
