@@ -55,6 +55,9 @@ public class ExampleService {
   }
 
   private ExampleEntity loadAndCheckVersion(UUID id, Long expectedVersion) {
+    if (expectedVersion == null) {
+      throw new ConflictException(ErrorCode.IF_MATCH_REQUIRED, id);
+    }
     ExampleEntity entity =
         repository
             .findById(id)

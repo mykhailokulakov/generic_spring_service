@@ -12,6 +12,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.exception.ConflictException;
+import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.ExampleEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
@@ -104,6 +105,25 @@ class ExampleServiceTest {
     when(repository.findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.replace(id, 3L, model)).isInstanceOf(NotFoundException.class);
+    verify(repository, never()).save(any());
+  }
+
+  @Test
+  void replace_throwsIfMatchRequiredWhenVersionNull() {
+    assertThatThrownBy(() -> service.replace(id, null, model))
+        .isInstanceOf(ConflictException.class)
+        .hasMessage(ErrorCode.IF_MATCH_REQUIRED.key());
+    verify(repository, never()).findById(any(UUID.class));
+    verify(repository, never()).save(any());
+  }
+
+  @Test
+  void patch_throwsIfMatchRequiredWhenVersionNull() {
+    PatchExampleRequest patch = new PatchExampleRequest(null, null, null, null, null, null, null);
+    assertThatThrownBy(() -> service.patch(id, null, patch))
+        .isInstanceOf(ConflictException.class)
+        .hasMessage(ErrorCode.IF_MATCH_REQUIRED.key());
+    verify(repository, never()).findById(any(UUID.class));
     verify(repository, never()).save(any());
   }
 

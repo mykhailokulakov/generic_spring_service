@@ -145,16 +145,26 @@ class ExampleEntityMapperTest {
   }
 
   @Test
-  void applyReplacementWithAllNullFieldsLeavesEntityUnchanged() {
+  void applyReplacementMapsNullsButPreservesManagedFields() {
     ExampleEntity entity = mapper.toEntity(sampleModel());
-    String name = entity.getName();
-    Set<String> tags = new HashSet<>(entity.getTags());
+    UUID id = entity.getId();
+    Instant createdAt = entity.getCreatedAt();
+    Instant updatedAt = entity.getUpdatedAt();
+    Long version = entity.getVersion();
     Example empty = new Example(null, null, null, null, null, null, null, null, null, null, null);
 
     mapper.applyReplacement(empty, entity);
 
-    assertThat(entity.getName()).isEqualTo(name);
-    assertThat(entity.getTags()).containsExactlyInAnyOrderElementsOf(tags);
+    assertThat(entity.getName()).isNull();
+    assertThat(entity.getDescription()).isNull();
+    assertThat(entity.getQuantity()).isNull();
+    assertThat(entity.getPrice()).isNull();
+    assertThat(entity.getOccurredAt()).isNull();
+    assertThat(entity.getStatus()).isNull();
+    assertThat(entity.getId()).isEqualTo(id);
+    assertThat(entity.getCreatedAt()).isEqualTo(createdAt);
+    assertThat(entity.getUpdatedAt()).isEqualTo(updatedAt);
+    assertThat(entity.getVersion()).isEqualTo(version);
   }
 
   @Test
