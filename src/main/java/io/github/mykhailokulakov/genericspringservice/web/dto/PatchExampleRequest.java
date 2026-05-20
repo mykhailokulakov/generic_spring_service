@@ -1,5 +1,6 @@
 package io.github.mykhailokulakov.genericspringservice.web.dto;
 
+import io.github.mykhailokulakov.genericspringservice.common.validation.NullOrNotBlank;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
@@ -16,7 +17,7 @@ import java.util.Set;
             + " unchanged\". There is no way to clear a field via PATCH (see DESIGN.md section"
             + " 3.4).")
 public record PatchExampleRequest(
-    @Schema(description = "Human-readable name.", maxLength = 200) @Size(min = 1, max = 200)
+    @Schema(description = "Human-readable name.", maxLength = 200) @NullOrNotBlank @Size(max = 200)
         String name,
     @Schema(description = "Free-form description.") String description,
     @Schema(description = "Quantity on hand. Must be >= 0.") @Min(0) Integer quantity,
