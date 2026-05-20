@@ -241,12 +241,37 @@ jobs:
       - name: Enforce merged coverage gate (TEMPORARY 70%/60% floor)
         run: ./mvnw -q jacoco:check@check -Pci-coverage-initial
 
-      - name: Comment coverage diff on PR
-        if: github.event_name == 'pull_request'
-        uses: madrapps/jacoco-report@50d3aff4548aa991e6753342d9ba291084e63848 # v1.7.2
-        with:
-          paths: target/site/jacoco/jacoco.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          title: Coverage report (unit + integration)
-          min-coverage-overall: 70
-          min-coverage-changed-files: 70
+      # Surface bundle coverage in the job summary instead of as a PR comment.
+      - name: Write coverage summary
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          import os
+
+          report = "target/site/jacoco/jacoco.xml"
+          if not os.path.exists(report):
+              print("## Coverage report (unit + integration)\n")
+              print("_No JaCoCo report found._")
+              raise SystemExit(0)
+
+          root = ET.parse(report).getroot()
+          counters = {c.get("type"): (int(c.get("missed")), int(c.get("covered")))
+                      for c in root.findall("counter")}
+
+          def fmt(t):
+              m, cov = counters.get(t, (0, 0))
+              total = m + cov
+              pct = f"{100.0 * cov / total:.2f}%" if total else "n/a"
+              return f"| {t.title()} | {cov} / {total} | {pct} |"
+
+          print("## Coverage report (unit + integration)")
+          print()
+          print("Gate (temporary): 70% line, 60% branch. Project default: 80% / 80%.")
+          print()
+          print("| Counter | Covered / Total | Percentage |")
+          print("| --- | --- | --- |")
+          for t in ("INSTRUCTION", "BRANCH", "LINE", "COMPLEXITY", "METHOD", "CLASS"):
+              if t in counters:
+                  print(fmt(t))
+          PY
