@@ -222,14 +222,12 @@ jobs:
           docker image ls "${IMAGE_REF}"
           echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
 
-      # Three Trivy invocations:
-      #   1. Full CRITICAL+HIGH scan, SARIF output for the Security tab and
-      #      uploaded as a workflow artifact (so the finding is visible from
-      #      the run page without needing Security-tab access).
-      #   2. CRITICAL+HIGH table report uploaded as a plain-text artifact for
-      #      quick inspection.
-      #   3. CRITICAL-only re-run with exit-code 1 so the job fails when any
-      #      CRITICAL is present.
+      # Four Trivy invocations (the Trivy DB is cached between calls so the
+      # incremental cost is small):
+      #   1. SARIF for the Security tab + artifact.
+      #   2. Table for human-readable artifact.
+      #   3. JSON for downstream Markdown-table generation (PR comment).
+      #   4. CRITICAL-only gate run with exit-code 1.
       - name: Trivy scan — SARIF report (CRITICAL,HIGH, warn-only)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
@@ -251,6 +249,17 @@ jobs:
           exit-code: '0'
           ignore-unfixed: true
 
+      - name: Trivy scan — JSON report (CRITICAL,HIGH, warn-only)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          image-ref: ${{ steps.load.outputs.image-ref }}
+          severity: 'CRITICAL,HIGH'
+          format: json
+          output: trivy-results.json
+          exit-code: '0'
+          ignore-unfixed: true
+
       - name: Upload Trivy reports as artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -259,6 +268,7 @@ jobs:
           path: |
             trivy-results.sarif
             trivy-results.txt
+            trivy-results.json
           if-no-files-found: warn
 
       - name: Upload Trivy SARIF to Security tab
@@ -268,13 +278,12 @@ jobs:
           sarif_file: trivy-results.sarif
           category: trivy-image-scan
 
-      # Sticky PR comment with the table report so reviewers (and the bot
-      # tending this PR) can see Trivy findings without downloading the
-      # artifact. Posts on PR events only; skipped on push to main and on
-      # clean scans (no CRITICAL/HIGH findings). Re-uses the same comment
-      # across pushes by matching the marker.
+      # Sticky PR comment with a Markdown-table summary built from the JSON
+      # output so reviewers (and the bot tending this PR) can see Trivy
+      # findings without downloading an artifact. JSON-driven so we never
+      # truncate against GitHub's body limit on per-jar listings.
       - name: Post Trivy report to PR
-        if: always() && github.event_name == 'pull_request' && hashFiles('trivy-results.txt') != ''
+        if: always() && github.event_name == 'pull_request' && hashFiles('trivy-results.json') != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -282,13 +291,44 @@ jobs:
         run: |
           set -euo pipefail
           MARKER="<!-- trivy-image-scan-report -->"
-          if grep -qE '^Total: 0' trivy-results.txt 2>/dev/null; then
-            echo "Trivy reports zero findings — skipping PR comment."
+
+          # Counts + Markdown rows from the JSON report.
+          COUNTS="$(jq -r '
+            [.Results[]? | (.Vulnerabilities // [])[] | .Severity] as $s
+            | "CRITICAL=\($s|map(select(.=="CRITICAL"))|length) HIGH=\($s|map(select(.=="HIGH"))|length)"
+          ' trivy-results.json)"
+          eval "$COUNTS"
+
+          if [ "${CRITICAL:-0}" -eq 0 ] && [ "${HIGH:-0}" -eq 0 ]; then
+            echo "Trivy reports zero CRITICAL/HIGH findings — skipping PR comment."
             exit 0
           fi
-          # GitHub comment max body is ~64KB; truncate just in case.
-          REPORT="$(head -c 55000 trivy-results.txt)"
-          BODY="$(printf '%s\n## Trivy image scan — findings\n\nGate fails on CRITICAL; HIGH is advisory.\n\n<details><summary>Full table</summary>\n\n```text\n%s\n```\n\n</details>\n' "$MARKER" "$REPORT")"
+
+          ROWS="$(jq -r '
+            [
+              .Results[]?
+              | .Target as $t
+              | (.Vulnerabilities // [])[]
+              | "| \(.Severity) | `\(.PkgName)` | [\(.VulnerabilityID)](\(.PrimaryURL // "")) | `\(.InstalledVersion // "?")` | `\(.FixedVersion // "n/a")` | \((.Title // "") | gsub("\\|"; "/") | gsub("\n"; " ")) |"
+            ]
+            | sort
+            | reverse
+            | .[]
+          ' trivy-results.json)"
+
+          GATE_STATE="passing"
+          if [ "${CRITICAL:-0}" -gt 0 ]; then GATE_STATE="failing on CRITICAL"; fi
+
+          BODY="$(printf '%s\n## Trivy image scan — findings\n\nGate: %s. CRITICAL: **%s**, HIGH: **%s** (HIGH is advisory).\n\n| Severity | Package | CVE | Installed | Fixed | Title |\n|---|---|---|---|---|---|\n%s\n' \
+            "$MARKER" "$GATE_STATE" "${CRITICAL:-0}" "${HIGH:-0}" "$ROWS")"
+
+          # Guard against the (unlikely) case where many rows blow past the
+          # 64KB comment limit: truncate body and append a footer note.
+          MAX_BYTES=60000
+          if [ "$(printf '%s' "$BODY" | wc -c)" -gt "$MAX_BYTES" ]; then
+            BODY="$(printf '%s' "$BODY" | head -c "$MAX_BYTES")"$'\n\n_… truncated; download the `trivy-reports` artifact for the full list._'
+          fi
+
           PAYLOAD="$(jq -n --arg body "$BODY" '{body: $body}')"
           EXISTING_ID="$(curl -sSL \
             -H "Authorization: Bearer $GH_TOKEN" \
