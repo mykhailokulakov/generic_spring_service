@@ -44,10 +44,27 @@ jobs:
   # Reuse the full CI suite as the release gate. `secrets: inherit` so
   # the dependency-audit job sees NVD_API_KEY exactly as it does on a
   # push to main; without it the job would self-skip on missing secret.
+  #
+  # The called workflow's job-level `permissions:` declarations can
+  # only narrow what the caller grants — they cannot expand beyond it.
+  # This release workflow's top-level `permissions:` is `contents: read`,
+  # so without an explicit `permissions:` block here the reusable CI
+  # jobs that need `security-events: write` (CodeQL, Trivy, dep-check
+  # SARIF uploads), `checks: write` (test-reporter), `pull-requests:
+  # write` (Trivy sticky comment), and `actions: read` (CodeQL) would
+  # all run without the scopes their steps require and fail. The set
+  # below is the union of every job-level `permissions:` block in
+  # ci.yml.
   verify:
     name: Verify (reusable CI)
     needs: [guard]
     uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      security-events: write
+      checks: write
+      pull-requests: write
+      actions: read
     secrets: inherit
 
   release:
@@ -86,17 +103,23 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      # Compute the next version from the latest vX.Y.Z tag. First
-      # release falls through to v0.0.0 → bumped to v0.0.1 / v0.1.0 /
-      # v1.0.0 depending on choice. NEXT is always the next patch above
-      # NEW so the post-release snapshot tracks the maintenance line.
+      # Compute the next version from the highest existing vX.Y.Z tag.
+      # `git tag --sort=-v:refname` orders by semantic version (descending);
+      # `git describe --abbrev=0` would instead pick the closest reachable
+      # tag in commit-graph terms, which on repos that merge hotfix
+      # branches back to main can resolve to an older line than the
+      # latest published release. First release (no matching tag) falls
+      # through to v0.0.0 → bumped to v0.0.1 / v0.1.0 / v1.0.0 depending
+      # on choice. NEXT is always the next patch above NEW so the
+      # post-release snapshot tracks the maintenance line.
       - name: Compute next version
         id: ver
         env:
           BUMP: ${{ inputs.bump }}
         run: |
           set -euo pipefail
-          LATEST="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo v0.0.0)"
+          LATEST="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n1)"
+          : "${LATEST:=v0.0.0}"
           CURRENT="${LATEST#v}"
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
           case "$BUMP" in
@@ -118,9 +141,20 @@ jobs:
       - name: Set release version in pom
         run: ./mvnw -B -ntp versions:set -DnewVersion=${{ steps.ver.outputs.new }} -DgenerateBackupPoms=false
 
+      # Idempotent: if a previous run failed after pushing this commit
+      # but before the tag was pushed (e.g. git-cliff install hiccup),
+      # rerunning the workflow checks out the already-bumped pom and
+      # `versions:set` becomes a no-op. The unguarded `git commit` would
+      # then exit "nothing to commit" and the documented pre-tag retry
+      # path would be broken. Skip the commit+push when the pom is
+      # already at the release version on origin/main.
       - name: Commit release version bump
         run: |
           set -euo pipefail
+          if git diff --quiet -- pom.xml; then
+            echo "pom.xml already at v${{ steps.ver.outputs.new }} — skipping bump commit (rerun after partial failure)."
+            exit 0
+          fi
           git add pom.xml
           git commit -m "chore(release): v${{ steps.ver.outputs.new }} [skip ci]"
           git push origin HEAD:main
@@ -205,9 +239,16 @@ jobs:
       - name: Set next snapshot version in pom
         run: ./mvnw -B -ntp versions:set -DnewVersion=${{ steps.ver.outputs.next }}-SNAPSHOT -DgenerateBackupPoms=false
 
+      # Same idempotency guard as the release-version commit above —
+      # a retry where the snapshot bump is already on main should be a
+      # no-op rather than failing with "nothing to commit".
       - name: Commit next snapshot
         run: |
           set -euo pipefail
+          if git diff --quiet -- pom.xml; then
+            echo "pom.xml already at ${{ steps.ver.outputs.next }}-SNAPSHOT — skipping snapshot commit."
+            exit 0
+          fi
           git add pom.xml
           git commit -m "chore(release): back to snapshot [skip ci]"
           git push origin HEAD:main
