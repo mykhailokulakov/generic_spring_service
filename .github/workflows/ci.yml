@@ -5,6 +5,10 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Weekly CodeQL re-scan so new analyzer rules pick up regressions on main
+  # even when no code change touches the affected paths.
+  schedule:
+    - cron: '17 6 * * 1'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,7 +36,89 @@ jobs:
         run: ./mvnw -q spotless:check
 
   build:
-    name: Build (verify, skip tests)
+    name: Build (package + buildpack image)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      # Pushing to ghcr.io on main requires write to packages; PR runs from
+      # forks won't be granted this, which is intentional — fork PRs build
+      # the image and upload the tar, but skip the push step.
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # `spring-boot:build-image` runs Paketo buildpacks via Docker. Mirror
+      # Docker Hub through mirror.gcr.io for the same reason the IT job does:
+      # unauthenticated runners hit Docker Hub's rate limit quickly, and the
+      # buildpack base layers are large.
+      - name: Configure Docker registry mirror
+        run: |
+          sudo mkdir -p /etc/docker
+          echo '{"registry-mirrors":["https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker version
+
+      # The image name is fixed (rather than ${project.version}) so the tar
+      # filename is predictable and downstream jobs can reference it without
+      # parsing the pom. Image is built locally only — publish=false.
+      - name: Build container image
+        env:
+          IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
+        run: |
+          ./mvnw -q -DskipTests package spring-boot:build-image \
+            -Dspring-boot.build-image.publish=false \
+            -Dspring-boot.build-image.imageName="${IMAGE_REF}"
+
+      - name: Save image to tar
+        env:
+          IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
+        run: docker save "${IMAGE_REF}" -o target/app-image.tar
+
+      - name: Upload image tar artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: app-image
+          path: target/app-image.tar
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload jar artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: jar
+          path: target/*.jar
+          if-no-files-found: ignore
+
+      # Push only on direct pushes to main — PRs (including fork PRs) just
+      # validate the build. The release tag is `main-<sha>` per spec; the
+      # build-time tag `ci-<sha>` is re-tagged before pushing.
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push image to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          BUILD_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
+          PUSH_REF: ghcr.io/mykhailokulakov/generic-spring-service:main-${{ github.sha }}
+        run: |
+          docker tag "${BUILD_REF}" "${PUSH_REF}"
+          docker push "${PUSH_REF}"
+
+  maven-enforcer:
+    name: Maven Enforcer (convergence, no SNAPSHOTs on release, no dupes)
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -45,15 +131,160 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Build
-        run: ./mvnw -q -DskipTests -Djacoco.check.skip=true verify
+      - name: Enforce rules
+        run: ./mvnw -q enforcer:enforce
 
-      - name: Upload jar artifact
+  security-codeql:
+    name: Security (CodeQL, Java)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      # SARIF upload to the Security tab.
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        with:
+          languages: java
+          queries: security-and-quality
+
+      # Manual build keeps CodeQL's trace step deterministic — autobuild
+      # picks up annotation-processor paths inconsistently across runs.
+      - name: Compile main sources
+        run: ./mvnw -q -DskipTests compile
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        with:
+          category: /language:java
+
+  image-scan:
+    name: Image scan (Trivy)
+    runs-on: ubuntu-24.04
+    needs: [build]
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download image tar artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: app-image
+          path: image/
+
+      - name: Load image
+        id: load
+        env:
+          IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
+        run: |
+          docker load -i image/app-image.tar
+          docker image ls "${IMAGE_REF}"
+          echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
+
+      # Two Trivy invocations:
+      #   1. Full CRITICAL+HIGH scan, SARIF output for the Security tab,
+      #      exit-code 0 so HIGH findings warn rather than gate.
+      #   2. CRITICAL-only re-run with exit-code 1 so the job fails when any
+      #      CRITICAL is present.
+      - name: Trivy scan — SARIF report (CRITICAL,HIGH, warn-only)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          image-ref: ${{ steps.load.outputs.image-ref }}
+          severity: 'CRITICAL,HIGH'
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: '0'
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image-scan
+
+      - name: Trivy scan — gate (fail on CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          image-ref: ${{ steps.load.outputs.image-ref }}
+          severity: 'CRITICAL'
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Trivy scan — HIGH warnings (advisory)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          image-ref: ${{ steps.load.outputs.image-ref }}
+          severity: 'HIGH'
+          format: table
+          exit-code: '0'
+          ignore-unfixed: true
+
+  dependency-audit:
+    name: Dependency audit (OWASP dependency-check)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # NVD_API_KEY is optional but recommended — without it the NVD download
+      # is heavily rate-limited and can stretch this job over 20 minutes. Set
+      # the secret on the repo to drop runtime to ~1–2 minutes.
+      - name: Run OWASP dependency-check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          ./mvnw -q org.owasp:dependency-check-maven:check \
+            ${NVD_API_KEY:+-Dnvd.api.key=$NVD_API_KEY}
+
+      - name: Upload HTML report artifact
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: jar
-          path: target/*.jar
-          if-no-files-found: ignore
+          name: dependency-check-report
+          path: target/dependency-check-report.html
+          if-no-files-found: warn
+
+      - name: Upload SARIF report artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-check-sarif
+          path: target/dependency-check-report.sarif
+          if-no-files-found: warn
+
+      - name: Upload dependency-check SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        with:
+          sarif_file: target/dependency-check-report.sarif
+          category: dependency-check
 
   architecture:
     name: Architecture (ArchUnit)

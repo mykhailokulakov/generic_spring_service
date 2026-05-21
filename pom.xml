@@ -31,6 +31,7 @@
         <archunit.version>1.4.2</archunit.version>
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
         <spotless-maven-plugin.version>3.5.1</spotless-maven-plugin.version>
+        <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
 
         <!-- JaCoCo coverage gate: 80% line / 80% branch (final target). -->
         <jacoco.minimum.line.coverage>0.80</jacoco.minimum.line.coverage>
@@ -400,27 +401,61 @@
                 </executions>
             </plugin>
 
-            <!-- Enforcer — Java version, no SNAPSHOTs in release, no duplicate deps -->
+            <!-- Enforcer — Java version, no SNAPSHOTs in release, no duplicate deps,
+                 dependency convergence. `requireReleaseDeps` only fires when the
+                 project itself is a non-SNAPSHOT, so SNAPSHOT-on-SNAPSHOT during
+                 development is allowed and release branches still get gated. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
+                <!-- Plugin-level <configuration> so the rules apply both to the
+                     bound `validate` execution and to direct `enforcer:enforce`
+                     invocations from the maven-enforcer CI job. -->
+                <configuration>
+                    <rules>
+                        <requireJavaVersion>
+                            <version>[25,)</version>
+                        </requireJavaVersion>
+                        <dependencyConvergence/>
+                        <banDuplicatePomDependencyVersions/>
+                        <requireReleaseDeps>
+                            <onlyWhenRelease>true</onlyWhenRelease>
+                        </requireReleaseDeps>
+                    </rules>
+                </configuration>
                 <executions>
                     <execution>
                         <id>enforce</id>
                         <goals>
                             <goal>enforce</goal>
                         </goals>
-                        <configuration>
-                            <rules>
-                                <requireJavaVersion>
-                                    <version>[25,)</version>
-                                </requireJavaVersion>
-                                <dependencyConvergence/>
-                                <banDuplicatePomDependencyVersions/>
-                            </rules>
-                        </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <!-- OWASP dependency-check — CVE scan of direct and transitive
+                 dependencies. The CI `dependency-audit` job invokes
+                 `org.owasp:dependency-check-maven:check`; this config governs
+                 thresholds and outputs.
+
+                 SARIF was added in 8.4 and is emitted alongside HTML so the
+                 GitHub Security tab and the workflow artifact both have a
+                 useful view. `failBuildOnCVSS=7` matches the task's "fail on
+                 CVSS >= 7.0" gate. NVD downloads are slow without an API key
+                 — set `NVD_API_KEY` as a repo secret to speed up CI runs. -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${dependency-check-maven.version}</version>
+                <configuration>
+                    <failBuildOnCVSS>7.0</failBuildOnCVSS>
+                    <formats>
+                        <format>HTML</format>
+                        <format>SARIF</format>
+                    </formats>
+                    <skipTestScope>true</skipTestScope>
+                    <skipProvidedScope>true</skipProvidedScope>
+                </configuration>
             </plugin>
         </plugins>
     </build>
