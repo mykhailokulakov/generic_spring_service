@@ -10,12 +10,17 @@
 #
 #   export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
 #
-# Two profiles are sketched below. Uncomment exactly one. Both expose the
-# OTLP/HTTP receiver on :4318 so the application configuration in
-# `application.yml` works unchanged.
+# Uncomment the block below. The OTLP/HTTP receiver on :4318 matches the
+# default in application.yml so the application configuration works
+# unchanged. Web UI at http://localhost:16686.
+#
+# We ship only Jaeger because it runs as a single image with no external
+# config file. A fork that wants a standalone OpenTelemetry Collector
+# can add a service block here and ship its own collector config — we
+# deliberately don't bake one in (speculative scaffolding the project
+# rules forbid; see DESIGN.md §3.5).
 
 services:
-  # --- Option A: Jaeger all-in-one. Web UI at http://localhost:16686. ---
   # jaeger:
   #   image: jaegertracing/all-in-one:1.62
   #   container_name: generic-jaeger
@@ -24,14 +29,3 @@ services:
   #   ports:
   #     - "16686:16686"   # UI
   #     - "4318:4318"     # OTLP/HTTP receiver
-
-  # --- Option B: standalone OpenTelemetry Collector (forward to your own backend). ---
-  # otel-collector:
-  #   image: otel/opentelemetry-collector-contrib:0.110.0
-  #   container_name: generic-otel-collector
-  #   command: ["--config=/etc/otel-collector-config.yaml"]
-  #   volumes:
-  #     - ./docker/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-  #   ports:
-  #     - "4318:4318"     # OTLP/HTTP receiver
-  #     - "8889:8889"     # Prometheus exporter (optional)

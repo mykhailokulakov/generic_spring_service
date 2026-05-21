@@ -68,14 +68,14 @@ so the standard pattern is one line:
 TOKEN=$(docker/get-token.sh admin admin)
 
 # Same thing as a raw curl, no script:
-TOKEN=$(curl -s -X POST \
+TOKEN=$(curl -sS -f -X POST \
   http://localhost:9080/realms/generic/protocol/openid-connect/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'grant_type=password' \
-  -d 'client_id=generic-spring-service' \
-  -d 'client_secret=generic-spring-service-secret' \
-  -d 'username=admin' \
-  -d 'password=admin' \
+  --data-urlencode 'grant_type=password' \
+  --data-urlencode 'client_id=generic-spring-service' \
+  --data-urlencode 'client_secret=generic-spring-service-secret' \
+  --data-urlencode 'username=admin' \
+  --data-urlencode 'password=admin' \
   | jq -r .access_token)
 
 # Create an example
@@ -181,10 +181,10 @@ mechanical checklist for the rename:
    - `spring.security.oauth2.resourceserver.jwt.issuer-uri` default
      (realm name)
    - Problem-detail `type` URI base in
-     `exception/GlobalExceptionHandler.java`
+     `src/main/java/.../exception/GlobalExceptionHandler.java`
 4. **Container image name** — in `pom.xml`'s
    `spring-boot-maven-plugin` `<image><name>` and in the GHCR refs of
-   `.github/workflows/release.yml` + `publish-image.yml`.
+   `.github/workflows/release.yml` + `.github/workflows/publish-image.yml`.
 5. **Keycloak realm** — rename `generic` everywhere it appears:
    - [`docker/keycloak/realm-export.json`](docker/keycloak/realm-export.json) (`realm`, role names if you want, users)
    - [`docker/get-token.sh`](docker/get-token.sh) defaults
