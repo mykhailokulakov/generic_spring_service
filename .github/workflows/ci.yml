@@ -6,7 +6,9 @@ on:
   push:
     branches: [main]
   # Weekly CodeQL re-scan so new analyzer rules pick up regressions on main
-  # even when no code change touches the affected paths.
+  # even when no code change touches the affected paths. Every other job is
+  # gated on `github.event_name != 'schedule'` so the weekly trigger only
+  # exercises `security-codeql` and doesn't re-run build/IT/scan jobs.
   schedule:
     - cron: '17 6 * * 1'
 
@@ -21,6 +23,7 @@ jobs:
   format:
     name: Format (spotless:check)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'schedule'
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -38,6 +41,7 @@ jobs:
   build:
     name: Build (package + buildpack image)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'schedule'
     permissions:
       contents: read
     steps:
@@ -120,6 +124,7 @@ jobs:
   maven-enforcer:
     name: Maven Enforcer (convergence, no SNAPSHOTs on release, no dupes)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'schedule'
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -173,6 +178,7 @@ jobs:
     name: Image scan (Trivy)
     runs-on: ubuntu-24.04
     needs: [build]
+    if: github.event_name != 'schedule'
     permissions:
       contents: read
       security-events: write
@@ -258,8 +264,16 @@ jobs:
       # output so reviewers (and the bot tending this PR) can see Trivy
       # findings without downloading an artifact. JSON-driven so we never
       # truncate against GitHub's body limit on per-jar listings.
+      #
+      # Skipped on fork PRs: GitHub downgrades GITHUB_TOKEN to read-only for
+      # workflows triggered from forks, so the issues-comments POST/PATCH
+      # would 403 and fail the whole image-scan job for non-code reasons.
       - name: Post Trivy report to PR
-        if: always() && github.event_name == 'pull_request' && hashFiles('trivy-results.json') != ''
+        if: |
+          always()
+          && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && hashFiles('trivy-results.json') != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -340,6 +354,7 @@ jobs:
   dependency-audit:
     name: Dependency audit (OWASP dependency-check)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'schedule'
     # Hard cap so a stalled NVD download (e.g. missing/unset NVD_API_KEY
     # forcing the full unauthenticated feed) fails fast instead of burning an
     # hour of CI. A normal run with the API key + warm cache finishes in ~2m.
@@ -424,7 +439,13 @@ jobs:
     name: Publish image to GHCR
     runs-on: ubuntu-24.04
     needs: [build, image-scan, dependency-audit]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Repository check so forks pushing to their own `main` don't try to
+    # publish into the upstream `ghcr.io/mykhailokulakov/...` namespace
+    # (their GITHUB_TOKEN can't write there and the job would fail loudly).
+    if: |
+      github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && github.repository == 'mykhailokulakov/generic_spring_service'
     permissions:
       contents: read
       packages: write
@@ -460,6 +481,7 @@ jobs:
   architecture:
     name: Architecture (ArchUnit)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'schedule'
     permissions:
       contents: read
       checks: write
@@ -501,6 +523,7 @@ jobs:
   unit-test:
     name: Unit tests (mvn test)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'schedule'
     permissions:
       contents: read
       checks: write
@@ -559,6 +582,7 @@ jobs:
   integration-test:
     name: Integration tests (mvn verify, skip unit)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'schedule'
     permissions:
       contents: read
       checks: write
@@ -630,6 +654,7 @@ jobs:
     name: Coverage gate (80%/80%)
     runs-on: ubuntu-24.04
     needs: [unit-test, integration-test]
+    if: github.event_name != 'schedule'
     permissions:
       contents: read
       pull-requests: write
