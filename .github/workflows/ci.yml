@@ -69,13 +69,37 @@ jobs:
       # The image name is fixed (rather than ${project.version}) so the tar
       # filename is predictable and downstream jobs can reference it without
       # parsing the pom. Image is built locally only — publish=false.
+      #
+      # No `-q`: Paketo build output is the only way to diagnose buildpack
+      # failures, and quiet mode also swallows download progress on the
+      # multi-hundred-MB builder image pull.
       - name: Build container image
         env:
           IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
         run: |
-          ./mvnw -q -DskipTests package spring-boot:build-image \
+          ./mvnw -B -ntp -DskipTests package spring-boot:build-image \
             -Dspring-boot.build-image.publish=false \
             -Dspring-boot.build-image.imageName="${IMAGE_REF}"
+
+      # If the `-D` override above is silently ignored by the plugin, the
+      # buildpack writes the image under the pom-configured name
+      # (`...:0.1.0-SNAPSHOT`). Re-tag from whatever was actually produced
+      # to the canonical `ci-<sha>` ref so `docker save` has a stable input
+      # regardless of which path the plugin took.
+      - name: Normalize image tag
+        env:
+          IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker image ls --format '{{.Repository}}:{{.Tag}}'
+          if docker image inspect "${IMAGE_REF}" >/dev/null 2>&1; then
+            echo "Image already tagged as ${IMAGE_REF}"
+          else
+            POM_VERSION="$(./mvnw -q -B -ntp help:evaluate -Dexpression=project.version -DforceStdout)"
+            POM_REF="ghcr.io/mykhailokulakov/generic-spring-service:${POM_VERSION}"
+            echo "Re-tagging ${POM_REF} -> ${IMAGE_REF}"
+            docker tag "${POM_REF}" "${IMAGE_REF}"
+          fi
 
       - name: Save image to tar
         env:
