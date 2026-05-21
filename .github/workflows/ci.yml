@@ -279,13 +279,13 @@ jobs:
 
       # NVD_API_KEY is optional but recommended — without it the NVD download
       # is heavily rate-limited and can stretch this job over 20 minutes. Set
-      # the secret on the repo to drop runtime to ~1–2 minutes.
+      # the secret on the repo to drop runtime to ~1–2 minutes. The plugin
+      # reads the env var directly via <nvdApiKeyEnvironmentVariable> in
+      # pom.xml; no CLI flag needed.
       - name: Run OWASP dependency-check
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: |
-          ./mvnw -q org.owasp:dependency-check-maven:check \
-            ${NVD_API_KEY:+-Dnvd.api.key=$NVD_API_KEY}
+        run: ./mvnw -q org.owasp:dependency-check-maven:check
 
       - name: Upload HTML report artifact
         if: always()

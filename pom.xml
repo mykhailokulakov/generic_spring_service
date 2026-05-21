@@ -455,6 +455,11 @@
                     </formats>
                     <skipTestScope>true</skipTestScope>
                     <skipProvidedScope>true</skipProvidedScope>
+                    <!-- Read the NVD API key from the NVD_API_KEY env var
+                         when present. The plugin's CLI property is `nvdApiKey`
+                         (not `nvd.api.key`); pointing it at the env var avoids
+                         echoing the secret on the Maven command line. -->
+                    <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
                     <!-- Suppression file for known false positives / scoped
                          "doesn't apply to us" CVEs. Empty by default; each
                          entry must include rationale + sunset date. -->
