@@ -33,6 +33,18 @@
         <spotless-maven-plugin.version>3.5.1</spotless-maven-plugin.version>
         <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
 
+        <!-- Security overrides on top of Spring Boot 4.0.6's BOM:
+             - tomcat.version 11.0.21 -> 11.0.22 closes CVE-2026-43515,
+               CVE-2026-43512, CVE-2026-41293 (CRITICAL) plus three HIGHs
+               flagged by Trivy on the buildpack image.
+             - postgresql.version 42.7.10 -> 42.7.11 closes CVE-2026-42198
+               (HIGH, client-side DoS via malicious SCRAM-SHA-256 auth).
+             Both properties are the names the Spring Boot dependencies
+             BOM uses for these artifacts; setting them re-pins every
+             matching dependency in the bom. -->
+        <tomcat.version>11.0.22</tomcat.version>
+        <postgresql.version>42.7.11</postgresql.version>
+
         <!-- JaCoCo coverage gate: 80% line / 80% branch (final target). -->
         <jacoco.minimum.line.coverage>0.80</jacoco.minimum.line.coverage>
         <jacoco.minimum.branch.coverage>0.80</jacoco.minimum.branch.coverage>
