@@ -32,6 +32,7 @@
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
         <spotless-maven-plugin.version>3.5.1</spotless-maven-plugin.version>
         <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
+        <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
 
         <!-- Security overrides on top of Spring Boot 4.0.6's BOM:
              - tomcat.version 11.0.21 -> 11.0.22 closes CVE-2026-43515,
@@ -145,7 +146,7 @@
         </dependency>
         <dependency>
             <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-jpamodelgen</artifactId>
+            <artifactId>hibernate-processor</artifactId>
             <version>${hibernate.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -262,7 +263,7 @@
                         </path>
                         <path>
                             <groupId>org.hibernate.orm</groupId>
-                            <artifactId>hibernate-jpamodelgen</artifactId>
+                            <artifactId>hibernate-processor</artifactId>
                             <version>${hibernate.version}</version>
                         </path>
                     </annotationProcessorPaths>
@@ -306,6 +307,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin.version}</version>
                 <configuration>
                     <excludes>
                         <exclude>io/github/mykhailokulakov/genericspringservice/GenericSpringServiceApplication.class</exclude>
