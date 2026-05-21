@@ -46,13 +46,13 @@ public class ExampleService {
   public Example replace(UUID id, Long expectedVersion, Example replacement) {
     ExampleEntity entity = loadAndCheckVersion(id, expectedVersion);
     mapper.applyReplacement(replacement, entity);
-    return mapper.toModel(repository.save(entity));
+    return mapper.toModel(repository.saveAndFlush(entity));
   }
 
   public Example patch(UUID id, Long expectedVersion, PatchExampleRequest patch) {
     ExampleEntity entity = loadAndCheckVersion(id, expectedVersion);
     mapper.applyPatch(patch, entity);
-    return mapper.toModel(repository.save(entity));
+    return mapper.toModel(repository.saveAndFlush(entity));
   }
 
   public void softDelete(UUID id) {
