@@ -8,76 +8,562 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel duplicate runs on PRs, but never cancel a main-branch build —
+  # losing a release artifact mid-build is worse than burning extra runner
+  # minutes when two commits land in quick succession.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
-  format:
-    name: Format (spotless:check)
+  # Static analyzers that need nothing more than a JDK + the source tree.
+  # Combined into one job to amortize the ~30s setup-java cold-cache cost
+  # over two ~5s checks instead of paying it twice.
+  lint:
+    name: Lint (spotless + enforcer)
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
       - name: Spotless check
-        run: ./mvnw -q spotless:check
+        run: ./mvnw -B -ntp spotless:check
+
+      - name: Maven enforcer rules
+        run: ./mvnw -B -ntp enforcer:enforce
 
   build:
-    name: Build (verify, skip tests)
+    name: Build (package + buildpack image)
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
-      - name: Build
-        run: ./mvnw -q -DskipTests -Djacoco.check.skip=true verify
+      - name: Configure Docker registry mirror
+        uses: ./.github/actions/docker-mirror
+
+      # The image name is fixed (rather than ${project.version}) so the tar
+      # filename is predictable and downstream jobs can reference it without
+      # parsing the pom. Image is built locally only — publish=false.
+      #
+      # `spring-boot:build-image` forks the lifecycle through the `package`
+      # phase internally, so we deliberately don't list `package` on the
+      # mvn command line — doing so would run packaging twice (once for the
+      # outer lifecycle, once for the forked sub-execution).
+      #
+      # No `-q`: Paketo build output is the only way to diagnose buildpack
+      # failures, and quiet mode also swallows download progress on the
+      # multi-hundred-MB builder image pull.
+      # Image name flows through the pom's <docker.image.name> property
+      # (referenced by spring-boot-maven-plugin's <image><name>). The
+      # plugin's own flat `spring-boot.build-image.imageName` CLI property
+      # is shadowed by any structured pom <image> config, which is why
+      # earlier versions of this workflow needed a defensive re-tag step.
+      # Overriding the Maven property is the path that actually wins.
+      #
+      # No `-q`: Paketo build output is the only way to diagnose buildpack
+      # failures, and quiet mode also swallows download progress on the
+      # multi-hundred-MB builder image pull.
+      - name: Build container image
+        run: |
+          set -euo pipefail
+          ./mvnw -B -ntp -DskipTests spring-boot:build-image \
+            -Dspring-boot.build-image.publish=false \
+            -Ddocker.image.name="${IMAGE_REF}"
+
+      - name: Save image to tar
+        run: |
+          set -euo pipefail
+          docker save "${IMAGE_REF}" -o target/app-image.tar
+
+      - name: Upload image tar artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: app-image
+          path: target/app-image.tar
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload jar artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: jar
           path: target/*.jar
-          if-no-files-found: ignore
+          # `package` always produces a jar; missing means a real misconfig.
+          if-no-files-found: error
 
-  architecture:
-    name: Architecture (ArchUnit)
+      # Expose `target/classes` so downstream jobs (coverage-gate, codeql)
+      # can skip the recompile step and just consume the bytecode produced
+      # here. Annotation-processor outputs live under target/generated-*
+      # which we don't strictly need for jacoco bundle resolution but ship
+      # for completeness.
+      - name: Upload compiled classes artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: target-classes
+          path: target/classes/
+          if-no-files-found: error
+          retention-days: 7
+
+  security-codeql:
+    name: Security (CodeQL, Java)
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
     permissions:
       contents: read
-      checks: write
+      security-events: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          languages: java
+          queries: security-and-quality
+
+      - name: Compile main sources
+        run: ./mvnw -B -ntp -DskipTests compile
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          category: /language:java
+
+  image-scan:
+    name: Image scan (Trivy)
+    runs-on: ubuntu-24.04
+    needs: [build]
+    timeout-minutes: 15
+    env:
+      IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
+    permissions:
+      contents: read
+      security-events: write
+      # The "Post Trivy report" step writes a sticky comment on same-repo
+      # PRs so findings are visible without downloading an artifact.
       pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      - name: Download image tar artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+          name: app-image
+          path: image/
 
-      # Pure bytecode analysis: no Spring context boot, no Testcontainers, no
-      # database. Surefire runs ArchitectureTest standalone so this job stays
-      # well under a minute and gates the rest of CI on rule violations.
+      - name: Load image
+        run: |
+          set -euo pipefail
+          docker load -i image/app-image.tar
+          docker image ls "${IMAGE_REF}"
+
+      - name: Compute Trivy cache date
+        id: trivy-date
+        run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      # Cross-run cache of the Trivy vulnerability DB. Trivy refreshes its DB
+      # every ~6h; keying by UTC date pulls a fresh copy at most once a day
+      # but spares every other PR run the ~30s DB-download cost. Trivy
+      # reloads the existing DB into ~/.cache/trivy automatically.
+      - name: Restore Trivy DB cache
+        id: trivy-cache-restore
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}-${{ steps.trivy-date.outputs.date }}
+          restore-keys: |
+            trivy-db-${{ runner.os }}-
+
+      # One scan, three reports: scan to JSON once via the action (which also
+      # installs trivy onto PATH), then derive SARIF and table reports from
+      # the JSON with `trivy convert`. Avoids paying the scan cost three
+      # times and guarantees the three reports describe the same findings.
+      - name: Trivy scan (JSON)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_REF }}
+          severity: 'CRITICAL,HIGH'
+          format: json
+          output: trivy-results.json
+          exit-code: '0'
+          ignore-unfixed: true
+
+      - name: Derive SARIF + table reports
+        run: |
+          set -euo pipefail
+          trivy convert --format sarif --output trivy-results.sarif trivy-results.json
+          trivy convert --format table --output trivy-results.txt  trivy-results.json
+
+      - name: Save Trivy DB cache
+        if: steps.trivy-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}-${{ steps.trivy-date.outputs.date }}
+
+      - name: Upload Trivy reports as artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-reports
+          path: |
+            trivy-results.sarif
+            trivy-results.txt
+            trivy-results.json
+          if-no-files-found: error
+
+      - name: Upload Trivy SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-image-scan
+
+      # Gate the job on CRITICAL findings without paying for another scan:
+      # parse the JSON we already produced. Surfaces the count to the log
+      # so a red job is self-explanatory.
+      #
+      # Runs BEFORE the PR-comment step so a transient GitHub API hiccup
+      # there (curl 4xx/5xx now fails the step thanks to -fsSL) can't
+      # silently skip the gate via the default success() condition.
+      - name: Gate on CRITICAL findings
+        run: |
+          set -euo pipefail
+          CRITICAL=$(jq '[.Results[]? | (.Vulnerabilities // [])[] | select(.Severity == "CRITICAL")] | length' trivy-results.json)
+          echo "CRITICAL findings: $CRITICAL"
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Trivy found $CRITICAL CRITICAL vulnerabilities — failing job."
+            exit 1
+          fi
+
+      # Sticky PR comment with a Markdown-table summary built from the JSON
+      # output so reviewers (and the bot tending this PR) can see Trivy
+      # findings without downloading an artifact. JSON-driven so we never
+      # truncate against GitHub's body limit on per-jar listings.
+      #
+      # Skipped on fork PRs: GitHub downgrades GITHUB_TOKEN to read-only for
+      # workflows triggered from forks, so the issues-comments POST/PATCH
+      # would 403 and fail the whole image-scan job for non-code reasons.
+      # `always()` so the comment still posts after the CRITICAL gate above
+      # has failed — we want reviewers to see what they need to fix.
+      - name: Post Trivy report to PR
+        if: |
+          always()
+          && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && hashFiles('trivy-results.json') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          MARKER="<!-- trivy-image-scan-report -->"
+
+          # Counts + Markdown rows from the JSON report.
+          COUNTS="$(jq -r '
+            [.Results[]? | (.Vulnerabilities // [])[] | .Severity] as $s
+            | "CRITICAL=\($s|map(select(.=="CRITICAL"))|length) HIGH=\($s|map(select(.=="HIGH"))|length)"
+          ' trivy-results.json)"
+          eval "$COUNTS"
+
+          if [ "${CRITICAL:-0}" -eq 0 ] && [ "${HIGH:-0}" -eq 0 ]; then
+            echo "Trivy reports zero CRITICAL/HIGH findings — skipping PR comment."
+            exit 0
+          fi
+
+          ROWS="$(jq -r '
+            [
+              .Results[]?
+              | .Target as $t
+              | (.Vulnerabilities // [])[]
+              | "| \(.Severity) | `\(.PkgName)` | [\(.VulnerabilityID)](\(.PrimaryURL // "")) | `\(.InstalledVersion // "?")` | `\(.FixedVersion // "n/a")` | \((.Title // "") | gsub("\\|"; "/") | gsub("\n"; " ")) |"
+            ]
+            | sort
+            | reverse
+            | .[]
+          ' trivy-results.json)"
+
+          GATE_STATE="passing"
+          if [ "${CRITICAL:-0}" -gt 0 ]; then GATE_STATE="failing on CRITICAL"; fi
+
+          BODY="$(printf '%s\n## Trivy image scan — findings\n\nGate: %s. CRITICAL: **%s**, HIGH: **%s** (HIGH is advisory).\n\n| Severity | Package | CVE | Installed | Fixed | Title |\n|---|---|---|---|---|---|\n%s\n' \
+            "$MARKER" "$GATE_STATE" "${CRITICAL:-0}" "${HIGH:-0}" "$ROWS")"
+
+          # Guard against the (unlikely) case where many rows blow past the
+          # 64KB comment limit: truncate body and append a footer note.
+          MAX_BYTES=60000
+          if [ "$(printf '%s' "$BODY" | wc -c)" -gt "$MAX_BYTES" ]; then
+            BODY="$(printf '%s' "$BODY" | head -c "$MAX_BYTES")"$'\n\n_… truncated; download the `trivy-reports` artifact for the full list._'
+          fi
+
+          PAYLOAD="$(jq -n --arg body "$BODY" '{body: $body}')"
+          EXISTING_ID="$(curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments?per_page=100" \
+            | jq -r --arg m "$MARKER" '.[] | select(.body | startswith($m)) | .id' \
+            | head -n1)"
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Updating existing comment $EXISTING_ID"
+            curl -fsSL -X PATCH \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -d "$PAYLOAD" \
+              "https://api.github.com/repos/$REPO/issues/comments/$EXISTING_ID" > /dev/null
+          else
+            echo "Creating new comment on PR #$PR_NUMBER"
+            curl -fsSL -X POST \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -d "$PAYLOAD" \
+              "https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments" > /dev/null
+          fi
+
+  dependency-audit:
+    name: Dependency audit (OWASP dependency-check)
+    runs-on: ubuntu-24.04
+    # Fork PRs don't receive repository secrets, so NVD_API_KEY would be
+    # empty and the unauthenticated NVD download would blow past our 20m
+    # timeout for CI-environment reasons (not code reasons). Push events
+    # (always same-repo) and same-repo PRs both have the secret. Skip the
+    # whole job on fork PRs rather than ship a "passed-but-meaningless"
+    # gate result.
+    if: |
+      github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name == github.repository
+    # Hard cap on the dep-check job. Observed costs with NVD_API_KEY:
+    #   warm cache: ~2m (delta fetch only)
+    #   cold cache: ~8m (full 350k-record NVD feed)
+    # dependency-check docs note first-init "can take 20 minutes or more"
+    # if NVD is degraded; 30m gives ~3.5x the observed cold-cache cost as
+    # headroom while still failing fast on a true hang (we used to burn
+    # 1h+ before this cap existed). Fork PRs that lack NVD_API_KEY are
+    # filtered out by the job-level `if:` above, so this timeout only
+    # gates runs that are authenticated.
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Disable setup-java's `cache: maven` for this job. Without it,
+      # ~/.m2/repository is not restored or saved, which avoids the
+      # ~700MB NVD-data blob being double-cached under both setup-java's
+      # pom-hash key AND our explicit date-keyed NVD cache below. The
+      # cost is ~30s of dependency-check-maven plugin downloads per
+      # cold run, which is dwarfed by the NVD update itself.
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
+        with:
+          maven-cache: ''
+
+      # Read the plugin version out of pom.xml so the cache key tracks the
+      # plugin automatically — bumping dependency-check-maven invalidates
+      # the cache (which is what we want, since the H2 schema can change
+      # across major versions and an old DB will break the new plugin).
+      - name: Read dependency-check version
+        id: dc-version
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's|.*<dependency-check-maven\.version>\([^<]*\)</dependency-check-maven\.version>.*|\1|p' pom.xml | head -n1)"
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not parse dependency-check-maven.version from pom.xml"
+            exit 1
+          fi
+          echo "Detected dependency-check-maven version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Compute NVD cache date
+        id: nvd-date
+        run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      # Split into restore + save (rather than the combined `actions/cache@v5`
+      # step) so the cache is populated by an explicit `update-only` step
+      # below before we attempt the `:check` analysis. The default combined
+      # step only saves on job success, which means a failing `:check`
+      # (CVSS>=7) or a timeout would drop the freshly-downloaded NVD DB on
+      # the floor — and we'd cold-download all 350k records again next run.
+      - name: Restore NVD cache
+        id: nvd-cache-restore
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ runner.os }}-dc${{ steps.dc-version.outputs.version }}-${{ steps.nvd-date.outputs.date }}
+          restore-keys: |
+            nvd-${{ runner.os }}-dc${{ steps.dc-version.outputs.version }}-
+
+      # `update-only` downloads + indexes the NVD feed without running the
+      # analysis; it succeeds when the DB is fully populated. Splitting this
+      # from `:check` lets us save the cache cleanly even when `:check`
+      # later fails on a CVSS>=7 finding — the DB itself is still valid.
+      #
+      # NVD_API_KEY is read from the env var by the plugin config in
+      # pom.xml (via `${env.NVD_API_KEY}` interpolation), so the secret
+      # never lands on the Maven command line. The job-level `if:` above
+      # guarantees the env var is set whenever this step runs.
+      #
+      # No `-q`: NVD-download progress is logged at INFO, so quiet mode
+      # makes the job look hung for 10+ minutes.
+      - name: Update NVD database
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:update-only
+
+      # Save the cache immediately after a successful update, before
+      # `:check` runs. This is the whole point of the restore/save split:
+      # if `:check` fails on a CVE, the cache still holds today's good DB.
+      # Guarded on a cache miss so we don't waste time re-uploading when
+      # the restore step already produced a hit on today's key.
+      - name: Save NVD cache
+        if: steps.nvd-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ runner.os }}-dc${{ steps.dc-version.outputs.version }}-${{ steps.nvd-date.outputs.date }}
+
+      # The DB is already populated from `update-only`; this step is just
+      # the CVE matching + report generation. Auto-update is off so the
+      # plugin doesn't try to re-fetch the feed and waste API quota.
+      # NVD_API_KEY is still passed because the pom-level config reads
+      # `${env.NVD_API_KEY}` — even with autoUpdate=false, an empty value
+      # would log a noisy warning at plugin startup.
+      - name: Run OWASP dependency-check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check -DautoUpdate=false
+
+      # When `:check` fails on a CVSS>=7 finding, the offending CVE id and
+      # dependency live somewhere in the Maven log buried under the
+      # plugin's noisy progress output. Parse the SARIF report instead so
+      # the failure is visible at a glance both in the job log
+      # (::error:: annotations) and in the job summary (Markdown table).
+      - name: Surface failing CVEs
+        if: failure()
+        run: |
+          set -euo pipefail
+          SARIF=target/dependency-check-report.sarif
+          if [ ! -f "$SARIF" ]; then
+            echo "::warning::No SARIF report at $SARIF — :check probably failed before producing one."
+            exit 0
+          fi
+          # Run jq via command substitution rather than process substitution
+          # so that a jq failure (malformed SARIF, etc.) propagates up via
+          # set -e instead of being swallowed by the `< <(...)` redirector,
+          # which would leave us reading from an empty stream and emitting a
+          # misleading "no findings" warning.
+          #
+          # SARIF: rules carry the CVSS in properties.security-severity,
+          # results carry the matched ruleId + the offending jar's path.
+          FINDINGS="$(jq -r '
+            .runs[0] as $run |
+            (
+              ($run.tool.driver.rules // [])
+              | map({key: .id, value: (.properties."security-severity" // "0")})
+              | from_entries
+            ) as $cvss |
+            $run.results[]?
+            | ($cvss[.ruleId] // "0") as $score
+            | select(($score | tonumber? // 0) >= 7)
+            | [
+                $score,
+                .ruleId,
+                ((.locations // [])[0].physicalLocation.artifactLocation.uri // "?"),
+                ((.message.text // "") | gsub("[\\n\\r]"; " ") | .[0:240])
+              ]
+            | @tsv
+          ' "$SARIF")"
+          {
+            echo "## Dependency-check failures (CVSS ≥ 7)"
+            echo
+            echo "| CVSS | CVE | Dependency | Summary |"
+            echo "| --- | --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          FOUND=0
+          # Here-string keeps the loop in the current shell so `FOUND`
+          # increments survive past the loop body. `[ -n "$FINDINGS" ]`
+          # avoids the spurious single empty-line read when jq returned
+          # nothing.
+          if [ -n "$FINDINGS" ]; then
+            while IFS=$'\t' read -r cvss cve dep desc; do
+              [ -z "${cve:-}" ] && continue
+              FOUND=$((FOUND + 1))
+              echo "::error::[CVSS $cvss] $cve in $dep — $desc"
+              printf '| %s | [%s](https://nvd.nist.gov/vuln/detail/%s) | `%s` | %s |\n' \
+                "$cvss" "$cve" "$cve" "$dep" "$desc" >> "$GITHUB_STEP_SUMMARY"
+            done <<< "$FINDINGS"
+          fi
+          if [ "$FOUND" -eq 0 ]; then
+            echo "::warning::SARIF parsed but no CVSS>=7 findings — :check may have failed for another reason; see preceding Maven output."
+          fi
+
+      - name: Upload HTML report artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
+          if-no-files-found: error
+
+      - name: Upload SARIF report artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-check-sarif
+          path: target/dependency-check-report.sarif
+          if-no-files-found: error
+
+      - name: Upload dependency-check SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          sarif_file: target/dependency-check-report.sarif
+          category: dependency-check
+
+  # The image publish step lives in .github/workflows/publish-image.yml,
+  # triggered via workflow_run on a successful CI run on main. Splitting
+  # it out keeps `packages: write` off this workflow (which runs on every
+  # PR, including from forks) and removes the "skipped" Publish check
+  # from PR status panels.
+
+  architecture:
+    name: Architecture (ArchUnit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
+
+      # Pure bytecode analysis: no Spring context boot, no Testcontainers,
+      # no database. Surefire runs ArchitectureTest standalone so this job
+      # stays well under a minute and gates the rest of CI on rule violations.
       - name: Run ArchUnit tests
-        run: ./mvnw -q test -Dtest=ArchitectureTest
+        run: ./mvnw -B -ntp test -Dtest=ArchitectureTest
 
       - name: Upload Surefire reports
         if: always()
@@ -99,27 +585,19 @@ jobs:
   unit-test:
     name: Unit tests (mvn test)
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     permissions:
       contents: read
       checks: write
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
       - name: Run unit tests
-        run: ./mvnw -q test
-
-      - name: Generate JaCoCo report
-        if: always()
-        run: ./mvnw -q jacoco:report
+        run: ./mvnw -B -ntp test
 
       - name: Upload Surefire reports
         if: always()
@@ -138,14 +616,6 @@ jobs:
           reporter: java-junit
           fail-on-error: 'false'
 
-      - name: Upload JaCoCo unit coverage
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-unit
-          path: target/site/jacoco/
-          if-no-files-found: warn
-
       - name: Upload JaCoCo exec data
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -157,36 +627,22 @@ jobs:
   integration-test:
     name: Integration tests (mvn verify, skip unit)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       checks: write
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
-      # Docker is preinstalled on ubuntu-24.04 runners; Testcontainers' ryuk
-      # reaper works against the default Docker socket without extra setup.
-      # We configure mirror.gcr.io as a registry mirror so Docker Hub pulls
-      # (postgres, testcontainers/ryuk) fall through the mirror — unauthenticated
-      # Docker Hub pulls from GitHub Actions runners frequently hit the rate
-      # limit, and mirror.gcr.io has no such limit for public images.
       - name: Configure Docker registry mirror
-        run: |
-          sudo mkdir -p /etc/docker
-          echo '{"registry-mirrors":["https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker
-          docker version
+        uses: ./.github/actions/docker-mirror
 
       - name: Run integration tests
-        run: ./mvnw -q verify -DskipUnitTests=true -Djacoco.check.skip=true
+        run: ./mvnw -B -ntp verify -DskipUnitTests=true -Djacoco.check.skip=true
 
       - name: Upload Failsafe reports
         if: always()
@@ -208,14 +664,6 @@ jobs:
           reporter: java-junit
           fail-on-error: 'false'
 
-      - name: Upload JaCoCo integration coverage
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-integration
-          path: target/site/jacoco-it/
-          if-no-files-found: warn
-
       - name: Upload JaCoCo IT exec data
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -227,20 +675,16 @@ jobs:
   coverage-gate:
     name: Coverage gate (80%/80%)
     runs-on: ubuntu-24.04
-    needs: [unit-test, integration-test]
+    needs: [build, unit-test, integration-test]
+    timeout-minutes: 10
     permissions:
       contents: read
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
       - name: Download unit JaCoCo exec data
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -254,32 +698,31 @@ jobs:
           name: jacoco-it-exec
           path: target/
 
-      - name: Download unit JaCoCo coverage report
+      # jacoco:check / jacoco:merge / jacoco:report need target/classes to
+      # evaluate against actual bytecode. Pull the already-compiled classes
+      # from the build job instead of recompiling here — saves ~30s and
+      # guarantees coverage is reported against the same bytecode that the
+      # image scan validated.
+      - name: Download compiled classes
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: coverage-unit
-          path: target/site/jacoco/
-
-      # jacoco:check / jacoco:merge / jacoco:report need target/classes to
-      # evaluate against actual bytecode. Without it the bundle is empty,
-      # the COVEREDRATIO limits have 0 instructions, and the gate silently
-      # passes — so we rebuild classes here before running.
-      - name: Compile main sources
-        run: ./mvnw -q -DskipTests compile
+          name: target-classes
+          path: target/classes/
 
       - name: Merge unit + IT JaCoCo exec data
-        run: ./mvnw -q jacoco:merge@merge
+        run: ./mvnw -B -ntp jacoco:merge@merge
 
       - name: Generate merged JaCoCo report
-        run: ./mvnw -q jacoco:report -Djacoco.dataFile=target/jacoco-merged.exec
+        run: ./mvnw -B -ntp jacoco:report -Djacoco.dataFile=target/jacoco-merged.exec
 
       - name: Enforce merged coverage gate (80%/80%)
-        run: ./mvnw -q jacoco:check@check
+        run: ./mvnw -B -ntp jacoco:check@check
 
       # Surface bundle coverage in the job summary instead of as a PR comment.
       - name: Write coverage summary
         if: always()
         run: |
+          set -euo pipefail
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import xml.etree.ElementTree as ET
           import os

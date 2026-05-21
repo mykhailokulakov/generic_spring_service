@@ -31,6 +31,26 @@
         <archunit.version>1.4.2</archunit.version>
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
         <spotless-maven-plugin.version>3.5.1</spotless-maven-plugin.version>
+        <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
+        <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
+
+        <!-- Default buildpack image name; CI overrides this to pin
+             the tag to `ci-${git-sha}` so each run produces a stable,
+             distinct artifact. Local `mvn spring-boot:build-image`
+             gets the project.version-tagged default. -->
+        <docker.image.name>ghcr.io/mykhailokulakov/generic-spring-service:${project.version}</docker.image.name>
+
+        <!-- Security overrides on top of Spring Boot 4.0.6's BOM:
+             - tomcat.version 11.0.21 -> 11.0.22 closes CVE-2026-43515,
+               CVE-2026-43512, CVE-2026-41293 (CRITICAL) plus three HIGHs
+               flagged by Trivy on the buildpack image.
+             - postgresql.version 42.7.10 -> 42.7.11 closes CVE-2026-42198
+               (HIGH, client-side DoS via malicious SCRAM-SHA-256 auth).
+             Both properties are the names the Spring Boot dependencies
+             BOM uses for these artifacts; setting them re-pins every
+             matching dependency in the bom. -->
+        <tomcat.version>11.0.22</tomcat.version>
+        <postgresql.version>42.7.11</postgresql.version>
 
         <!-- JaCoCo coverage gate: 80% line / 80% branch (final target). -->
         <jacoco.minimum.line.coverage>0.80</jacoco.minimum.line.coverage>
@@ -132,7 +152,7 @@
         </dependency>
         <dependency>
             <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-jpamodelgen</artifactId>
+            <artifactId>hibernate-processor</artifactId>
             <version>${hibernate.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -222,7 +242,14 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <image>
-                        <name>ghcr.io/mykhailokulakov/generic-spring-service:${project.version}</name>
+                        <!-- Image name flows through a Maven property so CI
+                             can override it cleanly via `-Ddocker.image.name=...`.
+                             The plugin's own `spring-boot.build-image.imageName`
+                             CLI property is shadowed by any pom <image><name>
+                             entry (structured config wins over the flat user
+                             property), so using a Maven property reference is
+                             the only override path that actually takes effect. -->
+                        <name>${docker.image.name}</name>
                     </image>
                 </configuration>
             </plugin>
@@ -249,7 +276,7 @@
                         </path>
                         <path>
                             <groupId>org.hibernate.orm</groupId>
-                            <artifactId>hibernate-jpamodelgen</artifactId>
+                            <artifactId>hibernate-processor</artifactId>
                             <version>${hibernate.version}</version>
                         </path>
                     </annotationProcessorPaths>
@@ -293,6 +320,7 @@
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin.version}</version>
                 <configuration>
                     <excludes>
                         <exclude>io/github/mykhailokulakov/genericspringservice/GenericSpringServiceApplication.class</exclude>
@@ -400,27 +428,93 @@
                 </executions>
             </plugin>
 
-            <!-- Enforcer — Java version, no SNAPSHOTs in release, no duplicate deps -->
+            <!-- Enforcer — Java version, no SNAPSHOTs in release, no duplicate deps,
+                 dependency convergence. `requireReleaseDeps` only fires when the
+                 project itself is a non-SNAPSHOT, so SNAPSHOT-on-SNAPSHOT during
+                 development is allowed and release branches still get gated. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
+                <!-- Plugin-level <configuration> so the rules apply both to the
+                     bound `validate` execution and to direct `enforcer:enforce`
+                     invocations from the maven-enforcer CI job. -->
+                <configuration>
+                    <rules>
+                        <requireJavaVersion>
+                            <version>[25,)</version>
+                        </requireJavaVersion>
+                        <dependencyConvergence/>
+                        <banDuplicatePomDependencyVersions/>
+                        <requireReleaseDeps>
+                            <onlyWhenRelease>true</onlyWhenRelease>
+                        </requireReleaseDeps>
+                    </rules>
+                </configuration>
                 <executions>
                     <execution>
                         <id>enforce</id>
                         <goals>
                             <goal>enforce</goal>
                         </goals>
-                        <configuration>
-                            <rules>
-                                <requireJavaVersion>
-                                    <version>[25,)</version>
-                                </requireJavaVersion>
-                                <dependencyConvergence/>
-                                <banDuplicatePomDependencyVersions/>
-                            </rules>
-                        </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <!-- OWASP dependency-check — CVE scan of direct and transitive
+                 dependencies. The CI `dependency-audit` job invokes
+                 `org.owasp:dependency-check-maven:check`; this config governs
+                 thresholds and outputs.
+
+                 SARIF was added in 8.4 and is emitted alongside HTML so the
+                 GitHub Security tab and the workflow artifact both have a
+                 useful view. `failBuildOnCVSS=7` matches the task's "fail on
+                 CVSS >= 7.0" gate. NVD downloads are slow without an API key
+                 — set `NVD_API_KEY` as a repo secret to speed up CI runs. -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>${dependency-check-maven.version}</version>
+                <!-- Explicit `<phase>none</phase>` execution defensively
+                     prevents the `check` goal from binding to the default
+                     `verify` phase. Without this, a `mvn verify` invocation
+                     (e.g. the integration-test job) would run a CVE scan as
+                     a side effect, slowing down test jobs and failing them
+                     for dependency findings unrelated to the test code.
+                     The goal is still invokable directly via
+                     `mvn dependency-check:check` from the dedicated
+                     `dependency-audit` CI job. -->
+                <executions>
+                    <execution>
+                        <id>default-cli</id>
+                        <phase>none</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <failBuildOnCVSS>7.0</failBuildOnCVSS>
+                    <formats>
+                        <format>HTML</format>
+                        <format>SARIF</format>
+                    </formats>
+                    <skipTestScope>true</skipTestScope>
+                    <skipProvidedScope>true</skipProvidedScope>
+                    <!-- Read NVD_API_KEY from the env var at runtime via
+                         Maven's `${env.X}` interpolation. Avoids putting
+                         the secret on the Maven command line (where a
+                         debug-mode `set -x` or verbose plugin log could
+                         echo it). The dep-audit job guarantees the env
+                         var is set; non-CI invocations without the var
+                         will run unauthenticated (slow but functional). -->
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                    <!-- Suppression file for known false positives / scoped
+                         "doesn't apply to us" CVEs. Empty by default; each
+                         entry must include rationale + sunset date. -->
+                    <suppressionFiles>
+                        <suppressionFile>${project.basedir}/dependency-check-suppressions.xml</suppressionFile>
+                    </suppressionFiles>
+                </configuration>
             </plugin>
         </plugins>
     </build>
