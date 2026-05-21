@@ -90,14 +90,14 @@ class ExampleServiceTest {
   @Test
   void replace_appliesReplacementOnMatchingVersion() {
     when(repository.findById(id)).thenReturn(Optional.of(entity));
-    when(repository.save(entity)).thenReturn(entity);
+    when(repository.saveAndFlush(entity)).thenReturn(entity);
     when(mapper.toModel(entity)).thenReturn(model);
 
     Example result = service.replace(id, 3L, model);
 
     assertThat(result).isSameAs(model);
     verify(mapper).applyReplacement(model, entity);
-    verify(repository).save(entity);
+    verify(repository).saveAndFlush(entity);
   }
 
   @Test
@@ -140,14 +140,14 @@ class ExampleServiceTest {
   void patch_appliesPatchOnMatchingVersion() {
     PatchExampleRequest patch = new PatchExampleRequest("new", null, null, null, null, null, null);
     when(repository.findById(id)).thenReturn(Optional.of(entity));
-    when(repository.save(entity)).thenReturn(entity);
+    when(repository.saveAndFlush(entity)).thenReturn(entity);
     when(mapper.toModel(entity)).thenReturn(model);
 
     Example result = service.patch(id, 3L, patch);
 
     assertThat(result).isSameAs(model);
     verify(mapper).applyPatch(patch, entity);
-    verify(repository).save(entity);
+    verify(repository).saveAndFlush(entity);
   }
 
   @Test
