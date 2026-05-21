@@ -11,6 +11,8 @@ public class ProblemDetailAssert extends AbstractAssert<ProblemDetailAssert, Res
 
   private static final String PROBLEM_JSON = "application/problem+json";
 
+  private JsonPath jsonPath;
+
   public ProblemDetailAssert(Response actual) {
     super(actual, ProblemDetailAssert.class);
   }
@@ -112,7 +114,10 @@ public class ProblemDetailAssert extends AbstractAssert<ProblemDetailAssert, Res
   }
 
   private JsonPath jsonPath() {
-    return actual.jsonPath();
+    if (jsonPath == null) {
+      jsonPath = actual.jsonPath();
+    }
+    return jsonPath;
   }
 
   private List<Map<String, Object>> violations() {

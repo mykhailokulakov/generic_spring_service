@@ -29,8 +29,7 @@ public class DatabaseStateHelper {
     if (tables.isEmpty()) {
       return;
     }
-    String quoted =
-        tables.stream().map(t -> "\"" + t + "\"").reduce((a, b) -> a + ", " + b).orElseThrow();
+    String quoted = String.join(", ", tables.stream().map(t -> "\"" + t + "\"").toList());
     em.createNativeQuery("TRUNCATE TABLE " + quoted + " RESTART IDENTITY CASCADE").executeUpdate();
   }
 
@@ -61,9 +60,12 @@ public class DatabaseStateHelper {
 
   private static String tableName(Class<?> entityClass) {
     Table table = entityClass.getAnnotation(Table.class);
-    if (table != null && !table.name().isEmpty()) {
-      return table.name();
+    if (table == null || table.name().isEmpty()) {
+      throw new IllegalArgumentException(
+          entityClass.getName()
+              + " has no @Table(name = ...) annotation — DatabaseStateHelper requires an explicit"
+              + " table name to avoid guessing the Hibernate naming strategy.");
     }
-    return entityClass.getSimpleName().toLowerCase();
+    return table.name();
   }
 }
