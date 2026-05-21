@@ -1,7 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.support.fixtures;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;

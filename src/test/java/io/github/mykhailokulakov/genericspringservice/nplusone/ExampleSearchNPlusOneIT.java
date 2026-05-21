@@ -3,11 +3,11 @@ package io.github.mykhailokulakov.genericspringservice.nplusone;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
 import io.github.mykhailokulakov.genericspringservice.support.containers.postgres.WithPostgres;
-import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleFilter;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;

@@ -1,6 +1,6 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
-import io.github.mykhailokulakov.genericspringservice.mapper.ExampleApiMapper;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresAdmin;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresUser;
 import io.github.mykhailokulakov.genericspringservice.service.ExampleService;
@@ -10,11 +10,11 @@ import io.github.mykhailokulakov.genericspringservice.web.annotation.ReadApiResp
 import io.github.mykhailokulakov.genericspringservice.web.annotation.StandardApiResponses;
 import io.github.mykhailokulakov.genericspringservice.web.annotation.VersionedWriteApiResponses;
 import io.github.mykhailokulakov.genericspringservice.web.dto.CreateExampleRequest;
-import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.PageResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateExampleRequest;
+import io.github.mykhailokulakov.genericspringservice.web.mapper.ExampleApiMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -101,7 +101,7 @@ public class ExampleController {
       @PathVariable UUID id,
       @RequestHeader(value = "If-Match", required = false) Long expectedVersion,
       @Valid @RequestBody PatchExampleRequest request) {
-    return apiMapper.toResponse(service.patch(id, expectedVersion, request));
+    return apiMapper.toResponse(service.patch(id, expectedVersion, apiMapper.toModel(request)));
   }
 
   @DeleteMapping("/{id}")

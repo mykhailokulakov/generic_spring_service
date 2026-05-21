@@ -1,9 +1,9 @@
-package io.github.mykhailokulakov.genericspringservice.mapper;
+package io.github.mykhailokulakov.genericspringservice.web.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.web.dto.CreateExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateExampleRequest;

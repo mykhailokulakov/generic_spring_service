@@ -3,9 +3,9 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
-import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;
@@ -170,8 +170,8 @@ class ExampleEntityMapperTest {
   @Test
   void applyPatchUpdatesEveryProvidedField() {
     ExampleEntity entity = mapper.toEntity(sampleModel());
-    PatchExampleRequest patch =
-        new PatchExampleRequest(
+    ExamplePatch patch =
+        new ExamplePatch(
             "n",
             "d",
             8,
@@ -195,8 +195,7 @@ class ExampleEntityMapperTest {
   void applyPatchSetsTagsOnEntityWithoutTags() {
     ExampleEntity entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
-    PatchExampleRequest patch =
-        new PatchExampleRequest(null, null, null, null, null, null, Set.of("x", "y"));
+    ExamplePatch patch = new ExamplePatch(null, null, null, null, null, null, Set.of("x", "y"));
 
     mapper.applyPatch(patch, entity);
 
@@ -210,8 +209,7 @@ class ExampleEntityMapperTest {
     BigDecimal originalPrice = entity.getPrice();
     Set<String> originalTags = new HashSet<>(entity.getTags());
 
-    PatchExampleRequest patch =
-        new PatchExampleRequest(null, "patched-description", 99, null, null, null, null);
+    ExamplePatch patch = new ExamplePatch(null, "patched-description", 99, null, null, null, null);
 
     mapper.applyPatch(patch, entity);
 

@@ -9,14 +9,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.exception.ConflictException;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.ExampleEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
-import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
@@ -119,7 +119,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_throwsIfMatchRequiredWhenVersionNull() {
-    PatchExampleRequest patch = new PatchExampleRequest(null, null, null, null, null, null, null);
+    ExamplePatch patch = new ExamplePatch(null, null, null, null, null, null, null);
     assertThatThrownBy(() -> service.patch(id, null, patch))
         .isInstanceOf(ConflictException.class)
         .hasMessage(ErrorCode.IF_MATCH_REQUIRED.key());
@@ -138,7 +138,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_appliesPatchOnMatchingVersion() {
-    PatchExampleRequest patch = new PatchExampleRequest("new", null, null, null, null, null, null);
+    ExamplePatch patch = new ExamplePatch("new", null, null, null, null, null, null);
     when(repository.findById(id)).thenReturn(Optional.of(entity));
     when(repository.saveAndFlush(entity)).thenReturn(entity);
     when(mapper.toModel(entity)).thenReturn(model);
@@ -152,7 +152,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_throwsNotFoundWhenMissing() {
-    PatchExampleRequest patch = new PatchExampleRequest(null, null, null, null, null, null, null);
+    ExamplePatch patch = new ExamplePatch(null, null, null, null, null, null, null);
     when(repository.findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.patch(id, 3L, patch)).isInstanceOf(NotFoundException.class);
@@ -161,7 +161,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_throwsConflictOnVersionMismatch() {
-    PatchExampleRequest patch = new PatchExampleRequest(null, null, null, null, null, null, null);
+    ExamplePatch patch = new ExamplePatch(null, null, null, null, null, null, null);
     when(repository.findById(id)).thenReturn(Optional.of(entity));
 
     assertThatThrownBy(() -> service.patch(id, 2L, patch)).isInstanceOf(ConflictException.class);

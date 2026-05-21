@@ -2,8 +2,8 @@ package io.github.mykhailokulakov.genericspringservice.repository.specification;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity_;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
-import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleFilter;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;

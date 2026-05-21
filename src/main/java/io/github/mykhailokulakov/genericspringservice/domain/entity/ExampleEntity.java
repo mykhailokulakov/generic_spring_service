@@ -1,6 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.domain.entity;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
