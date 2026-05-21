@@ -32,19 +32,7 @@
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
         <spotless-maven-plugin.version>3.5.1</spotless-maven-plugin.version>
 
-        <!--
-            JaCoCo coverage gate.
-
-            Project default is 80%/80% (line/branch). That is the long-term target and
-            is what runs locally for `./mvnw verify`.
-
-            The `ci-coverage-initial` profile below temporarily lowers the gate to
-            70% line / 60% branch (stepped up from prompt 5's 60%/50%). That profile
-            is activated ONLY by the `coverage-gate` CI job (-Pci-coverage-initial)
-            as a TEMPORARY floor while we step toward the 80%/80% target. The full
-            project default lands in prompt 14 — at which point this profile and
-            these properties MUST be removed. Do not let it silently persist.
-        -->
+        <!-- JaCoCo coverage gate: 80% line / 80% branch (final target). -->
         <jacoco.minimum.line.coverage>0.80</jacoco.minimum.line.coverage>
         <jacoco.minimum.branch.coverage>0.80</jacoco.minimum.branch.coverage>
 
@@ -74,23 +62,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <profiles>
-        <!--
-            TEMPORARY: CI-only stepped coverage gate.
-            Lowers the JaCoCo threshold to 70% line / 60% branch for the CI
-            `coverage-gate` job (stepped up from prompt 5's 60%/50%). Remove
-            this profile once the full integration test suite (prompt 14)
-            brings coverage above the 80% project default.
-        -->
-        <profile>
-            <id>ci-coverage-initial</id>
-            <properties>
-                <jacoco.minimum.line.coverage>0.70</jacoco.minimum.line.coverage>
-                <jacoco.minimum.branch.coverage>0.60</jacoco.minimum.branch.coverage>
-            </properties>
-        </profile>
-    </profiles>
 
     <dependencies>
         <!-- ============================================================ -->
@@ -316,14 +287,9 @@
                 </executions>
             </plugin>
 
-            <!-- JaCoCo — coverage + 80% gate.
-
-                 TEMPORARY: <excludes> below scope coverage measurement to the
-                 packages exercised by the current test suite. As more layers
-                 land (controllers, exception handlers, security) those entries
-                 are removed. At prompt 14 the bundle covers the whole app and
-                 these <excludes> + the `ci-coverage-initial` profile MUST be
-                 removed. Do not let either silently persist. -->
+            <!-- JaCoCo — coverage + 80%/80% gate. The <excludes> scope coverage
+                 measurement to packages exercised by the current test suite; the
+                 next prompt's broader suite removes them as those layers land. -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
