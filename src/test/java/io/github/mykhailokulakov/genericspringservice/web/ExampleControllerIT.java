@@ -12,6 +12,7 @@ import io.github.mykhailokulakov.genericspringservice.support.fixtures.WithSeede
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,9 +106,10 @@ class ExampleControllerIT {
       assertThat(created.jsonPath().getString("name")).isEqualTo("Widget A");
       assertThat(created.jsonPath().getString("description")).isEqualTo("A useful widget");
       assertThat(created.jsonPath().getInt("quantity")).isEqualTo(10);
-      assertThat(new BigDecimal(created.jsonPath().getString("price")))
+      assertThat(created.jsonPath().getObject("price", BigDecimal.class))
           .isEqualByComparingTo(new BigDecimal("19.99"));
-      assertThat(created.jsonPath().getString("occurredAt")).isEqualTo("2026-05-01T00:00:00Z");
+      assertThat(Instant.parse(created.jsonPath().getString("occurredAt")))
+          .isEqualTo(Instant.parse("2026-05-01T00:00:00Z"));
       assertThat(created.jsonPath().getString("status")).isEqualTo("ACTIVE");
       assertThat(created.jsonPath().getList("tags", String.class))
           .containsExactlyInAnyOrder("alpha", "beta");
@@ -361,7 +363,9 @@ class ExampleControllerIT {
   // --- GET /api/v1/examples (search) -----------------------------------------
 
   @Nested
-  @WithSeededExamples(count = 20)
+  @WithSeededExamples(
+      count = 20,
+      tags = {"searchable"})
   class SearchEndpoint {
 
     @Test
@@ -426,20 +430,19 @@ class ExampleControllerIT {
 
     @Test
     void userFilteringByTags_returnsEntitiesWithAnyOfTheTags() {
-      Response all = asUser().get(PATH).then().statusCode(200).extract().response();
-      List<List<String>> allTags = all.jsonPath().getList("content.tags");
-      String anyTag =
-          allTags.stream()
-              .filter(t -> t != null && !t.isEmpty())
-              .map(t -> t.get(0))
-              .findFirst()
-              .orElse("alpha");
-
+      // @WithSeededExamples(tags = {"searchable"}) guarantees every seeded
+      // entity carries this tag, so the filter has a deterministic target.
       Response response =
-          asUser().queryParam("tags", anyTag).get(PATH).then().statusCode(200).extract().response();
-      assertThat(response.jsonPath().getLong("totalElements")).isGreaterThanOrEqualTo(1L);
+          asUser()
+              .queryParam("tags", "searchable")
+              .get(PATH)
+              .then()
+              .statusCode(200)
+              .extract()
+              .response();
+      assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(20L);
       List<List<String>> matchedTags = response.jsonPath().getList("content.tags");
-      assertThat(matchedTags).allMatch(t -> t != null && t.contains(anyTag));
+      assertThat(matchedTags).allMatch(t -> t != null && t.contains("searchable"));
     }
 
     @Test
