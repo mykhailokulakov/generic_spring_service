@@ -2,7 +2,7 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
-import io.github.mykhailokulakov.genericspringservice.domain.model.PatchExampleRequest;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -23,5 +23,5 @@ public interface ExampleEntityMapper {
   void applyReplacement(Example replacement, @MappingTarget ExampleEntity entity);
 
   @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-  void applyPatch(PatchExampleRequest patch, @MappingTarget ExampleEntity entity);
+  void applyPatch(ExamplePatch patch, @MappingTarget ExampleEntity entity);
 }

@@ -1,7 +1,6 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
-import io.github.mykhailokulakov.genericspringservice.domain.model.PatchExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresAdmin;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresUser;
 import io.github.mykhailokulakov.genericspringservice.service.ExampleService;
@@ -13,6 +12,7 @@ import io.github.mykhailokulakov.genericspringservice.web.annotation.VersionedWr
 import io.github.mykhailokulakov.genericspringservice.web.dto.CreateExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.PageResponse;
+import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.web.mapper.ExampleApiMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -101,7 +101,7 @@ public class ExampleController {
       @PathVariable UUID id,
       @RequestHeader(value = "If-Match", required = false) Long expectedVersion,
       @Valid @RequestBody PatchExampleRequest request) {
-    return apiMapper.toResponse(service.patch(id, expectedVersion, request));
+    return apiMapper.toResponse(service.patch(id, expectedVersion, apiMapper.toModel(request)));
   }
 
   @DeleteMapping("/{id}")

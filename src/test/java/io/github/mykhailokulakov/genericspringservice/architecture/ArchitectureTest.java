@@ -13,6 +13,8 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.persistence.Entity;
 import jakarta.persistence.MappedSuperclass;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,9 +127,9 @@ class ArchitectureTest {
   static final ArchRule apiResponseOnlyInAnnotationPackage =
       classes()
           .that()
-          .areAnnotatedWith("io.swagger.v3.oas.annotations.responses.ApiResponses")
+          .areAnnotatedWith(ApiResponses.class)
           .or()
-          .areAnnotatedWith("io.swagger.v3.oas.annotations.responses.ApiResponse")
+          .areAnnotatedWith(ApiResponse.class)
           .should()
           .resideInAPackage("..web.annotation..");
 

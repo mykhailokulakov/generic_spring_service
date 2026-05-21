@@ -1,8 +1,10 @@
 package io.github.mykhailokulakov.genericspringservice.web.mapper;
 
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.web.dto.CreateExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleResponse;
+import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateExampleRequest;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -23,4 +25,6 @@ public interface ExampleApiMapper {
   @Mapping(target = "updatedAt", ignore = true)
   @Mapping(target = "version", ignore = true)
   Example toModel(UpdateExampleRequest request);
+
+  ExamplePatch toModel(PatchExampleRequest request);
 }

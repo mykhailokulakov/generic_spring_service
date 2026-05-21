@@ -3,7 +3,7 @@ package io.github.mykhailokulakov.genericspringservice.service;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
-import io.github.mykhailokulakov.genericspringservice.domain.model.PatchExampleRequest;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.exception.ConflictException;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
@@ -49,7 +49,7 @@ public class ExampleService {
     return mapper.toModel(repository.saveAndFlush(entity));
   }
 
-  public Example patch(UUID id, Long expectedVersion, PatchExampleRequest patch) {
+  public Example patch(UUID id, Long expectedVersion, ExamplePatch patch) {
     ExampleEntity entity = loadAndCheckVersion(id, expectedVersion);
     mapper.applyPatch(patch, entity);
     return mapper.toModel(repository.saveAndFlush(entity));
