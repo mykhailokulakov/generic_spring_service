@@ -72,26 +72,14 @@ jobs:
             -Dspring-boot.build-image.publish=false \
             -Dspring-boot.build-image.imageName="${IMAGE_REF}"
 
-      # If the `-D` override above is silently ignored by the plugin, the
-      # buildpack writes the image under the pom-configured name
-      # (`...:0.1.0-SNAPSHOT`). Re-tag from whatever was actually produced
-      # to the canonical `ci-<sha>` ref so `docker save` has a stable input
-      # regardless of which path the plugin took.
-      - name: Normalize image tag
+      # If the imageName override is ever silently dropped by the plugin
+      # (no reproducer in current Spring Boot, was historically a concern),
+      # `docker save` here will fail with "No such image" — fast and
+      # explicit, no need for a defensive re-tag step.
+      - name: Save image to tar
         run: |
           set -euo pipefail
-          docker image ls --format '{{.Repository}}:{{.Tag}}'
-          if docker image inspect "${IMAGE_REF}" >/dev/null 2>&1; then
-            echo "Image already tagged as ${IMAGE_REF}"
-          else
-            POM_VERSION="$(./mvnw -q -B -ntp help:evaluate -Dexpression=project.version -DforceStdout)"
-            POM_REF="ghcr.io/mykhailokulakov/generic-spring-service:${POM_VERSION}"
-            echo "Re-tagging ${POM_REF} -> ${IMAGE_REF}"
-            docker tag "${POM_REF}" "${IMAGE_REF}"
-          fi
-
-      - name: Save image to tar
-        run: docker save "${IMAGE_REF}" -o target/app-image.tar
+          docker save "${IMAGE_REF}" -o target/app-image.tar
 
       - name: Upload image tar artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -372,8 +360,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # Disable setup-java's `cache: maven` for this job. Without it,
+      # ~/.m2/repository is not restored or saved, which avoids the
+      # ~700MB NVD-data blob being double-cached under both setup-java's
+      # pom-hash key AND our explicit date-keyed NVD cache below. The
+      # cost is ~30s of dependency-check-maven plugin downloads per
+      # cold run, which is dwarfed by the NVD update itself.
       - name: Setup project Java
         uses: ./.github/actions/setup-java
+        with:
+          maven-cache: ''
 
       # Read the plugin version out of pom.xml so the cache key tracks the
       # plugin automatically — bumping dependency-check-maven invalidates
@@ -394,15 +390,6 @@ jobs:
       - name: Compute NVD cache date
         id: nvd-date
         run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
-
-      # setup-java's `cache: maven` restores the entire ~/.m2/repository,
-      # which can include yesterday's NVD data on a stale-cache hit. Wipe
-      # the dep-check-data path before our explicit cache restore so that
-      # step is the single source of truth for the DB. If our explicit
-      # cache hits (or restore-keys falls back to a recent day), it
-      # repopulates the directory and update-only just fetches the delta.
-      - name: Wipe potentially-stale NVD data from maven cache
-        run: rm -rf ~/.m2/repository/org/owasp/dependency-check-data
 
       # Split into restore + save (rather than the combined `actions/cache@v5`
       # step) so the cache is populated by an explicit `update-only` step
@@ -473,22 +460,15 @@ jobs:
             echo "::warning::No SARIF report at $SARIF — :check probably failed before producing one."
             exit 0
           fi
-          {
-            echo "## Dependency-check failures (CVSS ≥ 7)"
-            echo
-            echo "| CVSS | CVE | Dependency | Summary |"
-            echo "| --- | --- | --- | --- |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          # Run jq via command substitution rather than process substitution
+          # so that a jq failure (malformed SARIF, etc.) propagates up via
+          # set -e instead of being swallowed by the `< <(...)` redirector,
+          # which would leave us reading from an empty stream and emitting a
+          # misleading "no findings" warning.
+          #
           # SARIF: rules carry the CVSS in properties.security-severity,
           # results carry the matched ruleId + the offending jar's path.
-          FOUND=0
-          while IFS=$'\t' read -r cvss cve dep desc; do
-            [ -z "${cve:-}" ] && continue
-            FOUND=$((FOUND + 1))
-            echo "::error::[CVSS $cvss] $cve in $dep — $desc"
-            printf '| %s | [%s](https://nvd.nist.gov/vuln/detail/%s) | `%s` | %s |\n' \
-              "$cvss" "$cve" "$cve" "$dep" "$desc" >> "$GITHUB_STEP_SUMMARY"
-          done < <(jq -r '
+          FINDINGS="$(jq -r '
             .runs[0] as $run |
             (
               ($run.tool.driver.rules // [])
@@ -505,7 +485,27 @@ jobs:
                 ((.message.text // "") | gsub("[\\n\\r]"; " ") | .[0:240])
               ]
             | @tsv
-          ' "$SARIF")
+          ' "$SARIF")"
+          {
+            echo "## Dependency-check failures (CVSS ≥ 7)"
+            echo
+            echo "| CVSS | CVE | Dependency | Summary |"
+            echo "| --- | --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          FOUND=0
+          # Here-string keeps the loop in the current shell so `FOUND`
+          # increments survive past the loop body. `[ -n "$FINDINGS" ]`
+          # avoids the spurious single empty-line read when jq returned
+          # nothing.
+          if [ -n "$FINDINGS" ]; then
+            while IFS=$'\t' read -r cvss cve dep desc; do
+              [ -z "${cve:-}" ] && continue
+              FOUND=$((FOUND + 1))
+              echo "::error::[CVSS $cvss] $cve in $dep — $desc"
+              printf '| %s | [%s](https://nvd.nist.gov/vuln/detail/%s) | `%s` | %s |\n' \
+                "$cvss" "$cve" "$cve" "$dep" "$desc" >> "$GITHUB_STEP_SUMMARY"
+            done <<< "$FINDINGS"
+          fi
           if [ "$FOUND" -eq 0 ]; then
             echo "::warning::SARIF parsed but no CVSS>=7 findings — :check may have failed for another reason; see preceding Maven output."
           fi
