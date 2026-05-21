@@ -219,10 +219,13 @@ jobs:
           docker image ls "${IMAGE_REF}"
           echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
 
-      # Two Trivy invocations:
-      #   1. Full CRITICAL+HIGH scan, SARIF output for the Security tab,
-      #      exit-code 0 so HIGH findings warn rather than gate.
-      #   2. CRITICAL-only re-run with exit-code 1 so the job fails when any
+      # Three Trivy invocations:
+      #   1. Full CRITICAL+HIGH scan, SARIF output for the Security tab and
+      #      uploaded as a workflow artifact (so the finding is visible from
+      #      the run page without needing Security-tab access).
+      #   2. CRITICAL+HIGH table report uploaded as a plain-text artifact for
+      #      quick inspection.
+      #   3. CRITICAL-only re-run with exit-code 1 so the job fails when any
       #      CRITICAL is present.
       - name: Trivy scan — SARIF report (CRITICAL,HIGH, warn-only)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
@@ -233,6 +236,27 @@ jobs:
           output: trivy-results.sarif
           exit-code: '0'
           ignore-unfixed: true
+
+      - name: Trivy scan — table report (CRITICAL,HIGH, warn-only)
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          image-ref: ${{ steps.load.outputs.image-ref }}
+          severity: 'CRITICAL,HIGH'
+          format: table
+          output: trivy-results.txt
+          exit-code: '0'
+          ignore-unfixed: true
+
+      - name: Upload Trivy reports as artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-reports
+          path: |
+            trivy-results.sarif
+            trivy-results.txt
+          if-no-files-found: warn
 
       - name: Upload Trivy SARIF to Security tab
         if: always()
@@ -248,16 +272,6 @@ jobs:
           severity: 'CRITICAL'
           format: table
           exit-code: '1'
-          ignore-unfixed: true
-
-      - name: Trivy scan — HIGH warnings (advisory)
-        if: always()
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
-        with:
-          image-ref: ${{ steps.load.outputs.image-ref }}
-          severity: 'HIGH'
-          format: table
-          exit-code: '0'
           ignore-unfixed: true
 
   dependency-audit:
