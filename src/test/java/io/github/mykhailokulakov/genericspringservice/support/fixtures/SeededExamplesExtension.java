@@ -4,8 +4,10 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -34,13 +36,15 @@ public class SeededExamplesExtension implements BeforeEachCallback {
     }
 
     Set<String> annotationTags = new HashSet<>(Arrays.asList(annotation.tags()));
+    List<ExampleEntity> entities = new ArrayList<>(annotation.count());
     for (int i = 0; i < annotation.count(); i++) {
       ExampleEntity entity = ExampleFixtures.randomActive();
       if (!annotationTags.isEmpty()) {
         entity.getTags().addAll(annotationTags);
       }
-      repository.save(entity);
+      entities.add(entity);
     }
+    repository.saveAll(entities);
     repository.flush();
   }
 
