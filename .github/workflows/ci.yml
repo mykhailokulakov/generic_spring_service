@@ -184,13 +184,7 @@ jobs:
           if-no-files-found: warn
 
   coverage-gate:
-    # TEMPORARY: runs jacoco:check with the `ci-coverage-initial` profile, which
-    # currently gates at 70% line / 60% branch (stepped up from prompt 5's
-    # 60%/50%). The project default remains 80%/80% (see pom.xml). This stepped
-    # floor exists ONLY while we grow the test suite toward the 80%/80% target,
-    # which lands in prompt 14. When that lands, both the `ci-coverage-initial`
-    # profile AND this notice must be removed so CI enforces the project default.
-    name: Coverage gate (70%/60% TEMPORARY floor)
+    name: Coverage gate (80%/80%)
     runs-on: ubuntu-24.04
     needs: [unit-test, integration-test]
     permissions:
@@ -238,8 +232,8 @@ jobs:
       - name: Generate merged JaCoCo report
         run: ./mvnw -q jacoco:report -Djacoco.dataFile=target/jacoco-merged.exec
 
-      - name: Enforce merged coverage gate (TEMPORARY 70%/60% floor)
-        run: ./mvnw -q jacoco:check@check -Pci-coverage-initial
+      - name: Enforce merged coverage gate (80%/80%)
+        run: ./mvnw -q jacoco:check@check
 
       # Surface bundle coverage in the job summary instead of as a PR comment.
       - name: Write coverage summary
@@ -267,7 +261,7 @@ jobs:
 
           print("## Coverage report (unit + integration)")
           print()
-          print("Gate (temporary): 70% line, 60% branch. Project default: 80% / 80%.")
+          print("Gate: 80% line, 80% branch.")
           print()
           print("| Counter | Covered / Total | Percentage |")
           print("| --- | --- | --- |")
