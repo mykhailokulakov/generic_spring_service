@@ -430,6 +430,57 @@ jobs:
       - name: Run OWASP dependency-check
         run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check -DautoUpdate=false
 
+      # When `:check` fails on a CVSS>=7 finding, the offending CVE id and
+      # dependency live somewhere in the Maven log buried under the
+      # plugin's noisy progress output. Parse the SARIF report instead so
+      # the failure is visible at a glance both in the job log
+      # (::error:: annotations) and in the job summary (Markdown table).
+      - name: Surface failing CVEs
+        if: failure()
+        run: |
+          set -euo pipefail
+          SARIF=target/dependency-check-report.sarif
+          if [ ! -f "$SARIF" ]; then
+            echo "::warning::No SARIF report at $SARIF — :check probably failed before producing one."
+            exit 0
+          fi
+          {
+            echo "## Dependency-check failures (CVSS ≥ 7)"
+            echo
+            echo "| CVSS | CVE | Dependency | Summary |"
+            echo "| --- | --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # SARIF: rules carry the CVSS in properties.security-severity,
+          # results carry the matched ruleId + the offending jar's path.
+          FOUND=0
+          while IFS=$'\t' read -r cvss cve dep desc; do
+            [ -z "${cve:-}" ] && continue
+            FOUND=$((FOUND + 1))
+            echo "::error::[CVSS $cvss] $cve in $dep — $desc"
+            printf '| %s | [%s](https://nvd.nist.gov/vuln/detail/%s) | `%s` | %s |\n' \
+              "$cvss" "$cve" "$cve" "$dep" "$desc" >> "$GITHUB_STEP_SUMMARY"
+          done < <(jq -r '
+            .runs[0] as $run |
+            (
+              ($run.tool.driver.rules // [])
+              | map({key: .id, value: (.properties."security-severity" // "0")})
+              | from_entries
+            ) as $cvss |
+            $run.results[]?
+            | ($cvss[.ruleId] // "0") as $score
+            | select(($score | tonumber? // 0) >= 7)
+            | [
+                $score,
+                .ruleId,
+                ((.locations // [])[0].physicalLocation.artifactLocation.uri // "?"),
+                ((.message.text // "") | gsub("[\\n\\r]"; " ") | .[0:240])
+              ]
+            | @tsv
+          ' "$SARIF")
+          if [ "$FOUND" -eq 0 ]; then
+            echo "::warning::SARIF parsed but no CVSS>=7 findings — :check may have failed for another reason; see preceding Maven output."
+          fi
+
       - name: Upload HTML report artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
