@@ -2,7 +2,7 @@
   "realm": "generic",
   "enabled": true,
   "displayName": "Generic (NON-PRODUCTION)",
-  "description": "Non-production realm for local development. Seeded users are baked-in test credentials — do NOT use in any deployed environment.",
+  "displayNameHtml": "<strong>Generic</strong> &mdash; NON-PRODUCTION local realm",
   "sslRequired": "none",
   "accessTokenLifespan": 3600,
   "registrationAllowed": false,

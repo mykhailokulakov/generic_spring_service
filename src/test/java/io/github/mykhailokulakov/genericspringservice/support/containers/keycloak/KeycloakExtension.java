@@ -28,7 +28,7 @@ public class KeycloakExtension implements BeforeAllCallback, AfterAllCallback {
     }
 
     for (WithKeycloak decl : declarations) {
-      ContainerKey key = new ContainerKey(decl.name(), decl.image(), decl.realmImport());
+      var key = new ContainerKey(decl.name(), decl.image(), decl.realmImport());
       Holder holder =
           CONTAINERS.computeIfAbsent(
               key,

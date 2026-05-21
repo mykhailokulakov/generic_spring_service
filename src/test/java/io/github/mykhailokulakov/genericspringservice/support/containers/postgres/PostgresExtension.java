@@ -22,7 +22,7 @@ public class PostgresExtension implements BeforeAllCallback {
     }
 
     for (WithPostgres decl : declarations) {
-      ContainerKey key = new ContainerKey(decl.name(), decl.image());
+      var key = new ContainerKey(decl.name(), decl.image());
       PostgreSQLContainer<?> container =
           CONTAINERS.computeIfAbsent(
               key,
