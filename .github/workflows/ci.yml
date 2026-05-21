@@ -400,10 +400,13 @@ jobs:
       # the secret on the repo to drop runtime to ~1–2 minutes. The plugin
       # reads the env var directly via <nvdApiKeyEnvironmentVariable> in
       # pom.xml; no CLI flag needed.
+      #
+      # No `-q`: dependency-check's NVD-download progress is logged at INFO,
+      # so quiet mode makes the job look hung for 10+ minutes.
       - name: Run OWASP dependency-check
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./mvnw -q org.owasp:dependency-check-maven:check
+        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check
 
       - name: Upload HTML report artifact
         if: always()
