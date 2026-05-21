@@ -9,14 +9,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
+import io.github.mykhailokulakov.genericspringservice.domain.model.PatchExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.exception.ConflictException;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.ExampleEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
-import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;

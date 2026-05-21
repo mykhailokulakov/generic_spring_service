@@ -1,7 +1,6 @@
-package io.github.mykhailokulakov.genericspringservice.web.dto;
+package io.github.mykhailokulakov.genericspringservice.domain.model;
 
 import io.github.mykhailokulakov.genericspringservice.common.validation.NullOrNotBlank;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;

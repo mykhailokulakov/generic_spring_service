@@ -55,6 +55,47 @@ jobs:
           path: target/*.jar
           if-no-files-found: ignore
 
+  architecture:
+    name: Architecture (ArchUnit)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      # Pure bytecode analysis: no Spring context boot, no Testcontainers, no
+      # database. Surefire runs ArchitectureTest standalone so this job stays
+      # well under a minute and gates the rest of CI on rule violations.
+      - name: Run ArchUnit tests
+        run: ./mvnw -q test -Dtest=ArchitectureTest
+
+      - name: Upload Surefire reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: architecture-surefire-reports
+          path: target/surefire-reports/*.xml
+          if-no-files-found: warn
+
+      - name: Publish test report
+        if: always()
+        uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2 # v3.0.0
+        with:
+          name: Architecture (ArchUnit)
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
+          fail-on-error: 'false'
+
   unit-test:
     name: Unit tests (mvn test)
     runs-on: ubuntu-24.04

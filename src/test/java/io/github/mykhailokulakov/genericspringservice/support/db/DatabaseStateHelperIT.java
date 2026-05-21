@@ -3,7 +3,7 @@ package io.github.mykhailokulakov.genericspringservice.support.db;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.support.IntegrationTest;
 import java.math.BigDecimal;

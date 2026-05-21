@@ -3,9 +3,9 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
-import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
+import io.github.mykhailokulakov.genericspringservice.domain.model.PatchExampleRequest;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;

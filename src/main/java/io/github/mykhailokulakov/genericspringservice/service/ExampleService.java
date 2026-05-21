@@ -2,14 +2,14 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
+import io.github.mykhailokulakov.genericspringservice.domain.model.PatchExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.exception.ConflictException;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.ExampleEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
-import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleFilter;
-import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

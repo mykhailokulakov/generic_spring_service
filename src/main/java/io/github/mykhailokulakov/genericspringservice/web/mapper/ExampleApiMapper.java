@@ -1,4 +1,4 @@
-package io.github.mykhailokulakov.genericspringservice.mapper;
+package io.github.mykhailokulakov.genericspringservice.web.mapper;
 
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.web.dto.CreateExampleRequest;

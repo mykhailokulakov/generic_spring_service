@@ -1,6 +1,6 @@
 package io.github.mykhailokulakov.genericspringservice.web.dto;
 
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.Instant;

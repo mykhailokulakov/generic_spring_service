@@ -1,6 +1,5 @@
 package io.github.mykhailokulakov.genericspringservice.domain.model;
 
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleStatus;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;

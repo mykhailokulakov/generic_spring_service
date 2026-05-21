@@ -2,7 +2,7 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
-import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
+import io.github.mykhailokulakov.genericspringservice.domain.model.PatchExampleRequest;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
