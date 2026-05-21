@@ -65,17 +65,23 @@ jobs:
       # No `-q`: Paketo build output is the only way to diagnose buildpack
       # failures, and quiet mode also swallows download progress on the
       # multi-hundred-MB builder image pull.
+      # Image name flows through the pom's <docker.image.name> property
+      # (referenced by spring-boot-maven-plugin's <image><name>). The
+      # plugin's own flat `spring-boot.build-image.imageName` CLI property
+      # is shadowed by any structured pom <image> config, which is why
+      # earlier versions of this workflow needed a defensive re-tag step.
+      # Overriding the Maven property is the path that actually wins.
+      #
+      # No `-q`: Paketo build output is the only way to diagnose buildpack
+      # failures, and quiet mode also swallows download progress on the
+      # multi-hundred-MB builder image pull.
       - name: Build container image
         run: |
           set -euo pipefail
           ./mvnw -B -ntp -DskipTests spring-boot:build-image \
             -Dspring-boot.build-image.publish=false \
-            -Dspring-boot.build-image.imageName="${IMAGE_REF}"
+            -Ddocker.image.name="${IMAGE_REF}"
 
-      # If the imageName override is ever silently dropped by the plugin
-      # (no reproducer in current Spring Boot, was historically a concern),
-      # `docker save` here will fail with "No such image" — fast and
-      # explicit, no need for a defensive re-tag step.
       - name: Save image to tar
         run: |
           set -euo pipefail

@@ -34,6 +34,12 @@
         <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
 
+        <!-- Default buildpack image name; CI overrides this to pin
+             the tag to `ci-${git-sha}` so each run produces a stable,
+             distinct artifact. Local `mvn spring-boot:build-image`
+             gets the project.version-tagged default. -->
+        <docker.image.name>ghcr.io/mykhailokulakov/generic-spring-service:${project.version}</docker.image.name>
+
         <!-- Security overrides on top of Spring Boot 4.0.6's BOM:
              - tomcat.version 11.0.21 -> 11.0.22 closes CVE-2026-43515,
                CVE-2026-43512, CVE-2026-41293 (CRITICAL) plus three HIGHs
@@ -236,7 +242,14 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <image>
-                        <name>ghcr.io/mykhailokulakov/generic-spring-service:${project.version}</name>
+                        <!-- Image name flows through a Maven property so CI
+                             can override it cleanly via `-Ddocker.image.name=...`.
+                             The plugin's own `spring-boot.build-image.imageName`
+                             CLI property is shadowed by any pom <image><name>
+                             entry (structured config wins over the flat user
+                             property), so using a Maven property reference is
+                             the only override path that actually takes effect. -->
+                        <name>${docker.image.name}</name>
                     </image>
                 </configuration>
             </plugin>
