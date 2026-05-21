@@ -461,6 +461,24 @@
                 <groupId>org.owasp</groupId>
                 <artifactId>dependency-check-maven</artifactId>
                 <version>${dependency-check-maven.version}</version>
+                <!-- Explicit `<phase>none</phase>` execution defensively
+                     prevents the `check` goal from binding to the default
+                     `verify` phase. Without this, a `mvn verify` invocation
+                     (e.g. the integration-test job) would run a CVE scan as
+                     a side effect, slowing down test jobs and failing them
+                     for dependency findings unrelated to the test code.
+                     The goal is still invokable directly via
+                     `mvn dependency-check:check` from the dedicated
+                     `dependency-audit` CI job. -->
+                <executions>
+                    <execution>
+                        <id>default-cli</id>
+                        <phase>none</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
                 <configuration>
                     <failBuildOnCVSS>7.0</failBuildOnCVSS>
                     <formats>
@@ -469,13 +487,14 @@
                     </formats>
                     <skipTestScope>true</skipTestScope>
                     <skipProvidedScope>true</skipProvidedScope>
-                    <!-- NVD API key is supplied at runtime via -DnvdApiKey
-                         from the workflow ($NVD_API_KEY secret). The plugin
-                         has no env-var parameter (the gradle plugin does,
-                         the maven one doesn't), so a CLI property is the
-                         only option short of putting it in settings.xml.
-                         GitHub Actions masks registered secret values in
-                         job logs, so the secret won't appear there. -->
+                    <!-- Read NVD_API_KEY from the env var at runtime via
+                         Maven's `${env.X}` interpolation. Avoids putting
+                         the secret on the Maven command line (where a
+                         debug-mode `set -x` or verbose plugin log could
+                         echo it). The dep-audit job guarantees the env
+                         var is set; non-CI invocations without the var
+                         will run unauthenticated (slow but functional). -->
+                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
                     <!-- Suppression file for known false positives / scoped
                          "doesn't apply to us" CVEs. Empty by default; each
                          entry must include rationale + sunset date. -->

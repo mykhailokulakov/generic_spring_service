@@ -57,13 +57,18 @@ jobs:
       # filename is predictable and downstream jobs can reference it without
       # parsing the pom. Image is built locally only — publish=false.
       #
+      # `spring-boot:build-image` forks the lifecycle through the `package`
+      # phase internally, so we deliberately don't list `package` on the
+      # mvn command line — doing so would run packaging twice (once for the
+      # outer lifecycle, once for the forked sub-execution).
+      #
       # No `-q`: Paketo build output is the only way to diagnose buildpack
       # failures, and quiet mode also swallows download progress on the
       # multi-hundred-MB builder image pull.
       - name: Build container image
         run: |
           set -euo pipefail
-          ./mvnw -B -ntp -DskipTests package spring-boot:build-image \
+          ./mvnw -B -ntp -DskipTests spring-boot:build-image \
             -Dspring-boot.build-image.publish=false \
             -Dspring-boot.build-image.imageName="${IMAGE_REF}"
 
@@ -335,9 +340,19 @@ jobs:
   dependency-audit:
     name: Dependency audit (OWASP dependency-check)
     runs-on: ubuntu-24.04
+    # Fork PRs don't receive repository secrets, so NVD_API_KEY would be
+    # empty and the unauthenticated NVD download would blow past our 20m
+    # timeout for CI-environment reasons (not code reasons). Push events
+    # (always same-repo) and same-repo PRs both have the secret. Skip the
+    # whole job on fork PRs rather than ship a "passed-but-meaningless"
+    # gate result.
+    if: |
+      github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name == github.repository
     # Hard cap so a stalled NVD download (e.g. missing/unset NVD_API_KEY
-    # forcing the full unauthenticated feed) fails fast instead of burning an
-    # hour of CI. A normal run with the API key + warm cache finishes in ~2m.
+    # forcing the full unauthenticated feed) fails fast instead of burning
+    # an hour of CI. A normal run with the API key + warm cache finishes
+    # in ~2m; the first cold-cache run we observed completed in ~8m.
     timeout-minutes: 20
     permissions:
       contents: read
@@ -398,19 +413,17 @@ jobs:
       # from `:check` lets us save the cache cleanly even when `:check`
       # later fails on a CVSS>=7 finding — the DB itself is still valid.
       #
-      # NVD_API_KEY is required to keep this job under the timeout — without
-      # it the unauthenticated NVD download is rate-limited to ~1 req/6s and
-      # the full feed takes >1h. dependency-check-maven has no nvdApiKey
-      # env-var parameter (Gradle has one, Maven doesn't), so pass the
-      # secret on the CLI; GitHub Actions masks registered secret values in
-      # logs.
+      # NVD_API_KEY is read from the env var by the plugin config in
+      # pom.xml (via `${env.NVD_API_KEY}` interpolation), so the secret
+      # never lands on the Maven command line. The job-level `if:` above
+      # guarantees the env var is set whenever this step runs.
       #
       # No `-q`: NVD-download progress is logged at INFO, so quiet mode
       # makes the job look hung for 10+ minutes.
       - name: Update NVD database
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:update-only -DnvdApiKey="$NVD_API_KEY"
+        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:update-only
 
       # Save the cache immediately after a successful update, before
       # `:check` runs. This is the whole point of the restore/save split:
@@ -427,7 +440,12 @@ jobs:
       # The DB is already populated from `update-only`; this step is just
       # the CVE matching + report generation. Auto-update is off so the
       # plugin doesn't try to re-fetch the feed and waste API quota.
+      # NVD_API_KEY is still passed because the pom-level config reads
+      # `${env.NVD_API_KEY}` — even with autoUpdate=false, an empty value
+      # would log a noisy warning at plugin startup.
       - name: Run OWASP dependency-check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check -DautoUpdate=false
 
       # When `:check` fails on a CVSS>=7 finding, the offending CVE id and
