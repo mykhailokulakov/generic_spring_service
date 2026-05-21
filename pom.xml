@@ -455,6 +455,12 @@
                     </formats>
                     <skipTestScope>true</skipTestScope>
                     <skipProvidedScope>true</skipProvidedScope>
+                    <!-- Suppression file for known false positives / scoped
+                         "doesn't apply to us" CVEs. Empty by default; each
+                         entry must include rationale + sunset date. -->
+                    <suppressionFiles>
+                        <suppressionFile>${project.basedir}/dependency-check-suppressions.xml</suppressionFile>
+                    </suppressionFiles>
                 </configuration>
             </plugin>
         </plugins>
