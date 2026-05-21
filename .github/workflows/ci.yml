@@ -5,6 +5,10 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Reusable invocation point. release.yml runs the full CI suite as a
+  # gate before tagging — we don't ship a release without the same
+  # checks that gate every merge to main.
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

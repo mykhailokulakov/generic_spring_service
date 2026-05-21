@@ -1,0 +1,60 @@
+# git-cliff configuration — groups commits by Conventional Commit type so
+# the rendered changelog mirrors the commit-message convention enforced
+# by reviewers. Used by .github/workflows/release.yml to build the
+# GitHub Release body from `git cliff --tag vX.Y.Z`.
+
+[changelog]
+header = ""
+body = """
+{% if version %}\
+## {{ version }}{% if timestamp %} ({{ timestamp | date(format="%Y-%m-%d") }}){% endif %}
+{% else %}\
+## Unreleased
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}\
+- {% if commit.scope %}**{{ commit.scope }}**: {% endif %}\
+{{ commit.message | split(pat="\n") | first | upper_first | trim }}
+{% endfor %}
+{% endfor %}\n
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+# Merge-commit subjects ("Merge pull request #N from …") and merge-branch
+# noise are dropped so the changelog reads the underlying conventional
+# commits instead. PR numbers embedded as `(#N)` on squash-merge subjects
+# are kept verbatim — GitHub's release-notes renderer auto-links them.
+commit_parsers = [
+  { message = "\\[skip ci\\]", skip = true },
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^Merge pull request", skip = true },
+  { message = "^Merge branch", skip = true },
+  { message = "^Merge remote-tracking", skip = true },
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug fixes" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Refactor" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^test", group = "Tests" },
+  { message = "^ci", group = "CI" },
+  { message = "^build", group = "Build" },
+  { message = "^chore", group = "Chore" },
+  { message = ".*", group = "Other" },
+]
+protect_breaking_commits = false
+filter_commits = false
+tag_pattern = "v[0-9].*"
+skip_tags = ""
+ignore_tags = ""
+topo_order = false
+sort_commits = "oldest"
+
+[remote.github]
+owner = "mykhailokulakov"
+repo = "generic_spring_service"
