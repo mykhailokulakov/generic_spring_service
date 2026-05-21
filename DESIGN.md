@@ -217,7 +217,25 @@ OAuth2 Resource Server pattern. Service does not manage users. JWT validated aga
 
 ### 4.8 Test infrastructure — composable container extensions
 
+#### 4.8.1 Container extensions
+
 Each container is its own JUnit 5 extension behind a meta-annotation. Each annotation is repeatable with a `name()` parameter for the multi-container case. The 90% test wraps `@SpringBootTest` + the default containers in a single `@IntegrationTest` composition annotation. Test fixtures (e.g. seeded data) follow the same extension pattern.
+
+#### 4.8.2 Test helpers
+
+Three small, single-purpose utilities sit beside the container extensions. They are extracted because the same handful of patterns appear in every integration test; they are deliberately narrow, with no shared base class and no DSL on top.
+
+- **`RestAssuredAuth`** (`test/support/auth/`) — `asAdmin()`, `asUser()`, `asUnauthenticated()`, `withToken(String)`. Each returns a configured `RequestSpecification` so the call site is one line: `asUser().get("/api/v1/examples")`. The JWT factory is wired by `KeycloakExtension` via a package-internal static setter and cleared in `AfterAllCallback` — static helpers are not Spring-aware, and the extension owns the lifecycle.
+- **`ProblemDetailAssert`** + **`Assertions`** (`test/support/assertions/`) — an AssertJ custom assertion over a RestAssured `Response` for RFC 9457 ProblemDetail bodies. Fluent: `hasStatus`, `hasProblemJsonContentType`, `hasCode`, `hasTitle`/`hasTitleMatching`, `hasDetail`, `hasType`, `hasViolation(field, code)`, `hasViolationCount`. `Assertions` re-exports AssertJ's standard `assertThat` overloads (by extending `org.assertj.core.api.Assertions`) and adds the `Response` overload so a single static import covers both. The assertion does **not** look up `MessageSource` itself — tests resolve localized strings from the autowired bean and pass them in. Slightly more verbose at the call site, but no spooky-action-at-a-distance from a global.
+- **`DatabaseStateHelper`** (`test/support/db/`) — `@TestComponent`, constructor-injected `EntityManager`. `truncateAll()` / `truncate(String)` (native SQL with `CASCADE` and identity reset, excluding `flyway_schema_history`); `countIncludingDeleted(Class<?>)` / `countWhereDeleted(Class<?>)` (native counts that bypass Hibernate's `@SoftDelete` filter so soft-delete behavior is testable). All methods are `@Transactional(propagation = REQUIRES_NEW)` so they commit immediately. Because it is `@TestComponent` it never appears in the production application context.
+
+Design principle: extract a helper only when duplication has paid for the abstraction. We deliberately do **NOT** ship:
+
+- a generic CRUD round-trip helper (`createThenFetch`, `updateThenFetch`, …) — each endpoint has its own validation, headers, and edge cases; a one-size helper hides them and makes negative tests harder, not easier;
+- a base integration test class — the meta-annotation `@IntegrationTest` already composes what's needed; a base class would invite creep and couple tests we want independent;
+- a JSON assertion DSL on top of RestAssured — RestAssured + the ProblemDetail assertion are enough; a third layer would be a homegrown framework with its own learning curve.
+
+Future helpers earn their place the same way: extracted only after the duplication is real and the call site is demonstrably better with them than without.
 
 ### 4.9 Build & packaging
 
@@ -341,6 +359,13 @@ generic_spring_service/
 │       │   │   └── ArchitectureTest.java
 │       │   ├── support/
 │       │   │   ├── IntegrationTest.java
+│       │   │   ├── auth/
+│       │   │   │   └── RestAssuredAuth.java
+│       │   │   ├── assertions/
+│       │   │   │   ├── ProblemDetailAssert.java
+│       │   │   │   └── Assertions.java
+│       │   │   ├── db/
+│       │   │   │   └── DatabaseStateHelper.java
 │       │   │   ├── containers/
 │       │   │   │   ├── postgres/
 │       │   │   │   │   ├── WithPostgres.java

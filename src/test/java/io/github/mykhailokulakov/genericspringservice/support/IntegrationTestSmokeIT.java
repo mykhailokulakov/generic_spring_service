@@ -1,9 +1,9 @@
 package io.github.mykhailokulakov.genericspringservice.support;
 
-import static io.restassured.RestAssured.given;
+import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asUnauthenticated;
+import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asUser;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.mykhailokulakov.genericspringservice.support.containers.keycloak.TestJwtFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -14,7 +14,6 @@ class IntegrationTestSmokeIT {
 
   @LocalServerPort int port;
   @Autowired ApplicationContext context;
-  @Autowired TestJwtFactory jwt;
 
   @Test
   void contextStarts() {
@@ -24,21 +23,16 @@ class IntegrationTestSmokeIT {
 
   @Test
   void actuatorHealthIsPublic() {
-    given().when().get("/actuator/health").then().statusCode(200);
+    asUnauthenticated().get("/actuator/health").then().statusCode(200);
   }
 
   @Test
   void apiRequiresAuthentication() {
-    given().when().get("/api/v1/examples").then().statusCode(401);
+    asUnauthenticated().get("/api/v1/examples").then().statusCode(401);
   }
 
   @Test
   void apiAcceptsUserToken() {
-    given()
-        .header("Authorization", "Bearer " + jwt.userToken())
-        .when()
-        .get("/api/v1/examples")
-        .then()
-        .statusCode(200);
+    asUser().get("/api/v1/examples").then().statusCode(200);
   }
 }
