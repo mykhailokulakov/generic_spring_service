@@ -469,11 +469,13 @@
                     </formats>
                     <skipTestScope>true</skipTestScope>
                     <skipProvidedScope>true</skipProvidedScope>
-                    <!-- Read the NVD API key from the NVD_API_KEY env var
-                         when present. The plugin's CLI property is `nvdApiKey`
-                         (not `nvd.api.key`); pointing it at the env var avoids
-                         echoing the secret on the Maven command line. -->
-                    <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+                    <!-- NVD API key is supplied at runtime via -DnvdApiKey
+                         from the workflow ($NVD_API_KEY secret). The plugin
+                         has no env-var parameter (the gradle plugin does,
+                         the maven one doesn't), so a CLI property is the
+                         only option short of putting it in settings.xml.
+                         GitHub Actions masks registered secret values in
+                         job logs, so the secret won't appear there. -->
                     <!-- Suppression file for known false positives / scoped
                          "doesn't apply to us" CVEs. Empty by default; each
                          entry must include rationale + sunset date. -->

@@ -394,18 +394,19 @@ jobs:
           restore-keys: |
             nvd-${{ runner.os }}-dc12.2.2-
 
-      # NVD_API_KEY is optional but recommended — without it the NVD download
-      # is heavily rate-limited and can stretch this job over 20 minutes. Set
-      # the secret on the repo to drop runtime to ~1–2 minutes. The plugin
-      # reads the env var directly via <nvdApiKeyEnvironmentVariable> in
-      # pom.xml; no CLI flag needed.
+      # NVD_API_KEY is required to keep this job under the timeout — without
+      # it the unauthenticated NVD download is rate-limited to ~1 req/6s and
+      # the full 350k-record feed takes >1h. With a key it's ~2 minutes.
+      # dependency-check-maven has no nvdApiKey env-var parameter (Gradle has
+      # one, Maven doesn't), so pass the secret on the CLI; GitHub Actions
+      # masks registered secret values in logs.
       #
       # No `-q`: dependency-check's NVD-download progress is logged at INFO,
       # so quiet mode makes the job look hung for 10+ minutes.
       - name: Run OWASP dependency-check
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check
+        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check -DnvdApiKey="$NVD_API_KEY"
 
       - name: Upload HTML report artifact
         if: always()
