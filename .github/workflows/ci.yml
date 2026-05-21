@@ -242,6 +242,23 @@ jobs:
           sarif_file: trivy-results.sarif
           category: trivy-image-scan
 
+      # Gate the job on CRITICAL findings without paying for another scan:
+      # parse the JSON we already produced. Surfaces the count to the log
+      # so a red job is self-explanatory.
+      #
+      # Runs BEFORE the PR-comment step so a transient GitHub API hiccup
+      # there (curl 4xx/5xx now fails the step thanks to -fsSL) can't
+      # silently skip the gate via the default success() condition.
+      - name: Gate on CRITICAL findings
+        run: |
+          set -euo pipefail
+          CRITICAL=$(jq '[.Results[]? | (.Vulnerabilities // [])[] | select(.Severity == "CRITICAL")] | length' trivy-results.json)
+          echo "CRITICAL findings: $CRITICAL"
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Trivy found $CRITICAL CRITICAL vulnerabilities — failing job."
+            exit 1
+          fi
+
       # Sticky PR comment with a Markdown-table summary built from the JSON
       # output so reviewers (and the bot tending this PR) can see Trivy
       # findings without downloading an artifact. JSON-driven so we never
@@ -250,6 +267,8 @@ jobs:
       # Skipped on fork PRs: GitHub downgrades GITHUB_TOKEN to read-only for
       # workflows triggered from forks, so the issues-comments POST/PATCH
       # would 403 and fail the whole image-scan job for non-code reasons.
+      # `always()` so the comment still posts after the CRITICAL gate above
+      # has failed — we want reviewers to see what they need to fix.
       - name: Post Trivy report to PR
         if: |
           always()
@@ -322,19 +341,6 @@ jobs:
               -H "Accept: application/vnd.github+json" \
               -d "$PAYLOAD" \
               "https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments" > /dev/null
-          fi
-
-      # Gate the job on CRITICAL findings without paying for another scan:
-      # parse the JSON we already produced. Surfaces the count to the log so
-      # a red job is self-explanatory.
-      - name: Gate on CRITICAL findings
-        run: |
-          set -euo pipefail
-          CRITICAL=$(jq '[.Results[]? | (.Vulnerabilities // [])[] | select(.Severity == "CRITICAL")] | length' trivy-results.json)
-          echo "CRITICAL findings: $CRITICAL"
-          if [ "$CRITICAL" -gt 0 ]; then
-            echo "::error::Trivy found $CRITICAL CRITICAL vulnerabilities — failing job."
-            exit 1
           fi
 
   dependency-audit:

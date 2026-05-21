@@ -39,6 +39,11 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # Required by actions/download-artifact@v4+ when downloading
+      # artifacts from a different workflow run (the upstream CI run).
+      # Without this the artifact API returns 403 and the publish step
+      # fails before docker even sees the image.
+      actions: read
     env:
       # workflow_run executes in the default-branch context, so
       # github.sha is the branch HEAD at workflow start — not necessarily
