@@ -23,10 +23,18 @@ public class RestAssuredExtension implements BeforeEachCallback, AfterAllCallbac
 
     Field field = findPortField(instance.getClass());
     field.setAccessible(true);
-    int port = field.getInt(instance);
+    Object value = field.get(instance);
+    if (!(value instanceof Number number)) {
+      throw new IllegalStateException(
+          "@LocalServerPort field "
+              + field.getName()
+              + " must be an int or Integer (was "
+              + (value == null ? "null" : value.getClass().getName())
+              + ")");
+    }
 
     RestAssured.baseURI = "http://localhost";
-    RestAssured.port = port;
+    RestAssured.port = number.intValue();
   }
 
   @Override
