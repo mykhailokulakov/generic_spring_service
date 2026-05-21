@@ -63,26 +63,25 @@ class MessageResolutionIT {
 
   @Test
   void nonsenseAcceptLanguageHeaderFallsBackToDefault() {
+    UUID id = UUID.randomUUID();
+
     Response response =
         asUser()
             .header("Accept-Language", "zz")
-            .get("/api/v1/examples/" + UUID.randomUUID())
+            .get("/api/v1/examples/" + id)
             .then()
             .extract()
             .response();
 
     String englishDetail =
-        messages.getMessage(ErrorCode.EXAMPLE_NOT_FOUND.key(), new Object[] {"x"}, Locale.ENGLISH);
+        messages.getMessage(ErrorCode.EXAMPLE_NOT_FOUND.key(), new Object[] {id}, Locale.ENGLISH);
     String englishTitle = messages.getMessage("error.not-found.title", null, Locale.ENGLISH);
 
     assertThat(response)
         .hasStatus(404)
         .hasProblemJsonContentType()
         .hasCode(ErrorCode.EXAMPLE_NOT_FOUND.key())
-        .hasTitle(englishTitle);
-
-    // The detail message starts with the English template prefix (before the {0} placeholder).
-    String englishPrefix = englishDetail.substring(0, englishDetail.indexOf('x'));
-    assertThat(response.jsonPath().getString("detail")).startsWith(englishPrefix);
+        .hasTitle(englishTitle)
+        .hasDetail(englishDetail);
   }
 }

@@ -171,7 +171,8 @@ class GlobalExceptionHandlerIT {
         .hasStatus(400)
         .hasProblemJsonContentType()
         .hasCode(ErrorCode.VALIDATION_FAILED.key())
-        .hasTitle(title("validation", SPANISH));
+        .hasTitle(title("validation", SPANISH))
+        .hasViolation("name", "NotBlank");
   }
 
   // --- Default-locale title sanity check -----------------------------------
