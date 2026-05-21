@@ -1,0 +1,26 @@
+name: Setup project Java
+description: >
+  Checkout the repo and set up the project's Temurin JDK with an optional
+  Maven dependency cache. The single-source-of-truth for the JDK version we
+  build CI on; bump this file rather than editing every workflow job.
+inputs:
+  maven-cache:
+    description: >
+      Passed straight through to setup-java's `cache:` input. 'maven' enables
+      the ~/.m2/repository cache; '' disables it (use for jobs that manage
+      their own ~/.m2 cache, e.g. dependency-audit which has a separate NVD
+      cache layered under the same path).
+    required: false
+    default: maven
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Set up JDK
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      with:
+        distribution: temurin
+        java-version: '25'
+        cache: ${{ inputs.maven-cache }}

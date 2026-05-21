@@ -5,66 +5,47 @@ on:
     branches: [main]
   push:
     branches: [main]
-  # Weekly CodeQL re-scan so new analyzer rules pick up regressions on main
-  # even when no code change touches the affected paths. Every other job is
-  # gated on `github.event_name != 'schedule'` so the weekly trigger only
-  # exercises `security-codeql` and doesn't re-run build/IT/scan jobs.
-  schedule:
-    - cron: '17 6 * * 1'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel duplicate runs on PRs, but never cancel a main-branch build —
+  # losing a release artifact mid-build is worse than burning extra runner
+  # minutes when two commits land in quick succession.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
-  format:
-    name: Format (spotless:check)
+  # Static analyzers that need nothing more than a JDK + the source tree.
+  # Combined into one job to amortize the ~30s setup-java cold-cache cost
+  # over two ~5s checks instead of paying it twice.
+  lint:
+    name: Lint (spotless + enforcer)
     runs-on: ubuntu-24.04
-    if: github.event_name != 'schedule'
+    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
       - name: Spotless check
-        run: ./mvnw -q spotless:check
+        run: ./mvnw -B -ntp spotless:check
+
+      - name: Maven enforcer rules
+        run: ./mvnw -B -ntp enforcer:enforce
 
   build:
     name: Build (package + buildpack image)
     runs-on: ubuntu-24.04
-    if: github.event_name != 'schedule'
-    permissions:
-      contents: read
+    timeout-minutes: 25
+    env:
+      IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
-
-      # `spring-boot:build-image` runs Paketo buildpacks via Docker. Mirror
-      # Docker Hub through mirror.gcr.io for the same reason the IT job does:
-      # unauthenticated runners hit Docker Hub's rate limit quickly, and the
-      # buildpack base layers are large.
       - name: Configure Docker registry mirror
-        run: |
-          sudo mkdir -p /etc/docker
-          echo '{"registry-mirrors":["https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker
-          docker version
+        uses: ./.github/actions/docker-mirror
 
       # The image name is fixed (rather than ${project.version}) so the tar
       # filename is predictable and downstream jobs can reference it without
@@ -74,9 +55,8 @@ jobs:
       # failures, and quiet mode also swallows download progress on the
       # multi-hundred-MB builder image pull.
       - name: Build container image
-        env:
-          IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
         run: |
+          set -euo pipefail
           ./mvnw -B -ntp -DskipTests package spring-boot:build-image \
             -Dspring-boot.build-image.publish=false \
             -Dspring-boot.build-image.imageName="${IMAGE_REF}"
@@ -87,8 +67,6 @@ jobs:
       # to the canonical `ci-<sha>` ref so `docker save` has a stable input
       # regardless of which path the plugin took.
       - name: Normalize image tag
-        env:
-          IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
         run: |
           set -euo pipefail
           docker image ls --format '{{.Repository}}:{{.Tag}}'
@@ -102,8 +80,6 @@ jobs:
           fi
 
       - name: Save image to tar
-        env:
-          IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
         run: docker save "${IMAGE_REF}" -o target/app-image.tar
 
       - name: Upload image tar artifact
@@ -119,58 +95,45 @@ jobs:
         with:
           name: jar
           path: target/*.jar
-          if-no-files-found: ignore
+          # `package` always produces a jar; missing means a real misconfig.
+          if-no-files-found: error
 
-  maven-enforcer:
-    name: Maven Enforcer (convergence, no SNAPSHOTs on release, no dupes)
-    runs-on: ubuntu-24.04
-    if: github.event_name != 'schedule'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      # Expose `target/classes` so downstream jobs (coverage-gate, codeql)
+      # can skip the recompile step and just consume the bytecode produced
+      # here. Annotation-processor outputs live under target/generated-*
+      # which we don't strictly need for jacoco bundle resolution but ship
+      # for completeness.
+      - name: Upload compiled classes artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
-
-      - name: Enforce rules
-        run: ./mvnw -q enforcer:enforce
+          name: target-classes
+          path: target/classes/
+          if-no-files-found: error
+          retention-days: 7
 
   security-codeql:
     name: Security (CodeQL, Java)
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
     permissions:
       contents: read
-      # SARIF upload to the Security tab.
       security-events: write
       actions: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         with:
           languages: java
           queries: security-and-quality
 
-      # Manual build keeps CodeQL's trace step deterministic — autobuild
-      # picks up annotation-processor paths inconsistently across runs.
       - name: Compile main sources
-        run: ./mvnw -q -DskipTests compile
+        run: ./mvnw -B -ntp -DskipTests compile
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         with:
           category: /language:java
 
@@ -178,12 +141,14 @@ jobs:
     name: Image scan (Trivy)
     runs-on: ubuntu-24.04
     needs: [build]
-    if: github.event_name != 'schedule'
+    timeout-minutes: 15
+    env:
+      IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
     permissions:
       contents: read
       security-events: write
-      # The "Post Trivy report" step writes a sticky comment on the PR so the
-      # findings are visible without downloading an artifact.
+      # The "Post Trivy report" step writes a sticky comment on same-repo
+      # PRs so findings are visible without downloading an artifact.
       pull-requests: write
     steps:
       - name: Checkout
@@ -196,51 +161,54 @@ jobs:
           path: image/
 
       - name: Load image
-        id: load
-        env:
-          IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
         run: |
+          set -euo pipefail
           docker load -i image/app-image.tar
           docker image ls "${IMAGE_REF}"
-          echo "image-ref=${IMAGE_REF}" >> "$GITHUB_OUTPUT"
 
-      # Four Trivy invocations (the Trivy DB is cached between calls so the
-      # incremental cost is small):
-      #   1. SARIF for the Security tab + artifact.
-      #   2. Table for human-readable artifact.
-      #   3. JSON for downstream Markdown-table generation (PR comment).
-      #   4. CRITICAL-only gate run with exit-code 1.
-      - name: Trivy scan — SARIF report (CRITICAL,HIGH, warn-only)
+      - name: Compute Trivy cache date
+        id: trivy-date
+        run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      # Cross-run cache of the Trivy vulnerability DB. Trivy refreshes its DB
+      # every ~6h; keying by UTC date pulls a fresh copy at most once a day
+      # but spares every other PR run the ~30s DB-download cost. Trivy
+      # reloads the existing DB into ~/.cache/trivy automatically.
+      - name: Restore Trivy DB cache
+        id: trivy-cache-restore
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}-${{ steps.trivy-date.outputs.date }}
+          restore-keys: |
+            trivy-db-${{ runner.os }}-
+
+      # One scan, three reports: scan to JSON once via the action (which also
+      # installs trivy onto PATH), then derive SARIF and table reports from
+      # the JSON with `trivy convert`. Avoids paying the scan cost three
+      # times and guarantees the three reports describe the same findings.
+      - name: Trivy scan (JSON)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
-          image-ref: ${{ steps.load.outputs.image-ref }}
-          severity: 'CRITICAL,HIGH'
-          format: sarif
-          output: trivy-results.sarif
-          exit-code: '0'
-          ignore-unfixed: true
-
-      - name: Trivy scan — table report (CRITICAL,HIGH, warn-only)
-        if: always()
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
-        with:
-          image-ref: ${{ steps.load.outputs.image-ref }}
-          severity: 'CRITICAL,HIGH'
-          format: table
-          output: trivy-results.txt
-          exit-code: '0'
-          ignore-unfixed: true
-
-      - name: Trivy scan — JSON report (CRITICAL,HIGH, warn-only)
-        if: always()
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
-        with:
-          image-ref: ${{ steps.load.outputs.image-ref }}
+          image-ref: ${{ env.IMAGE_REF }}
           severity: 'CRITICAL,HIGH'
           format: json
           output: trivy-results.json
           exit-code: '0'
           ignore-unfixed: true
+
+      - name: Derive SARIF + table reports
+        run: |
+          set -euo pipefail
+          trivy convert --format sarif --output trivy-results.sarif trivy-results.json
+          trivy convert --format table --output trivy-results.txt  trivy-results.json
+
+      - name: Save Trivy DB cache
+        if: steps.trivy-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}-${{ steps.trivy-date.outputs.date }}
 
       - name: Upload Trivy reports as artifact
         if: always()
@@ -251,11 +219,11 @@ jobs:
             trivy-results.sarif
             trivy-results.txt
             trivy-results.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Upload Trivy SARIF to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         with:
           sarif_file: trivy-results.sarif
           category: trivy-image-scan
@@ -320,7 +288,7 @@ jobs:
           fi
 
           PAYLOAD="$(jq -n --arg body "$BODY" '{body: $body}')"
-          EXISTING_ID="$(curl -sSL \
+          EXISTING_ID="$(curl -fsSL \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments?per_page=100" \
@@ -328,33 +296,36 @@ jobs:
             | head -n1)"
           if [ -n "$EXISTING_ID" ]; then
             echo "Updating existing comment $EXISTING_ID"
-            curl -sSL -X PATCH \
+            curl -fsSL -X PATCH \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               -d "$PAYLOAD" \
               "https://api.github.com/repos/$REPO/issues/comments/$EXISTING_ID" > /dev/null
           else
             echo "Creating new comment on PR #$PR_NUMBER"
-            curl -sSL -X POST \
+            curl -fsSL -X POST \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               -d "$PAYLOAD" \
               "https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments" > /dev/null
           fi
 
-      - name: Trivy scan — gate (fail on CRITICAL)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
-        with:
-          image-ref: ${{ steps.load.outputs.image-ref }}
-          severity: 'CRITICAL'
-          format: table
-          exit-code: '1'
-          ignore-unfixed: true
+      # Gate the job on CRITICAL findings without paying for another scan:
+      # parse the JSON we already produced. Surfaces the count to the log so
+      # a red job is self-explanatory.
+      - name: Gate on CRITICAL findings
+        run: |
+          set -euo pipefail
+          CRITICAL=$(jq '[.Results[]? | (.Vulnerabilities // [])[] | select(.Severity == "CRITICAL")] | length' trivy-results.json)
+          echo "CRITICAL findings: $CRITICAL"
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Trivy found $CRITICAL CRITICAL vulnerabilities — failing job."
+            exit 1
+          fi
 
   dependency-audit:
     name: Dependency audit (OWASP dependency-check)
     runs-on: ubuntu-24.04
-    if: github.event_name != 'schedule'
     # Hard cap so a stalled NVD download (e.g. missing/unset NVD_API_KEY
     # forcing the full unauthenticated feed) fails fast instead of burning an
     # hour of CI. A normal run with the API key + warm cache finishes in ~2m.
@@ -363,24 +334,37 @@ jobs:
       contents: read
       security-events: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      # Read the plugin version out of pom.xml so the cache key tracks the
+      # plugin automatically — bumping dependency-check-maven invalidates
+      # the cache (which is what we want, since the H2 schema can change
+      # across major versions and an old DB will break the new plugin).
+      - name: Read dependency-check version
+        id: dc-version
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n 's|.*<dependency-check-maven\.version>\([^<]*\)</dependency-check-maven\.version>.*|\1|p' pom.xml | head -n1)"
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not parse dependency-check-maven.version from pom.xml"
+            exit 1
+          fi
+          echo "Detected dependency-check-maven version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      # Cache the NVD CVE database (~700MB of JSON, updated daily upstream).
-      # Without this the first scan on each runner has to fetch the entire
-      # feed from NVD, which is the dominant cost of this job and is heavily
-      # rate-limited without an API key. Key by UTC date so the cache lasts
-      # one day, then dependency-check downloads only the incremental delta.
       - name: Compute NVD cache date
         id: nvd-date
         run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      # setup-java's `cache: maven` restores the entire ~/.m2/repository,
+      # which can include yesterday's NVD data on a stale-cache hit. Wipe
+      # the dep-check-data path before our explicit cache restore so that
+      # step is the single source of truth for the DB. If our explicit
+      # cache hits (or restore-keys falls back to a recent day), it
+      # repopulates the directory and update-only just fetches the delta.
+      - name: Wipe potentially-stale NVD data from maven cache
+        run: rm -rf ~/.m2/repository/org/owasp/dependency-check-data
 
       # Split into restore + save (rather than the combined `actions/cache@v5`
       # step) so the cache is populated by an explicit `update-only` step
@@ -393,27 +377,24 @@ jobs:
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
-          # Include the plugin version in the key so a plugin/schema bump
-          # busts the cache automatically — old caches populated under a
-          # different H2 schema can otherwise leave the DB in a half-loaded
-          # state after the plugin rebuilds.
-          key: nvd-${{ runner.os }}-dc12.2.2-${{ steps.nvd-date.outputs.date }}
+          key: nvd-${{ runner.os }}-dc${{ steps.dc-version.outputs.version }}-${{ steps.nvd-date.outputs.date }}
           restore-keys: |
-            nvd-${{ runner.os }}-dc12.2.2-
+            nvd-${{ runner.os }}-dc${{ steps.dc-version.outputs.version }}-
 
       # `update-only` downloads + indexes the NVD feed without running the
       # analysis; it succeeds when the DB is fully populated. Splitting this
-      # from `:check` lets us save the cache cleanly even when `:check` later
-      # fails on a CVSS>=7 finding — the DB itself is still valid.
+      # from `:check` lets us save the cache cleanly even when `:check`
+      # later fails on a CVSS>=7 finding — the DB itself is still valid.
       #
       # NVD_API_KEY is required to keep this job under the timeout — without
       # it the unauthenticated NVD download is rate-limited to ~1 req/6s and
       # the full feed takes >1h. dependency-check-maven has no nvdApiKey
-      # env-var parameter (Gradle has one, Maven doesn't), so pass the secret
-      # on the CLI; GitHub Actions masks registered secret values in logs.
+      # env-var parameter (Gradle has one, Maven doesn't), so pass the
+      # secret on the CLI; GitHub Actions masks registered secret values in
+      # logs.
       #
-      # No `-q`: NVD-download progress is logged at INFO, so quiet mode makes
-      # the job look hung for 10+ minutes.
+      # No `-q`: NVD-download progress is logged at INFO, so quiet mode
+      # makes the job look hung for 10+ minutes.
       - name: Update NVD database
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
@@ -429,7 +410,7 @@ jobs:
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
-          key: nvd-${{ runner.os }}-dc12.2.2-${{ steps.nvd-date.outputs.date }}
+          key: nvd-${{ runner.os }}-dc${{ steps.dc-version.outputs.version }}-${{ steps.nvd-date.outputs.date }}
 
       # The DB is already populated from `update-only`; this step is just
       # the CVE matching + report generation. Auto-update is off so the
@@ -443,7 +424,7 @@ jobs:
         with:
           name: dependency-check-report
           path: target/dependency-check-report.html
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Upload SARIF report artifact
         if: always()
@@ -451,11 +432,11 @@ jobs:
         with:
           name: dependency-check-sarif
           path: target/dependency-check-report.sarif
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Upload dependency-check SARIF to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3.35.5
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         with:
           sarif_file: target/dependency-check-report.sarif
           category: dependency-check
@@ -469,6 +450,7 @@ jobs:
     name: Publish image to GHCR
     runs-on: ubuntu-24.04
     needs: [build, image-scan, dependency-audit]
+    timeout-minutes: 10
     # Repository check so forks pushing to their own `main` don't try to
     # publish into the upstream `ghcr.io/mykhailokulakov/...` namespace
     # (their GITHUB_TOKEN can't write there and the job would fail loudly).
@@ -476,6 +458,9 @@ jobs:
       github.event_name == 'push'
       && github.ref == 'refs/heads/main'
       && github.repository == 'mykhailokulakov/generic_spring_service'
+    env:
+      IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
+      PUSH_REF: ghcr.io/mykhailokulakov/generic-spring-service:main-${{ github.sha }}
     permissions:
       contents: read
       packages: write
@@ -487,9 +472,8 @@ jobs:
           path: image/
 
       - name: Load image
-        env:
-          IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
         run: |
+          set -euo pipefail
           docker load -i image/app-image.tar
           docker image ls "${IMAGE_REF}"
 
@@ -501,37 +485,27 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Tag and push image to GHCR
-        env:
-          BUILD_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.sha }}
-          PUSH_REF: ghcr.io/mykhailokulakov/generic-spring-service:main-${{ github.sha }}
         run: |
-          docker tag "${BUILD_REF}" "${PUSH_REF}"
+          set -euo pipefail
+          docker tag "${IMAGE_REF}" "${PUSH_REF}"
           docker push "${PUSH_REF}"
 
   architecture:
     name: Architecture (ArchUnit)
     runs-on: ubuntu-24.04
-    if: github.event_name != 'schedule'
+    timeout-minutes: 10
     permissions:
       contents: read
       checks: write
-      pull-requests: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
-
-      # Pure bytecode analysis: no Spring context boot, no Testcontainers, no
-      # database. Surefire runs ArchitectureTest standalone so this job stays
-      # well under a minute and gates the rest of CI on rule violations.
+      # Pure bytecode analysis: no Spring context boot, no Testcontainers,
+      # no database. Surefire runs ArchitectureTest standalone so this job
+      # stays well under a minute and gates the rest of CI on rule violations.
       - name: Run ArchUnit tests
-        run: ./mvnw -q test -Dtest=ArchitectureTest
+        run: ./mvnw -B -ntp test -Dtest=ArchitectureTest
 
       - name: Upload Surefire reports
         if: always()
@@ -553,28 +527,16 @@ jobs:
   unit-test:
     name: Unit tests (mvn test)
     runs-on: ubuntu-24.04
-    if: github.event_name != 'schedule'
+    timeout-minutes: 15
     permissions:
       contents: read
       checks: write
-      pull-requests: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
       - name: Run unit tests
-        run: ./mvnw -q test
-
-      - name: Generate JaCoCo report
-        if: always()
-        run: ./mvnw -q jacoco:report
+        run: ./mvnw -B -ntp test
 
       - name: Upload Surefire reports
         if: always()
@@ -593,14 +555,6 @@ jobs:
           reporter: java-junit
           fail-on-error: 'false'
 
-      - name: Upload JaCoCo unit coverage
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-unit
-          path: target/site/jacoco/
-          if-no-files-found: warn
-
       - name: Upload JaCoCo exec data
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -612,37 +566,19 @@ jobs:
   integration-test:
     name: Integration tests (mvn verify, skip unit)
     runs-on: ubuntu-24.04
-    if: github.event_name != 'schedule'
+    timeout-minutes: 30
     permissions:
       contents: read
       checks: write
-      pull-requests: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
-
-      # Docker is preinstalled on ubuntu-24.04 runners; Testcontainers' ryuk
-      # reaper works against the default Docker socket without extra setup.
-      # We configure mirror.gcr.io as a registry mirror so Docker Hub pulls
-      # (postgres, testcontainers/ryuk) fall through the mirror — unauthenticated
-      # Docker Hub pulls from GitHub Actions runners frequently hit the rate
-      # limit, and mirror.gcr.io has no such limit for public images.
       - name: Configure Docker registry mirror
-        run: |
-          sudo mkdir -p /etc/docker
-          echo '{"registry-mirrors":["https://mirror.gcr.io"]}' | sudo tee /etc/docker/daemon.json
-          sudo systemctl restart docker
-          docker version
+        uses: ./.github/actions/docker-mirror
 
       - name: Run integration tests
-        run: ./mvnw -q verify -DskipUnitTests=true -Djacoco.check.skip=true
+        run: ./mvnw -B -ntp verify -DskipUnitTests=true -Djacoco.check.skip=true
 
       - name: Upload Failsafe reports
         if: always()
@@ -664,14 +600,6 @@ jobs:
           reporter: java-junit
           fail-on-error: 'false'
 
-      - name: Upload JaCoCo integration coverage
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: coverage-integration
-          path: target/site/jacoco-it/
-          if-no-files-found: warn
-
       - name: Upload JaCoCo IT exec data
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -683,21 +611,13 @@ jobs:
   coverage-gate:
     name: Coverage gate (80%/80%)
     runs-on: ubuntu-24.04
-    needs: [unit-test, integration-test]
-    if: github.event_name != 'schedule'
+    needs: [build, unit-test, integration-test]
+    timeout-minutes: 10
     permissions:
       contents: read
-      pull-requests: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up JDK
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
-        with:
-          distribution: temurin
-          java-version: '25'
-          cache: maven
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
 
       - name: Download unit JaCoCo exec data
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -711,32 +631,31 @@ jobs:
           name: jacoco-it-exec
           path: target/
 
-      - name: Download unit JaCoCo coverage report
+      # jacoco:check / jacoco:merge / jacoco:report need target/classes to
+      # evaluate against actual bytecode. Pull the already-compiled classes
+      # from the build job instead of recompiling here — saves ~30s and
+      # guarantees coverage is reported against the same bytecode that the
+      # image scan validated.
+      - name: Download compiled classes
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: coverage-unit
-          path: target/site/jacoco/
-
-      # jacoco:check / jacoco:merge / jacoco:report need target/classes to
-      # evaluate against actual bytecode. Without it the bundle is empty,
-      # the COVEREDRATIO limits have 0 instructions, and the gate silently
-      # passes — so we rebuild classes here before running.
-      - name: Compile main sources
-        run: ./mvnw -q -DskipTests compile
+          name: target-classes
+          path: target/classes/
 
       - name: Merge unit + IT JaCoCo exec data
-        run: ./mvnw -q jacoco:merge@merge
+        run: ./mvnw -B -ntp jacoco:merge@merge
 
       - name: Generate merged JaCoCo report
-        run: ./mvnw -q jacoco:report -Djacoco.dataFile=target/jacoco-merged.exec
+        run: ./mvnw -B -ntp jacoco:report -Djacoco.dataFile=target/jacoco-merged.exec
 
       - name: Enforce merged coverage gate (80%/80%)
-        run: ./mvnw -q jacoco:check@check
+        run: ./mvnw -B -ntp jacoco:check@check
 
       # Surface bundle coverage in the job summary instead of as a PR comment.
       - name: Write coverage summary
         if: always()
         run: |
+          set -euo pipefail
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import xml.etree.ElementTree as ET
           import os
