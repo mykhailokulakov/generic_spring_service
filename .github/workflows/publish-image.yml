@@ -1,0 +1,78 @@
+name: Publish image to GHCR
+
+# Triggered by a successful run of the CI workflow on the main branch.
+# Split out from ci.yml so:
+#
+# - PR runs don't show a "skipped Publish image to GHCR" check, which
+#   was cosmetic noise in every PR's status panel.
+#
+# - Only this file declares `packages: write` and image-push
+#   credentials, narrowing the blast radius of any compromised action
+#   in the CI workflow (which runs untrusted PR code).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  publish-image:
+    name: Publish image to GHCR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Triple-gate:
+    #   - The triggering CI run finished green (workflow_run.conclusion).
+    #   - It was a push event, not a PR (defence in depth on top of
+    #     `branches: [main]` — PRs targeting main can also satisfy that
+    #     filter on some configurations).
+    #   - Repository is upstream. workflow_run always executes in the
+    #     target repo's context, so this is a guard against accidentally
+    #     publishing to a stale namespace if the file is copied to a
+    #     fork or template repo.
+    if: |
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && github.repository == 'mykhailokulakov/generic_spring_service'
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # workflow_run executes in the default-branch context, so
+      # github.sha is the branch HEAD at workflow start — not necessarily
+      # the commit whose image we're publishing. Use the triggering
+      # run's head_sha to pin to the right artifact.
+      IMAGE_REF: ghcr.io/mykhailokulakov/generic-spring-service:ci-${{ github.event.workflow_run.head_sha }}
+      PUSH_REF: ghcr.io/mykhailokulakov/generic-spring-service:main-${{ github.event.workflow_run.head_sha }}
+    steps:
+      # Cross-workflow artifact download needs `run-id` + `github-token`
+      # (introduced in actions/download-artifact v4). The `app-image`
+      # tar was uploaded by the build job in CI.
+      - name: Download image tar from CI run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: app-image
+          path: image/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Load image
+        run: |
+          set -euo pipefail
+          docker load -i image/app-image.tar
+          docker image ls "${IMAGE_REF}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push image to GHCR
+        run: |
+          set -euo pipefail
+          docker tag "${IMAGE_REF}" "${PUSH_REF}"
+          docker push "${PUSH_REF}"
