@@ -3,16 +3,18 @@ package io.github.mykhailokulakov.genericspringservice.support.containers.keyclo
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dasniko.testcontainers.keycloak.KeycloakContainer;
+import io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.testcontainers.utility.DockerImageName;
 
-public class KeycloakExtension implements BeforeAllCallback {
+public class KeycloakExtension implements BeforeAllCallback, AfterAllCallback {
 
   private static final Map<ContainerKey, Holder> CONTAINERS = new ConcurrentHashMap<>();
   private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -45,7 +47,15 @@ public class KeycloakExtension implements BeforeAllCallback {
         holder.container.start();
       }
       exportProperties(decl.name(), holder);
+      if ("default".equals(decl.name())) {
+        RestAssuredAuth.setJwtFactory(TestJwtFactory.forDefaultContainer());
+      }
     }
+  }
+
+  @Override
+  public void afterAll(ExtensionContext ctx) {
+    RestAssuredAuth.setJwtFactory(null);
   }
 
   private void exportProperties(String name, Holder holder) {
