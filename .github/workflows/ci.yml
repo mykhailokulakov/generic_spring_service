@@ -378,6 +378,23 @@ jobs:
           java-version: '25'
           cache: maven
 
+      # Cache the NVD CVE database (~700MB of JSON, updated daily upstream).
+      # Without this the first scan on each runner has to fetch the entire
+      # feed from NVD, which is the dominant cost of this job and is heavily
+      # rate-limited without an API key. Key by UTC date so the cache lasts
+      # one day, then dependency-check downloads only the incremental delta.
+      - name: Compute NVD cache date
+        id: nvd-date
+        run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache NVD data
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ runner.os }}-${{ steps.nvd-date.outputs.date }}
+          restore-keys: |
+            nvd-${{ runner.os }}-
+
       # NVD_API_KEY is optional but recommended — without it the NVD download
       # is heavily rate-limited and can stretch this job over 20 minutes. Set
       # the secret on the repo to drop runtime to ~1–2 minutes. The plugin
