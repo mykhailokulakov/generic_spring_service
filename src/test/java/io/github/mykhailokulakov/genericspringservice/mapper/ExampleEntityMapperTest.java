@@ -93,7 +93,7 @@ class ExampleEntityMapperTest {
 
   @Test
   void toModelPreservesNullTags() {
-    ExampleEntity entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
+    var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
 
     Example model = mapper.toModel(entity);
@@ -134,7 +134,7 @@ class ExampleEntityMapperTest {
 
   @Test
   void applyReplacementSetsTagsOnEntityWithoutTags() {
-    ExampleEntity entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
+    var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
     Example replacement =
         new Example(null, null, null, null, null, null, null, Set.of("only"), null, null, null);
@@ -151,7 +151,7 @@ class ExampleEntityMapperTest {
     Instant createdAt = entity.getCreatedAt();
     Instant updatedAt = entity.getUpdatedAt();
     Long version = entity.getVersion();
-    Example empty = new Example(null, null, null, null, null, null, null, null, null, null, null);
+    var empty = new Example(null, null, null, null, null, null, null, null, null, null, null);
 
     mapper.applyReplacement(empty, entity);
 
@@ -193,9 +193,9 @@ class ExampleEntityMapperTest {
 
   @Test
   void applyPatchSetsTagsOnEntityWithoutTags() {
-    ExampleEntity entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
+    var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
-    ExamplePatch patch = new ExamplePatch(null, null, null, null, null, null, Set.of("x", "y"));
+    var patch = new ExamplePatch(null, null, null, null, null, null, Set.of("x", "y"));
 
     mapper.applyPatch(patch, entity);
 
@@ -209,7 +209,7 @@ class ExampleEntityMapperTest {
     BigDecimal originalPrice = entity.getPrice();
     Set<String> originalTags = new HashSet<>(entity.getTags());
 
-    ExamplePatch patch = new ExamplePatch(null, "patched-description", 99, null, null, null, null);
+    var patch = new ExamplePatch(null, "patched-description", 99, null, null, null, null);
 
     mapper.applyPatch(patch, entity);
 

@@ -62,8 +62,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
       HttpHeaders headers,
       HttpStatusCode status,
       WebRequest request) {
-    Locale locale = LocaleContextHolder.getLocale();
-    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+    var locale = LocaleContextHolder.getLocale();
+    var pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
     pd.setType(URI.create(PROBLEM_TYPE_BASE + "validation"));
     pd.setTitle(messages.getMessage("error.validation.title", null, locale));
     pd.setDetail(messages.getMessage(ErrorCode.VALIDATION_FAILED.key(), null, locale));
@@ -86,7 +86,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler(ConstraintViolationException.class)
   public ProblemDetail handleConstraintViolation(ConstraintViolationException ex, Locale locale) {
-    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+    var pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
     pd.setType(URI.create(PROBLEM_TYPE_BASE + "validation"));
     pd.setTitle(messages.getMessage("error.validation.title", null, locale));
     pd.setDetail(messages.getMessage(ErrorCode.VALIDATION_FAILED.key(), null, locale));
@@ -107,7 +107,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(OptimisticLockingFailureException.class)
   public ProblemDetail handleOptimisticLocking(
       OptimisticLockingFailureException ex, Locale locale) {
-    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+    var pd = ProblemDetail.forStatus(HttpStatus.CONFLICT);
     pd.setType(URI.create(PROBLEM_TYPE_BASE + "conflict"));
     pd.setTitle(messages.getMessage("error.conflict.title", null, locale));
     pd.setDetail(messages.getMessage(ErrorCode.OPTIMISTIC_LOCK.key(), null, locale));
@@ -117,7 +117,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
   @ExceptionHandler(AccessDeniedException.class)
   public ProblemDetail handleAccessDenied(AccessDeniedException ex, Locale locale) {
-    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+    var pd = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
     pd.setType(URI.create(PROBLEM_TYPE_BASE + "forbidden"));
     pd.setTitle(messages.getMessage("error.forbidden.title", null, locale));
     pd.setDetail(messages.getMessage(ErrorCode.FORBIDDEN.key(), null, locale));
@@ -128,7 +128,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   @ExceptionHandler(Exception.class)
   public ProblemDetail handleUnexpected(Exception ex, Locale locale) {
     log.error("Unhandled exception", ex);
-    ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+    var pd = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
     pd.setType(URI.create(PROBLEM_TYPE_BASE + "internal"));
     pd.setTitle(messages.getMessage("error.internal.title", null, locale));
     pd.setDetail(messages.getMessage("error.internal", null, locale));
@@ -137,7 +137,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   }
 
   private ProblemDetail problem(HttpStatus status, DomainException ex, Locale locale, String slug) {
-    ProblemDetail pd = ProblemDetail.forStatus(status);
+    var pd = ProblemDetail.forStatus(status);
     pd.setType(URI.create(PROBLEM_TYPE_BASE + slug));
     pd.setTitle(messages.getMessage("error." + slug + ".title", null, locale));
     pd.setDetail(messages.getMessage(ex.getMessageKey(), ex.getArgs(), locale));

@@ -1,0 +1,37 @@
+# Optional local tracing stack. Copy this file to
+# `docker-compose.override.yml` (alongside the same path the main file is
+# referenced from), then re-run:
+#
+#   docker compose -f docker/docker-compose.yml \
+#                  -f docker-compose.override.yml up -d
+#
+# Point the app at the collector by exporting the variable application.yml
+# already reads:
+#
+#   export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces
+#
+# Two profiles are sketched below. Uncomment exactly one. Both expose the
+# OTLP/HTTP receiver on :4318 so the application configuration in
+# `application.yml` works unchanged.
+
+services:
+  # --- Option A: Jaeger all-in-one. Web UI at http://localhost:16686. ---
+  # jaeger:
+  #   image: jaegertracing/all-in-one:1.62
+  #   container_name: generic-jaeger
+  #   environment:
+  #     COLLECTOR_OTLP_ENABLED: "true"
+  #   ports:
+  #     - "16686:16686"   # UI
+  #     - "4318:4318"     # OTLP/HTTP receiver
+
+  # --- Option B: standalone OpenTelemetry Collector (forward to your own backend). ---
+  # otel-collector:
+  #   image: otel/opentelemetry-collector-contrib:0.110.0
+  #   container_name: generic-otel-collector
+  #   command: ["--config=/etc/otel-collector-config.yaml"]
+  #   volumes:
+  #     - ./docker/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+  #   ports:
+  #     - "4318:4318"     # OTLP/HTTP receiver
+  #     - "8889:8889"     # Prometheus exporter (optional)

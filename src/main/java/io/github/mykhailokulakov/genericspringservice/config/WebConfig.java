@@ -11,7 +11,7 @@ public class WebConfig {
 
   @Bean
   public LocaleResolver localeResolver() {
-    AcceptHeaderLocaleResolver resolver = new AcceptHeaderLocaleResolver();
+    var resolver = new AcceptHeaderLocaleResolver();
     resolver.setDefaultLocale(Locale.ENGLISH);
     return resolver;
   }

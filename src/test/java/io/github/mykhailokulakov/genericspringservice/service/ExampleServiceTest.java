@@ -119,7 +119,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_throwsIfMatchRequiredWhenVersionNull() {
-    ExamplePatch patch = new ExamplePatch(null, null, null, null, null, null, null);
+    var patch = new ExamplePatch(null, null, null, null, null, null, null);
     assertThatThrownBy(() -> service.patch(id, null, patch))
         .isInstanceOf(ConflictException.class)
         .hasMessage(ErrorCode.IF_MATCH_REQUIRED.key());
@@ -138,7 +138,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_appliesPatchOnMatchingVersion() {
-    ExamplePatch patch = new ExamplePatch("new", null, null, null, null, null, null);
+    var patch = new ExamplePatch("new", null, null, null, null, null, null);
     when(repository.findById(id)).thenReturn(Optional.of(entity));
     when(repository.saveAndFlush(entity)).thenReturn(entity);
     when(mapper.toModel(entity)).thenReturn(model);
@@ -152,7 +152,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_throwsNotFoundWhenMissing() {
-    ExamplePatch patch = new ExamplePatch(null, null, null, null, null, null, null);
+    var patch = new ExamplePatch(null, null, null, null, null, null, null);
     when(repository.findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.patch(id, 3L, patch)).isInstanceOf(NotFoundException.class);
@@ -161,7 +161,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_throwsConflictOnVersionMismatch() {
-    ExamplePatch patch = new ExamplePatch(null, null, null, null, null, null, null);
+    var patch = new ExamplePatch(null, null, null, null, null, null, null);
     when(repository.findById(id)).thenReturn(Optional.of(entity));
 
     assertThatThrownBy(() -> service.patch(id, 2L, patch)).isInstanceOf(ConflictException.class);
