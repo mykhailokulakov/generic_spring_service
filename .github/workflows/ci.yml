@@ -200,6 +200,9 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      # The "Post Trivy report" step writes a sticky comment on the PR so the
+      # findings are visible without downloading an artifact.
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -264,6 +267,50 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
           category: trivy-image-scan
+
+      # Sticky PR comment with the table report so reviewers (and the bot
+      # tending this PR) can see Trivy findings without downloading the
+      # artifact. Posts on PR events only; skipped on push to main and on
+      # clean scans (no CRITICAL/HIGH findings). Re-uses the same comment
+      # across pushes by matching the marker.
+      - name: Post Trivy report to PR
+        if: always() && github.event_name == 'pull_request' && hashFiles('trivy-results.txt') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          MARKER="<!-- trivy-image-scan-report -->"
+          if grep -qE '^Total: 0' trivy-results.txt 2>/dev/null; then
+            echo "Trivy reports zero findings — skipping PR comment."
+            exit 0
+          fi
+          # GitHub comment max body is ~64KB; truncate just in case.
+          REPORT="$(head -c 55000 trivy-results.txt)"
+          BODY="$(printf '%s\n## Trivy image scan — findings\n\nGate fails on CRITICAL; HIGH is advisory.\n\n<details><summary>Full table</summary>\n\n```text\n%s\n```\n\n</details>\n' "$MARKER" "$REPORT")"
+          PAYLOAD="$(jq -n --arg body "$BODY" '{body: $body}')"
+          EXISTING_ID="$(curl -sSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments?per_page=100" \
+            | jq -r --arg m "$MARKER" '.[] | select(.body | startswith($m)) | .id' \
+            | head -n1)"
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Updating existing comment $EXISTING_ID"
+            curl -sSL -X PATCH \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -d "$PAYLOAD" \
+              "https://api.github.com/repos/$REPO/issues/comments/$EXISTING_ID" > /dev/null
+          else
+            echo "Creating new comment on PR #$PR_NUMBER"
+            curl -sSL -X POST \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -d "$PAYLOAD" \
+              "https://api.github.com/repos/$REPO/issues/$PR_NUMBER/comments" > /dev/null
+          fi
 
       - name: Trivy scan — gate (fail on CRITICAL)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
