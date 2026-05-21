@@ -21,4 +21,61 @@
     </suppress>
 -->
 <suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+      CVE-2026-42154 targets the Prometheus *server* (Go binary), not the
+      Prometheus Java client/exposition libraries used by Spring Boot's
+      Actuator. dep-check's CPE matcher conflates the names because both
+      register under cpe:/a:prometheus:prometheus. The vulnerable code
+      (remote-read endpoint, snappy-decoder length validation) does not
+      exist in these JARs — they only generate Prometheus exposition
+      format. CPE-style false positive.
+    -->
+    <suppress until="2026-11-30Z">
+        <notes><![CDATA[
+          CVE-2026-42154 is a Prometheus server-side CVE (Go) misattributed
+          to the Java client library. Re-check at sunset or on next bump
+          of micrometer/prometheus-client.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.prometheus/prometheus-metrics-core@.*$</packageUrl>
+        <cve>CVE-2026-42154</cve>
+    </suppress>
+    <suppress until="2026-11-30Z">
+        <notes><![CDATA[
+          Same CVE-2026-42154 false positive surfacing through the
+          micrometer→prometheus client bridge. See suppression above.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.micrometer/micrometer-registry-prometheus@.*$</packageUrl>
+        <cve>CVE-2026-42154</cve>
+    </suppress>
+
+    <!--
+      CVE-2026-39883 and CVE-2026-29181 both target OpenTelemetry-*Go*
+      (baggage parsing in go.opentelemetry.io packages). The Java SDK's
+      opentelemetry-semconv artifact only contains String constants for
+      semantic-convention attribute names — no parsing code, no baggage
+      handling. dep-check's CPE matcher misroutes Go CVEs to the Java
+      module because both share the "opentelemetry" CPE vendor.
+    -->
+    <suppress until="2026-11-30Z">
+        <notes><![CDATA[
+          CVE-2026-39883: OpenTelemetry-Go baggage parsing CVE wrongly
+          matched against the Java opentelemetry-semconv module (which is
+          a constants-only library, no parsing). Re-check at sunset or on
+          next OpenTelemetry Java SDK bump.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.opentelemetry\.semconv/opentelemetry-semconv@.*$</packageUrl>
+        <cve>CVE-2026-39883</cve>
+    </suppress>
+    <suppress until="2026-11-30Z">
+        <notes><![CDATA[
+          CVE-2026-29181: OpenTelemetry-Go baggage extraction CVE wrongly
+          matched against the Java opentelemetry-semconv module
+          (constants-only, no header parsing). Re-check at sunset or on
+          next OpenTelemetry Java SDK bump.
+        ]]></notes>
+        <packageUrl regex="true">^pkg:maven/io\.opentelemetry\.semconv/opentelemetry-semconv@.*$</packageUrl>
+        <cve>CVE-2026-29181</cve>
+    </suppress>
+
 </suppressions>
