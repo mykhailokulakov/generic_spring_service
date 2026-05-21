@@ -391,9 +391,13 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
-          key: nvd-${{ runner.os }}-${{ steps.nvd-date.outputs.date }}
+          # Include the plugin version in the key so a plugin/schema bump
+          # busts the cache automatically — old caches populated under a
+          # different H2 schema can otherwise leave the DB in a half-loaded
+          # state after the plugin rebuilds.
+          key: nvd-${{ runner.os }}-dc12.2.2-${{ steps.nvd-date.outputs.date }}
           restore-keys: |
-            nvd-${{ runner.os }}-
+            nvd-${{ runner.os }}-dc12.2.2-
 
       # NVD_API_KEY is optional but recommended — without it the NVD download
       # is heavily rate-limited and can stretch this job over 20 minutes. Set

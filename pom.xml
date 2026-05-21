@@ -31,7 +31,7 @@
         <archunit.version>1.4.2</archunit.version>
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
         <spotless-maven-plugin.version>3.5.1</spotless-maven-plugin.version>
-        <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
+        <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
 
         <!-- Security overrides on top of Spring Boot 4.0.6's BOM:
