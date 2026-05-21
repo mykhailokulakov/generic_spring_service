@@ -34,6 +34,16 @@
         <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
 
+        <!-- Transitive-dependency overrides Dependabot can edit.
+             Spring Boot 4.0.6's BOM doesn't pin commons-io / commons-compress
+             (they're pulled in test scope by org.testcontainers:testcontainers),
+             so without a manifest entry Dependabot's security update job
+             aborts with `security_update_dependency_not_found`. Listing them
+             in <dependencyManagement> below gives Dependabot a hook and
+             pins to the patched versions. -->
+        <commons-io.version>2.22.0</commons-io.version>
+        <commons-compress.version>1.28.0</commons-compress.version>
+
         <!-- Default buildpack image name; CI overrides this to pin
              the tag to `ci-${git-sha}` so each run produces a stable,
              distinct artifact. Local `mvn spring-boot:build-image`
@@ -46,11 +56,16 @@
                flagged by Trivy on the buildpack image.
              - postgresql.version 42.7.10 -> 42.7.11 closes CVE-2026-42198
                (HIGH, client-side DoS via malicious SCRAM-SHA-256 auth).
-             Both properties are the names the Spring Boot dependencies
-             BOM uses for these artifacts; setting them re-pins every
-             matching dependency in the bom. -->
+             - opentelemetry.version 1.55.0 -> 1.62.0 re-pins the
+               opentelemetry-bom Spring Boot imports, clearing the
+               moderate-severity advisories flagged on opentelemetry-api
+               and opentelemetry-extension-trace-propagators 1.55.0.
+             All three properties are the names the Spring Boot
+             dependencies BOM uses; setting them re-pins every matching
+             dependency in the BOM. -->
         <tomcat.version>11.0.22</tomcat.version>
         <postgresql.version>42.7.11</postgresql.version>
+        <opentelemetry.version>1.62.0</opentelemetry.version>
 
         <!-- JaCoCo coverage gate: 80% line / 80% branch (final target). -->
         <jacoco.minimum.line.coverage>0.80</jacoco.minimum.line.coverage>
@@ -79,6 +94,24 @@
                 <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <!-- Pin transitive commons-io / commons-compress that
+                 testcontainers 1.21.4 pulls at vulnerable versions
+                 (commons-io 2.11.0 — GHSA-78wr-2p64-hpwj;
+                  commons-compress 1.24.0 — GHSA-4g9r-vxhx-9pgx,
+                  GHSA-2cwj-8chv-9pp9). Spring Boot's BOM doesn't manage
+                 either artifact, so Dependabot's security-update job
+                 needs an explicit manifest entry to bump them. -->
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>${commons-io.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>${commons-compress.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

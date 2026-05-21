@@ -1,0 +1,254 @@
+name: Release
+
+# Manual release pipeline. The `bump` choice drives every downstream
+# artifact (pom version, tag, image tags, GitHub Release). Trigger from
+# the Actions UI; nothing here runs automatically on push.
+#
+# Failure model:
+#   - Steps before the tag push are reversible — a failure leaves no
+#     half-released state (the version-bump commit is harmless without
+#     a tag pointing at it).
+#   - Steps after the tag push are not retroactively re-runnable; the
+#     remediation is a new patch release, not editing the existing tag.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Semver segment to increment from the latest vX.Y.Z tag.'
+        type: choice
+        required: true
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: read
+
+jobs:
+  # Cheap up-front guard so a misfired dispatch from a topic branch
+  # fails in seconds instead of after the full CI suite has run.
+  guard:
+    name: Guard (branch must be main)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Verify trigger ref is main
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "::error::Release can only be triggered from main; got ${GITHUB_REF}."
+            exit 1
+          fi
+
+  # Reuse the full CI suite as the release gate. `secrets: inherit` so
+  # the dependency-audit job sees NVD_API_KEY exactly as it does on a
+  # push to main; without it the job would self-skip on missing secret.
+  #
+  # The called workflow's job-level `permissions:` declarations can
+  # only narrow what the caller grants — they cannot expand beyond it.
+  # This release workflow's top-level `permissions:` is `contents: read`,
+  # so without an explicit `permissions:` block here the reusable CI
+  # jobs that need `security-events: write` (CodeQL, Trivy, dep-check
+  # SARIF uploads), `checks: write` (test-reporter), `pull-requests:
+  # write` (Trivy sticky comment), and `actions: read` (CodeQL) would
+  # all run without the scopes their steps require and fail. The set
+  # below is the union of every job-level `permissions:` block in
+  # ci.yml.
+  verify:
+    name: Verify (reusable CI)
+    needs: [guard]
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      security-events: write
+      checks: write
+      pull-requests: write
+      actions: read
+    secrets: inherit
+
+  release:
+    name: Release (tag, changelog, image)
+    needs: [verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: write
+      packages: write
+    env:
+      IMAGE_REPO: ghcr.io/mykhailokulakov/generic-spring-service
+    steps:
+      # fetch-depth: 0 so `git describe` and git-cliff see the full tag
+      # history; a shallow clone would either miss the latest tag or
+      # render an empty changelog.
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          # Use the default GITHUB_TOKEN for the pushes below. Pushes
+          # made with GITHUB_TOKEN do not retrigger workflows, which is
+          # what we want for the two release commits — the [skip ci]
+          # tag is a belt-and-braces signal.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup project Java
+        uses: ./.github/actions/setup-java
+
+      - name: Configure Docker registry mirror
+        uses: ./.github/actions/docker-mirror
+
+      - name: Configure git identity
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # Compute the next version from the highest existing vX.Y.Z tag.
+      # `git tag --sort=-v:refname` orders by semantic version (descending);
+      # `git describe --abbrev=0` would instead pick the closest reachable
+      # tag in commit-graph terms, which on repos that merge hotfix
+      # branches back to main can resolve to an older line than the
+      # latest published release. First release (no matching tag) falls
+      # through to v0.0.0 → bumped to v0.0.1 / v0.1.0 / v1.0.0 depending
+      # on choice. NEXT is always the next patch above NEW so the
+      # post-release snapshot tracks the maintenance line.
+      - name: Compute next version
+        id: ver
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          set -euo pipefail
+          LATEST="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n1)"
+          : "${LATEST:=v0.0.0}"
+          CURRENT="${LATEST#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case "$BUMP" in
+            patch) PATCH=$((PATCH + 1)) ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            *) echo "::error::Unknown bump: $BUMP"; exit 1 ;;
+          esac
+          NEW="${MAJOR}.${MINOR}.${PATCH}"
+          NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          echo "previous=${LATEST}" >> "$GITHUB_OUTPUT"
+          echo "new=${NEW}"        >> "$GITHUB_OUTPUT"
+          echo "next=${NEXT}"      >> "$GITHUB_OUTPUT"
+          echo "tag=v${NEW}"       >> "$GITHUB_OUTPUT"
+          echo "Previous tag: ${LATEST}"
+          echo "New version:   ${NEW}"
+          echo "Next snapshot: ${NEXT}-SNAPSHOT"
+
+      - name: Set release version in pom
+        run: ./mvnw -B -ntp versions:set -DnewVersion=${{ steps.ver.outputs.new }} -DgenerateBackupPoms=false
+
+      # Idempotent: if a previous run failed after pushing this commit
+      # but before the tag was pushed (e.g. git-cliff install hiccup),
+      # rerunning the workflow checks out the already-bumped pom and
+      # `versions:set` becomes a no-op. The unguarded `git commit` would
+      # then exit "nothing to commit" and the documented pre-tag retry
+      # path would be broken. Skip the commit+push when the pom is
+      # already at the release version on origin/main.
+      - name: Commit release version bump
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- pom.xml; then
+            echo "pom.xml already at v${{ steps.ver.outputs.new }} — skipping bump commit (rerun after partial failure)."
+            exit 0
+          fi
+          git add pom.xml
+          git commit -m "chore(release): v${{ steps.ver.outputs.new }} [skip ci]"
+          git push origin HEAD:main
+
+      # Pinned by version. Verify the tarball against the SHA256SUMS
+      # file from the same release before trusting the binary on PATH.
+      - name: Install git-cliff (pinned)
+        env:
+          GIT_CLIFF_VERSION: '2.9.1'
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/orhun/git-cliff/releases/download/v${GIT_CLIFF_VERSION}"
+          TARBALL="git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL "${BASE}/${TARBALL}" -o git-cliff.tar.gz
+          curl -fsSL "${BASE}/git-cliff-${GIT_CLIFF_VERSION}-SHA256SUMS.txt" -o git-cliff-SHA256SUMS.txt
+          grep " ${TARBALL}\$" git-cliff-SHA256SUMS.txt | sha256sum -c -
+          tar -xzf git-cliff.tar.gz
+          sudo install -m 0755 "git-cliff-${GIT_CLIFF_VERSION}/git-cliff" /usr/local/bin/git-cliff
+          git-cliff --version
+
+      - name: Generate release changelog
+        run: |
+          set -euo pipefail
+          git-cliff --tag "v${{ steps.ver.outputs.new }}" --strip header --output CHANGELOG_RELEASE.md
+          echo "---- CHANGELOG_RELEASE.md ----"
+          cat CHANGELOG_RELEASE.md
+
+      # ---- POINT OF NO RETURN ----
+      # Everything below this line publishes externally visible
+      # artifacts. A failure here is recovered by cutting a new patch,
+      # NOT by rewriting history.
+      - name: Tag and push release
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.ver.outputs.new }}"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"
+
+      # Re-run package now that the pom carries the release version so
+      # the jar in target/ has the correct GAV for the GitHub Release
+      # attachment. Skip tests — CI already ran them via the verify job.
+      - name: Build release jar
+        run: ./mvnw -B -ntp -DskipTests package
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.ver.outputs.new }}"
+          gh release create "${TAG}" \
+            --title "${TAG}" \
+            --notes-file CHANGELOG_RELEASE.md \
+            target/generic-spring-service-${{ steps.ver.outputs.new }}.jar
+
+      - name: Log in to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build the image locally with the release version baked in
+      # (docker.image.name resolves to ${project.version}, now the
+      # release version), then tag :latest and push both. Building
+      # locally + pushing is preferable to spring-boot:build-image's
+      # `publish=true` here because we want two tags from a single build.
+      - name: Build and push image to GHCR
+        env:
+          NEW: ${{ steps.ver.outputs.new }}
+        run: |
+          set -euo pipefail
+          VERSIONED="${IMAGE_REPO}:${NEW}"
+          LATEST="${IMAGE_REPO}:latest"
+          ./mvnw -B -ntp -DskipTests spring-boot:build-image \
+            -Dspring-boot.build-image.publish=false \
+            -Ddocker.image.name="${VERSIONED}"
+          docker tag "${VERSIONED}" "${LATEST}"
+          docker push "${VERSIONED}"
+          docker push "${LATEST}"
+
+      - name: Set next snapshot version in pom
+        run: ./mvnw -B -ntp versions:set -DnewVersion=${{ steps.ver.outputs.next }}-SNAPSHOT -DgenerateBackupPoms=false
+
+      # Same idempotency guard as the release-version commit above —
+      # a retry where the snapshot bump is already on main should be a
+      # no-op rather than failing with "nothing to commit".
+      - name: Commit next snapshot
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- pom.xml; then
+            echo "pom.xml already at ${{ steps.ver.outputs.next }}-SNAPSHOT — skipping snapshot commit."
+            exit 0
+          fi
+          git add pom.xml
+          git commit -m "chore(release): back to snapshot [skip ci]"
+          git push origin HEAD:main
