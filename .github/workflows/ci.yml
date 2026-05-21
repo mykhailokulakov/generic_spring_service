@@ -349,11 +349,16 @@ jobs:
     if: |
       github.event_name != 'pull_request'
       || github.event.pull_request.head.repo.full_name == github.repository
-    # Hard cap so a stalled NVD download (e.g. missing/unset NVD_API_KEY
-    # forcing the full unauthenticated feed) fails fast instead of burning
-    # an hour of CI. A normal run with the API key + warm cache finishes
-    # in ~2m; the first cold-cache run we observed completed in ~8m.
-    timeout-minutes: 20
+    # Hard cap on the dep-check job. Observed costs with NVD_API_KEY:
+    #   warm cache: ~2m (delta fetch only)
+    #   cold cache: ~8m (full 350k-record NVD feed)
+    # dependency-check docs note first-init "can take 20 minutes or more"
+    # if NVD is degraded; 30m gives ~3.5x the observed cold-cache cost as
+    # headroom while still failing fast on a true hang (we used to burn
+    # 1h+ before this cap existed). Fork PRs that lack NVD_API_KEY are
+    # filtered out by the job-level `if:` above, so this timeout only
+    # gates runs that are authenticated.
+    timeout-minutes: 30
     permissions:
       contents: read
       security-events: write
