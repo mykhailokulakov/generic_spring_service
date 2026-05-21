@@ -382,8 +382,15 @@ jobs:
         id: nvd-date
         run: echo "date=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
 
-      - name: Cache NVD data
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      # Split into restore + save (rather than the combined `actions/cache@v5`
+      # step) so the cache is populated by an explicit `update-only` step
+      # below before we attempt the `:check` analysis. The default combined
+      # step only saves on job success, which means a failing `:check`
+      # (CVSS>=7) or a timeout would drop the freshly-downloaded NVD DB on
+      # the floor — and we'd cold-download all 350k records again next run.
+      - name: Restore NVD cache
+        id: nvd-cache-restore
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           # Include the plugin version in the key so a plugin/schema bump
@@ -394,19 +401,41 @@ jobs:
           restore-keys: |
             nvd-${{ runner.os }}-dc12.2.2-
 
+      # `update-only` downloads + indexes the NVD feed without running the
+      # analysis; it succeeds when the DB is fully populated. Splitting this
+      # from `:check` lets us save the cache cleanly even when `:check` later
+      # fails on a CVSS>=7 finding — the DB itself is still valid.
+      #
       # NVD_API_KEY is required to keep this job under the timeout — without
       # it the unauthenticated NVD download is rate-limited to ~1 req/6s and
-      # the full 350k-record feed takes >1h. With a key it's ~2 minutes.
-      # dependency-check-maven has no nvdApiKey env-var parameter (Gradle has
-      # one, Maven doesn't), so pass the secret on the CLI; GitHub Actions
-      # masks registered secret values in logs.
+      # the full feed takes >1h. dependency-check-maven has no nvdApiKey
+      # env-var parameter (Gradle has one, Maven doesn't), so pass the secret
+      # on the CLI; GitHub Actions masks registered secret values in logs.
       #
-      # No `-q`: dependency-check's NVD-download progress is logged at INFO,
-      # so quiet mode makes the job look hung for 10+ minutes.
-      - name: Run OWASP dependency-check
+      # No `-q`: NVD-download progress is logged at INFO, so quiet mode makes
+      # the job look hung for 10+ minutes.
+      - name: Update NVD database
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check -DnvdApiKey="$NVD_API_KEY"
+        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:update-only -DnvdApiKey="$NVD_API_KEY"
+
+      # Save the cache immediately after a successful update, before
+      # `:check` runs. This is the whole point of the restore/save split:
+      # if `:check` fails on a CVE, the cache still holds today's good DB.
+      # Guarded on a cache miss so we don't waste time re-uploading when
+      # the restore step already produced a hit on today's key.
+      - name: Save NVD cache
+        if: steps.nvd-cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ runner.os }}-dc12.2.2-${{ steps.nvd-date.outputs.date }}
+
+      # The DB is already populated from `update-only`; this step is just
+      # the CVE matching + report generation. Auto-update is off so the
+      # plugin doesn't try to re-fetch the feed and waste API quota.
+      - name: Run OWASP dependency-check
+        run: ./mvnw -B -ntp org.owasp:dependency-check-maven:check -DautoUpdate=false
 
       - name: Upload HTML report artifact
         if: always()
