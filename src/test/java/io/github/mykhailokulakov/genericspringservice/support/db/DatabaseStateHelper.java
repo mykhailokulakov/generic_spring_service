@@ -29,7 +29,7 @@ public class DatabaseStateHelper {
     if (tables.isEmpty()) {
       return;
     }
-    String quoted = String.join(", ", tables.stream().map(t -> "\"" + t + "\"").toList());
+    var quoted = String.join(", ", tables.stream().map(t -> "\"" + t + "\"").toList());
     em.createNativeQuery("TRUNCATE TABLE " + quoted + " RESTART IDENTITY CASCADE").executeUpdate();
   }
 
@@ -42,7 +42,7 @@ public class DatabaseStateHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public long countIncludingDeleted(Class<?> entityClass) {
     String table = tableName(entityClass);
-    Number n =
+    var n =
         (Number) em.createNativeQuery("SELECT count(*) FROM \"" + table + "\"").getSingleResult();
     return n.longValue();
   }
@@ -50,7 +50,7 @@ public class DatabaseStateHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public long countWhereDeleted(Class<?> entityClass) {
     String table = tableName(entityClass);
-    Number n =
+    var n =
         (Number)
             em.createNativeQuery(
                     "SELECT count(*) FROM \"" + table + "\" WHERE deleted_at IS NOT NULL")
@@ -59,7 +59,7 @@ public class DatabaseStateHelper {
   }
 
   private static String tableName(Class<?> entityClass) {
-    Table table = entityClass.getAnnotation(Table.class);
+    var table = entityClass.getAnnotation(Table.class);
     if (table == null || table.name().isEmpty()) {
       throw new IllegalArgumentException(
           entityClass.getName()

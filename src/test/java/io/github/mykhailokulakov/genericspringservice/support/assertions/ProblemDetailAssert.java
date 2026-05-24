@@ -34,7 +34,7 @@ public class ProblemDetailAssert extends AbstractAssert<ProblemDetailAssert, Res
 
   public ProblemDetailAssert hasContentType(String expected) {
     isNotNull();
-    String actualContentType = actual.getContentType();
+    var actualContentType = actual.getContentType();
     if (actualContentType == null
         || !actualContentType.toLowerCase().startsWith(expected.toLowerCase())) {
       failWithMessage(
@@ -53,7 +53,7 @@ public class ProblemDetailAssert extends AbstractAssert<ProblemDetailAssert, Res
 
   public ProblemDetailAssert hasTitleMatching(String regex) {
     isNotNull();
-    String actualTitle = jsonPath().getString("title");
+    var actualTitle = jsonPath().getString("title");
     if (actualTitle == null || !actualTitle.matches(regex)) {
       failWithMessage(
           "Expected $.title to match <%s> but was <%s>%n  body: %s",
@@ -68,7 +68,7 @@ public class ProblemDetailAssert extends AbstractAssert<ProblemDetailAssert, Res
 
   public ProblemDetailAssert hasType(URI expected) {
     isNotNull();
-    String actualType = jsonPath().getString("type");
+    var actualType = jsonPath().getString("type");
     if (actualType == null || !URI.create(actualType).equals(expected)) {
       failWithMessage(
           "Expected $.type to be <%s> but was <%s>%n  body: %s",
@@ -104,7 +104,7 @@ public class ProblemDetailAssert extends AbstractAssert<ProblemDetailAssert, Res
 
   private ProblemDetailAssert assertStringField(String field, String expected) {
     isNotNull();
-    String actualValue = jsonPath().getString(field);
+    var actualValue = jsonPath().getString(field);
     if (actualValue == null || !actualValue.equals(expected)) {
       failWithMessage(
           "Expected $.%s to be <%s> but was <%s>%n  body: %s",

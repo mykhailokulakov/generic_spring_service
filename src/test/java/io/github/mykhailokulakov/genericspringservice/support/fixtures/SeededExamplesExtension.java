@@ -6,7 +6,6 @@ import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHe
 import jakarta.persistence.EntityManager;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Set;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -20,20 +19,19 @@ public class SeededExamplesExtension implements BeforeEachCallback {
 
   @Override
   public void beforeEach(ExtensionContext ctx) {
-    WithSeededExamples annotation =
-        ctx.getRequiredTestClass().getAnnotation(WithSeededExamples.class);
+    var annotation = ctx.getRequiredTestClass().getAnnotation(WithSeededExamples.class);
     if (annotation == null) {
       return;
     }
 
-    ApplicationContext appCtx = SpringExtension.getApplicationContext(ctx);
-    ExampleRepository repository = appCtx.getBean(ExampleRepository.class);
+    var appCtx = SpringExtension.getApplicationContext(ctx);
+    var repository = appCtx.getBean(ExampleRepository.class);
 
     if (annotation.truncate()) {
       truncateExampleTables(appCtx);
     }
 
-    Set<String> annotationTags = new HashSet<>(Arrays.asList(annotation.tags()));
+    var annotationTags = new HashSet<>(Arrays.asList(annotation.tags()));
     for (int i = 0; i < annotation.count(); i++) {
       ExampleEntity entity = ExampleFixtures.randomActive();
       if (!annotationTags.isEmpty()) {
@@ -46,16 +44,15 @@ public class SeededExamplesExtension implements BeforeEachCallback {
 
   private static void truncateExampleTables(ApplicationContext appCtx) {
     try {
-      DatabaseStateHelper helper = appCtx.getBean(DatabaseStateHelper.class);
+      var helper = appCtx.getBean(DatabaseStateHelper.class);
       helper.truncate("example_tag");
       helper.truncate("example");
       return;
     } catch (NoSuchBeanDefinitionException ignored) {
       // Fall through to TransactionTemplate path below.
     }
-    EntityManager em = appCtx.getBean(EntityManager.class);
-    TransactionTemplate tx =
-        new TransactionTemplate(appCtx.getBean(PlatformTransactionManager.class));
+    var em = appCtx.getBean(EntityManager.class);
+    var tx = new TransactionTemplate(appCtx.getBean(PlatformTransactionManager.class));
     tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     tx.executeWithoutResult(
         status ->
