@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.web.dto.CreateExampleRequest;
-import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateExampleRequest;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -37,7 +36,7 @@ class ExampleApiMapperTest {
   void toResponseCopiesEveryField() {
     Example model = sampleModel();
 
-    ExampleResponse response = mapper.toResponse(model);
+    var response = mapper.toResponse(model);
 
     assertThat(response.id()).isEqualTo(model.id());
     assertThat(response.name()).isEqualTo(model.name());
@@ -59,7 +58,7 @@ class ExampleApiMapperTest {
 
   @Test
   void toModelFromCreateRequestLeavesManagedFieldsNull() {
-    CreateExampleRequest request =
+    var request =
         new CreateExampleRequest(
             "name",
             "description",
@@ -69,7 +68,7 @@ class ExampleApiMapperTest {
             ExampleStatus.DRAFT,
             Set.of("alpha"));
 
-    Example model = mapper.toModel(request);
+    var model = mapper.toModel(request);
 
     assertThat(model.id()).isNull();
     assertThat(model.createdAt()).isNull();
@@ -91,7 +90,7 @@ class ExampleApiMapperTest {
 
   @Test
   void toModelFromUpdateRequestLeavesManagedFieldsNull() {
-    UpdateExampleRequest request =
+    var request =
         new UpdateExampleRequest(
             "name",
             "description",
@@ -101,7 +100,7 @@ class ExampleApiMapperTest {
             ExampleStatus.ACTIVE,
             Set.of("alpha", "beta"));
 
-    Example model = mapper.toModel(request);
+    var model = mapper.toModel(request);
 
     assertThat(model.id()).isNull();
     assertThat(model.createdAt()).isNull();

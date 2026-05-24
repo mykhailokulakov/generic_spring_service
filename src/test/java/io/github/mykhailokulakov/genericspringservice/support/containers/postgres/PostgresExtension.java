@@ -15,7 +15,7 @@ public class PostgresExtension implements BeforeAllCallback {
 
   @Override
   public void beforeAll(ExtensionContext ctx) {
-    Class<?> testClass = ctx.getRequiredTestClass();
+    var testClass = ctx.getRequiredTestClass();
     WithPostgres[] declarations = collectAnnotations(testClass);
     if (declarations.length == 0) {
       declarations = new WithPostgres[] {defaults()};
@@ -45,7 +45,7 @@ public class PostgresExtension implements BeforeAllCallback {
       System.setProperty("spring.datasource.username", container.getUsername());
       System.setProperty("spring.datasource.password", container.getPassword());
     } else {
-      String prefix = "testcontainers.postgres." + name + ".";
+      var prefix = "testcontainers.postgres." + name + ".";
       System.setProperty(prefix + "url", container.getJdbcUrl());
       System.setProperty(prefix + "username", container.getUsername());
       System.setProperty(prefix + "password", container.getPassword());

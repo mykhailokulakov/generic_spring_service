@@ -21,7 +21,7 @@ public final class ExampleSpecifications {
     if (f == null) {
       return Specification.unrestricted();
     }
-    List<Specification<ExampleEntity>> parts = new ArrayList<>();
+    var parts = new ArrayList<Specification<ExampleEntity>>();
     addIfPresent(parts, nameContains(f.name()));
     addIfPresent(parts, descriptionContains(f.description()));
     addIfPresent(parts, quantityBetween(f.minQuantity(), f.maxQuantity()));
@@ -118,7 +118,7 @@ public final class ExampleSpecifications {
   // rather than producing a predicate that matches nothing.
   private static Specification<ExampleEntity> hasAnyTag(Set<String> tags) {
     if (tags == null || tags.isEmpty()) return null;
-    List<Specification<ExampleEntity>> specs =
+    var specs =
         tags.stream()
             .filter(StringUtils::hasText)
             .map(

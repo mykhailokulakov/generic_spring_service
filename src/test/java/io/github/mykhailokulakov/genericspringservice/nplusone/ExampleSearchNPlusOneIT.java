@@ -14,14 +14,11 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,7 +42,7 @@ class ExampleSearchNPlusOneIT {
     em.createNativeQuery("DELETE FROM example_tag").executeUpdate();
     em.createNativeQuery("DELETE FROM example").executeUpdate();
     for (int i = 0; i < 20; i++) {
-      ExampleEntity e =
+      var e =
           ExampleEntity.builder()
               .name("entity-" + i)
               .quantity(i)
@@ -62,13 +59,12 @@ class ExampleSearchNPlusOneIT {
 
   @Test
   void searchPageOfTen_doesNotIssueNPlusOneQueries() {
-    SessionFactory sessionFactory = em.getEntityManagerFactory().unwrap(SessionFactory.class);
-    Statistics stats = sessionFactory.getStatistics();
+    var sessionFactory = em.getEntityManagerFactory().unwrap(SessionFactory.class);
+    var stats = sessionFactory.getStatistics();
     stats.clear();
 
-    Pageable pageable = PageRequest.of(0, 10);
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(ExampleFilter.empty()), pageable);
+    var pageable = PageRequest.of(0, 10);
+    var page = repository.findAll(ExampleSpecifications.matches(ExampleFilter.empty()), pageable);
 
     int totalTags = 0;
     for (ExampleEntity e : page.getContent()) {

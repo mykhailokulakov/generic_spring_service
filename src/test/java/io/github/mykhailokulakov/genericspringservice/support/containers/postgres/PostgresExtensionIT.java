@@ -29,8 +29,8 @@ class PostgresExtensionIT {
 
     @Test
     void exportsPrefixedPropertiesForEachName() {
-      String primaryUrl = System.getProperty("testcontainers.postgres.primary.url");
-      String replicaUrl = System.getProperty("testcontainers.postgres.replica.url");
+      var primaryUrl = System.getProperty("testcontainers.postgres.primary.url");
+      var replicaUrl = System.getProperty("testcontainers.postgres.replica.url");
 
       assertThat(primaryUrl).isNotNull().startsWith("jdbc:postgresql://");
       assertThat(replicaUrl).isNotNull().startsWith("jdbc:postgresql://");
@@ -46,8 +46,8 @@ class PostgresExtensionIT {
 
     private int portOf(String jdbcUrl) {
       // jdbc:postgresql://host:port/db
-      String hostPort = jdbcUrl.substring("jdbc:postgresql://".length());
-      String port = hostPort.substring(hostPort.indexOf(':') + 1, hostPort.indexOf('/'));
+      var hostPort = jdbcUrl.substring("jdbc:postgresql://".length());
+      var port = hostPort.substring(hostPort.indexOf(':') + 1, hostPort.indexOf('/'));
       return Integer.parseInt(port);
     }
   }

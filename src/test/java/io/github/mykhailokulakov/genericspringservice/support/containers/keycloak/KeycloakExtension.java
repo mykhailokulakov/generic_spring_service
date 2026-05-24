@@ -21,8 +21,8 @@ public class KeycloakExtension implements BeforeAllCallback, AfterAllCallback {
 
   @Override
   public void beforeAll(ExtensionContext ctx) {
-    Class<?> testClass = ctx.getRequiredTestClass();
-    WithKeycloak[] declarations = testClass.getAnnotationsByType(WithKeycloak.class);
+    var testClass = ctx.getRequiredTestClass();
+    var declarations = testClass.getAnnotationsByType(WithKeycloak.class);
     if (declarations.length == 0) {
       declarations = new WithKeycloak[] {defaults()};
     }
@@ -59,16 +59,16 @@ public class KeycloakExtension implements BeforeAllCallback, AfterAllCallback {
   }
 
   private void exportProperties(String name, Holder holder) {
-    String authServerUrl = holder.container.getAuthServerUrl();
-    String base = authServerUrl.endsWith("/") ? authServerUrl : authServerUrl + "/";
-    String issuerUri = base + "realms/" + holder.realmName;
+    var authServerUrl = holder.container.getAuthServerUrl();
+    var base = authServerUrl.endsWith("/") ? authServerUrl : authServerUrl + "/";
+    var issuerUri = base + "realms/" + holder.realmName;
     if ("default".equals(name)) {
       System.setProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri", issuerUri);
       System.setProperty("testcontainers.keycloak.default.issuer-uri", issuerUri);
       System.setProperty("testcontainers.keycloak.default.auth-server-url", authServerUrl);
       System.setProperty("testcontainers.keycloak.default.realm", holder.realmName);
     } else {
-      String prefix = "testcontainers.keycloak." + name + ".";
+      var prefix = "testcontainers.keycloak." + name + ".";
       System.setProperty(prefix + "issuer-uri", issuerUri);
       System.setProperty(prefix + "auth-server-url", authServerUrl);
       System.setProperty(prefix + "realm", holder.realmName);

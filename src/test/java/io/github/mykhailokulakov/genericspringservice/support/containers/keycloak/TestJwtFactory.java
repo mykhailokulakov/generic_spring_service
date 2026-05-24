@@ -97,7 +97,7 @@ public class TestJwtFactory {
             + enc(username)
             + "&password="
             + enc(password);
-    HttpRequest req =
+    var req =
         HttpRequest.newBuilder(URI.create(tokenUrl))
             .timeout(Duration.ofSeconds(30))
             .header("Content-Type", "application/x-www-form-urlencoded")

@@ -6,7 +6,6 @@ import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAs
 
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.support.IntegrationTest;
-import io.restassured.response.Response;
 import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -28,30 +27,30 @@ class MessageResolutionIT {
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
   void everyErrorCodeResolvesInEnglish(ErrorCode code) {
-    String resolved = messages.getMessage(code.key(), null, Locale.ENGLISH);
+    var resolved = messages.getMessage(code.key(), null, Locale.ENGLISH);
     assertThat(resolved).isNotBlank().isNotEqualTo(code.key());
   }
 
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
   void everyErrorCodeResolvesInSpanish(ErrorCode code) {
-    String resolved = messages.getMessage(code.key(), null, SPANISH);
+    var resolved = messages.getMessage(code.key(), null, SPANISH);
     assertThat(resolved).isNotBlank().isNotEqualTo(code.key());
   }
 
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
   void spanishMessageDiffersFromEnglishMessage(ErrorCode code) {
-    String english = messages.getMessage(code.key(), null, Locale.ENGLISH);
-    String spanish = messages.getMessage(code.key(), null, SPANISH);
+    var english = messages.getMessage(code.key(), null, Locale.ENGLISH);
+    var spanish = messages.getMessage(code.key(), null, SPANISH);
     assertThat(spanish).isNotEqualTo(english);
   }
 
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
   void missingLocaleFallsBackToDefault(ErrorCode code) {
-    String english = messages.getMessage(code.key(), null, Locale.ENGLISH);
-    String fallback = messages.getMessage(code.key(), null, Locale.JAPANESE);
+    var english = messages.getMessage(code.key(), null, Locale.ENGLISH);
+    var fallback = messages.getMessage(code.key(), null, Locale.JAPANESE);
     assertThat(fallback).isEqualTo(english);
   }
 
@@ -63,9 +62,9 @@ class MessageResolutionIT {
 
   @Test
   void nonsenseAcceptLanguageHeaderFallsBackToDefault() {
-    UUID id = UUID.randomUUID();
+    var id = UUID.randomUUID();
 
-    Response response =
+    var response =
         asUser()
             .header("Accept-Language", "zz")
             .get("/api/v1/examples/" + id)
@@ -73,9 +72,9 @@ class MessageResolutionIT {
             .extract()
             .response();
 
-    String englishDetail =
+    var englishDetail =
         messages.getMessage(ErrorCode.EXAMPLE_NOT_FOUND.key(), new Object[] {id}, Locale.ENGLISH);
-    String englishTitle = messages.getMessage("error.not-found.title", null, Locale.ENGLISH);
+    var englishTitle = messages.getMessage("error.not-found.title", null, Locale.ENGLISH);
 
     assertThat(response)
         .hasStatus(404)

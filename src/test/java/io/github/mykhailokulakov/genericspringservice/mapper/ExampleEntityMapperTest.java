@@ -37,8 +37,8 @@ class ExampleEntityMapperTest {
   void roundTripPreservesAllFieldsIncludingTags() {
     Example original = sampleModel();
 
-    ExampleEntity entity = mapper.toEntity(original);
-    Example back = mapper.toModel(entity);
+    var entity = mapper.toEntity(original);
+    var back = mapper.toModel(entity);
 
     assertThat(back.id()).isEqualTo(original.id());
     assertThat(back.name()).isEqualTo(original.name());
@@ -55,8 +55,8 @@ class ExampleEntityMapperTest {
 
   @Test
   void applyReplacementOverwritesAllFields() {
-    ExampleEntity entity = mapper.toEntity(sampleModel());
-    Example replacement =
+    var entity = mapper.toEntity(sampleModel());
+    var replacement =
         new Example(
             null,
             "new-name",
@@ -96,26 +96,26 @@ class ExampleEntityMapperTest {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
 
-    Example model = mapper.toModel(entity);
+    var model = mapper.toModel(entity);
 
     assertThat(model.tags()).isNull();
   }
 
   @Test
   void toEntityWithNullTagsProducesNoTags() {
-    Example model =
+    var model =
         new Example(
             null, "name", null, null, null, null, ExampleStatus.DRAFT, null, null, null, null);
 
-    ExampleEntity entity = mapper.toEntity(model);
+    var entity = mapper.toEntity(model);
 
     assertThat(entity.getTags()).isEmpty();
   }
 
   @Test
   void applyReplacementOnNullReplacementIsNoOp() {
-    ExampleEntity entity = mapper.toEntity(sampleModel());
-    String originalName = entity.getName();
+    var entity = mapper.toEntity(sampleModel());
+    var originalName = entity.getName();
 
     mapper.applyReplacement(null, entity);
 
@@ -124,8 +124,8 @@ class ExampleEntityMapperTest {
 
   @Test
   void applyPatchOnNullPatchIsNoOp() {
-    ExampleEntity entity = mapper.toEntity(sampleModel());
-    String originalName = entity.getName();
+    var entity = mapper.toEntity(sampleModel());
+    var originalName = entity.getName();
 
     mapper.applyPatch(null, entity);
 
@@ -136,7 +136,7 @@ class ExampleEntityMapperTest {
   void applyReplacementSetsTagsOnEntityWithoutTags() {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
-    Example replacement =
+    var replacement =
         new Example(null, null, null, null, null, null, null, Set.of("only"), null, null, null);
 
     mapper.applyReplacement(replacement, entity);
@@ -146,7 +146,7 @@ class ExampleEntityMapperTest {
 
   @Test
   void applyReplacementMapsNullsButPreservesManagedFields() {
-    ExampleEntity entity = mapper.toEntity(sampleModel());
+    var entity = mapper.toEntity(sampleModel());
     UUID id = entity.getId();
     Instant createdAt = entity.getCreatedAt();
     Instant updatedAt = entity.getUpdatedAt();
@@ -169,8 +169,8 @@ class ExampleEntityMapperTest {
 
   @Test
   void applyPatchUpdatesEveryProvidedField() {
-    ExampleEntity entity = mapper.toEntity(sampleModel());
-    ExamplePatch patch =
+    var entity = mapper.toEntity(sampleModel());
+    var patch =
         new ExamplePatch(
             "n",
             "d",
@@ -204,10 +204,10 @@ class ExampleEntityMapperTest {
 
   @Test
   void applyPatchIgnoresNullFields() {
-    ExampleEntity entity = mapper.toEntity(sampleModel());
-    String originalName = entity.getName();
+    var entity = mapper.toEntity(sampleModel());
+    var originalName = entity.getName();
     BigDecimal originalPrice = entity.getPrice();
-    Set<String> originalTags = new HashSet<>(entity.getTags());
+    var originalTags = new HashSet<>(entity.getTags());
 
     var patch = new ExamplePatch(null, "patched-description", 99, null, null, null, null);
 

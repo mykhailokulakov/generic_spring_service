@@ -38,7 +38,7 @@ public final class RestAssuredAuth {
   }
 
   private static TestJwtFactory requireFactory() {
-    TestJwtFactory factory = jwtFactory;
+    var factory = jwtFactory;
     if (factory == null) {
       throw new IllegalStateException(
           "RestAssuredAuth has no TestJwtFactory — is @WithKeycloak on the test class?");

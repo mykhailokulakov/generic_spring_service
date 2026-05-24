@@ -21,9 +21,9 @@ public class OpenApiConfig {
   public OpenAPI openAPI(
       @Value("${spring.application.name:generic-spring-service}") String applicationName,
       ObjectProvider<BuildProperties> buildPropertiesProvider) {
-    BuildProperties buildProperties = buildPropertiesProvider.getIfAvailable();
-    String title = buildProperties != null ? buildProperties.getName() : applicationName;
-    String version = buildProperties != null ? buildProperties.getVersion() : "dev";
+    var buildProperties = buildPropertiesProvider.getIfAvailable();
+    var title = buildProperties != null ? buildProperties.getName() : applicationName;
+    var version = buildProperties != null ? buildProperties.getVersion() : "dev";
 
     return new OpenAPI()
         .info(new Info().title(title).version(version).description("REST API for " + title + "."))
