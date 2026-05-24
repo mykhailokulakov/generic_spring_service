@@ -10,13 +10,13 @@ class RoleHierarchyResolverTest {
 
   @Test
   void userTier_matchesEnumDefinition() {
-    String[] expected = RoleTier.USER_TIER.roles().stream().map(Enum::name).toArray(String[]::new);
+    var expected = RoleTier.USER_TIER.roles().stream().map(Enum::name).toArray(String[]::new);
     assertThat(resolver.userTier()).containsExactlyInAnyOrder(expected);
   }
 
   @Test
   void adminTier_matchesEnumDefinition() {
-    String[] expected = RoleTier.ADMIN_TIER.roles().stream().map(Enum::name).toArray(String[]::new);
+    var expected = RoleTier.ADMIN_TIER.roles().stream().map(Enum::name).toArray(String[]::new);
     assertThat(resolver.adminTier()).containsExactlyInAnyOrder(expected);
   }
 

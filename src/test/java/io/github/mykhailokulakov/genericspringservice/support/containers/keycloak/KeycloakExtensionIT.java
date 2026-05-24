@@ -24,7 +24,7 @@ class KeycloakExtensionIT {
 
     @Test
     void issuesValidJwtForSeededAdmin() {
-      TestJwtFactory factory = TestJwtFactory.forDefaultContainer();
+      var factory = TestJwtFactory.forDefaultContainer();
       String token = factory.adminToken();
       assertThat(token).isNotBlank();
       // JWT = header.payload.signature

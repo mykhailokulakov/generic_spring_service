@@ -12,13 +12,11 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -62,7 +60,7 @@ class ExampleRepositoryIT {
       Instant occurredAt,
       ExampleStatus status,
       Set<String> tags) {
-    ExampleEntity e =
+    var e =
         ExampleEntity.builder()
             .name(name)
             .description(description)
@@ -80,10 +78,8 @@ class ExampleRepositoryIT {
     persist("Alpha widget", "x", 1, new BigDecimal("1.00"), T0, ExampleStatus.ACTIVE, Set.of());
     persist("Beta gadget", "y", 1, new BigDecimal("1.00"), T0, ExampleStatus.ACTIVE, Set.of());
 
-    ExampleFilter f =
-        new ExampleFilter("ALPHA", null, null, null, null, null, null, null, null, null);
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
+    var f = new ExampleFilter("ALPHA", null, null, null, null, null, null, null, null, null);
+    var page = repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
 
     assertThat(page.getContent())
         .hasSize(1)
@@ -98,7 +94,7 @@ class ExampleRepositoryIT {
     persist("b", null, 1, new BigDecimal("15.00"), T0, ExampleStatus.ACTIVE, Set.of());
     persist("c", null, 1, new BigDecimal("25.00"), T0, ExampleStatus.ACTIVE, Set.of());
 
-    ExampleFilter f =
+    var f =
         new ExampleFilter(
             null,
             null,
@@ -110,8 +106,7 @@ class ExampleRepositoryIT {
             null,
             null,
             null);
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
+    var page = repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
 
     assertThat(page.getContent()).extracting(ExampleEntity::getName).containsExactly("b");
   }
@@ -122,7 +117,7 @@ class ExampleRepositoryIT {
     persist("b", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
     persist("c", null, 1, new BigDecimal("1"), T0, ExampleStatus.ARCHIVED, Set.of());
 
-    ExampleFilter f =
+    var f =
         new ExampleFilter(
             null,
             null,
@@ -134,8 +129,7 @@ class ExampleRepositoryIT {
             null,
             Set.of(ExampleStatus.DRAFT, ExampleStatus.ACTIVE),
             null);
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
+    var page = repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
 
     assertThat(page.getContent())
         .extracting(ExampleEntity::getName)
@@ -148,11 +142,10 @@ class ExampleRepositoryIT {
     persist("b", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("blue"));
     persist("c", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("green"));
 
-    ExampleFilter f =
+    var f =
         new ExampleFilter(
             null, null, null, null, null, null, null, null, null, Set.of("red", "green"));
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
+    var page = repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
 
     assertThat(page.getContent())
         .extracting(ExampleEntity::getName)
@@ -166,7 +159,7 @@ class ExampleRepositoryIT {
     persist("alpha", null, 5, new BigDecimal("10"), T0, ExampleStatus.DRAFT, Set.of("red"));
     persist("beta", null, 5, new BigDecimal("10"), T0, ExampleStatus.ACTIVE, Set.of("red"));
 
-    ExampleFilter f =
+    var f =
         new ExampleFilter(
             "alpha",
             null,
@@ -178,8 +171,7 @@ class ExampleRepositoryIT {
             null,
             Set.of(ExampleStatus.ACTIVE),
             Set.of("red"));
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
+    var page = repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
 
     assertThat(page.getContent())
         .hasSize(1)
@@ -198,7 +190,7 @@ class ExampleRepositoryIT {
     persist("b", null, 1, new BigDecimal("1"), T0, ExampleStatus.DRAFT, Set.of());
     persist("c", null, 1, new BigDecimal("1"), T0, ExampleStatus.ARCHIVED, Set.of());
 
-    Page<ExampleEntity> page =
+    var page =
         repository.findAll(
             ExampleSpecifications.matches(ExampleFilter.empty()), Pageable.unpaged());
 
@@ -207,14 +199,12 @@ class ExampleRepositoryIT {
 
   @Test
   void softDeleted_isExcluded() {
-    ExampleEntity kept =
-        persist("kept", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
-    ExampleEntity gone =
-        persist("gone", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
+    var kept = persist("kept", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
+    var gone = persist("gone", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
 
     repository.deleteById(gone.getId());
 
-    Page<ExampleEntity> page =
+    var page =
         repository.findAll(
             ExampleSpecifications.matches(ExampleFilter.empty()), Pageable.unpaged());
 
@@ -234,9 +224,8 @@ class ExampleRepositoryIT {
           Set.of());
     }
 
-    Pageable pageable = PageRequest.of(1, 3, Sort.by(Sort.Direction.ASC, "name"));
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(ExampleFilter.empty()), pageable);
+    var pageable = PageRequest.of(1, 3, Sort.by(Sort.Direction.ASC, "name"));
+    var page = repository.findAll(ExampleSpecifications.matches(ExampleFilter.empty()), pageable);
 
     assertThat(page.getTotalElements()).isEqualTo(7);
     assertThat(page.getNumber()).isEqualTo(1);
@@ -251,18 +240,14 @@ class ExampleRepositoryIT {
     persist("b", null, 5, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
     persist("c", null, 10, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
 
-    ExampleFilter minOnly =
-        new ExampleFilter(null, null, 5, null, null, null, null, null, null, null);
-    Page<ExampleEntity> minPage =
-        repository.findAll(ExampleSpecifications.matches(minOnly), Pageable.unpaged());
+    var minOnly = new ExampleFilter(null, null, 5, null, null, null, null, null, null, null);
+    var minPage = repository.findAll(ExampleSpecifications.matches(minOnly), Pageable.unpaged());
     assertThat(minPage.getContent())
         .extracting(ExampleEntity::getName)
         .containsExactlyInAnyOrder("b", "c");
 
-    ExampleFilter maxOnly =
-        new ExampleFilter(null, null, null, 5, null, null, null, null, null, null);
-    Page<ExampleEntity> maxPage =
-        repository.findAll(ExampleSpecifications.matches(maxOnly), Pageable.unpaged());
+    var maxOnly = new ExampleFilter(null, null, null, 5, null, null, null, null, null, null);
+    var maxPage = repository.findAll(ExampleSpecifications.matches(maxOnly), Pageable.unpaged());
     assertThat(maxPage.getContent())
         .extracting(ExampleEntity::getName)
         .containsExactlyInAnyOrder("a", "b");
@@ -288,7 +273,7 @@ class ExampleRepositoryIT {
         ExampleStatus.ACTIVE,
         Set.of());
 
-    ExampleFilter f =
+    var f =
         new ExampleFilter(
             null,
             null,
@@ -300,8 +285,7 @@ class ExampleRepositoryIT {
             T0.plus(5, ChronoUnit.DAYS),
             null,
             null);
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
+    var page = repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
 
     assertThat(page.getContent()).extracting(ExampleEntity::getName).containsExactly("b");
   }
@@ -311,10 +295,8 @@ class ExampleRepositoryIT {
     persist("a", "The quick brown fox", 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
     persist("b", "Lazy dog", 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
 
-    ExampleFilter f =
-        new ExampleFilter(null, "QUICK", null, null, null, null, null, null, null, null);
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
+    var f = new ExampleFilter(null, "QUICK", null, null, null, null, null, null, null, null);
+    var page = repository.findAll(ExampleSpecifications.matches(f), Pageable.unpaged());
 
     assertThat(page.getContent()).extracting(ExampleEntity::getName).containsExactly("a");
   }
@@ -326,10 +308,9 @@ class ExampleRepositoryIT {
     persist("multi", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("a", "b"));
     persist("single", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("a"));
 
-    ExampleFilter f =
+    var f =
         new ExampleFilter(null, null, null, null, null, null, null, null, null, Set.of("a", "b"));
-    Page<ExampleEntity> page =
-        repository.findAll(ExampleSpecifications.matches(f), PageRequest.of(0, 10));
+    var page = repository.findAll(ExampleSpecifications.matches(f), PageRequest.of(0, 10));
 
     assertThat(page.getTotalElements()).isEqualTo(2);
     assertThat(page.getContent())
@@ -343,24 +324,24 @@ class ExampleRepositoryIT {
     persist("b", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("blue"));
 
     // Blank-only tag set must drop the filter entirely, returning every row.
-    Set<String> blanksOnly = new HashSet<>();
+    var blanksOnly = new HashSet<String>();
     blanksOnly.add("");
     blanksOnly.add("   ");
-    ExampleFilter allBlank =
+    var allBlank =
         new ExampleFilter(null, null, null, null, null, null, null, null, null, blanksOnly);
-    Page<ExampleEntity> allBlankPage =
+    var allBlankPage =
         repository.findAll(ExampleSpecifications.matches(allBlank), Pageable.unpaged());
     assertThat(allBlankPage.getContent())
         .extracting(ExampleEntity::getName)
         .containsExactlyInAnyOrder("a", "b");
 
     // Mix of blank + real tag must filter on the real tag only.
-    Set<String> mixed = new HashSet<>();
+    var mixed = new HashSet<String>();
     mixed.add(" ");
     mixed.add("red");
-    ExampleFilter mixedFilter =
+    var mixedFilter =
         new ExampleFilter(null, null, null, null, null, null, null, null, null, mixed);
-    Page<ExampleEntity> mixedPage =
+    var mixedPage =
         repository.findAll(ExampleSpecifications.matches(mixedFilter), Pageable.unpaged());
     assertThat(mixedPage.getContent()).extracting(ExampleEntity::getName).containsExactly("a");
   }
@@ -372,14 +353,14 @@ class ExampleRepositoryIT {
     persist("a_b", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
     persist("axb", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
 
-    Page<ExampleEntity> pct =
+    var pct =
         repository.findAll(
             ExampleSpecifications.matches(
                 new ExampleFilter("100%", null, null, null, null, null, null, null, null, null)),
             Pageable.unpaged());
     assertThat(pct.getContent()).extracting(ExampleEntity::getName).containsExactly("100%");
 
-    Page<ExampleEntity> underscore =
+    var underscore =
         repository.findAll(
             ExampleSpecifications.matches(
                 new ExampleFilter("a_b", null, null, null, null, null, null, null, null, null)),
@@ -393,7 +374,7 @@ class ExampleRepositoryIT {
     persist("b", null, 1, new BigDecimal("1"), T0, ExampleStatus.DRAFT, Set.of());
 
     Specification<ExampleEntity> spec = ExampleSpecifications.matches(null);
-    List<ExampleEntity> all = repository.findAll(spec);
+    var all = repository.findAll(spec);
     assertThat(all).hasSize(2);
   }
 }

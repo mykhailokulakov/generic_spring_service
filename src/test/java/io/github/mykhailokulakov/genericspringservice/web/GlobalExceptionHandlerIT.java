@@ -8,7 +8,6 @@ import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.support.IntegrationTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import io.restassured.http.ContentType;
-import io.restassured.response.Response;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -42,7 +41,7 @@ class GlobalExceptionHandlerIT {
   }
 
   private static Map<String, Object> validCreateBody() {
-    Map<String, Object> body = new LinkedHashMap<>();
+    var body = new LinkedHashMap<String, Object>();
     body.put("name", "Widget");
     body.put("status", "ACTIVE");
     body.put("tags", List.of("alpha"));
@@ -67,7 +66,7 @@ class GlobalExceptionHandlerIT {
 
   @Test
   void notFound_returns404_problemJson_codeAndLocalizedTitle() {
-    Response response =
+    var response =
         asUser()
             .header("Accept-Language", "es")
             .get(PATH + "/" + UUID.randomUUID())
@@ -88,7 +87,7 @@ class GlobalExceptionHandlerIT {
   void ifMatchRequired_returns412_problemJson_codeAndLocalizedTitle() {
     UUID id = createExample();
 
-    Response response =
+    var response =
         asAdmin()
             .contentType(ContentType.JSON)
             .header("Accept-Language", "es")
@@ -111,7 +110,7 @@ class GlobalExceptionHandlerIT {
   void optimisticLockConflict_returns409_problemJson_codeAndLocalizedTitle() {
     UUID id = createExample();
 
-    Response response =
+    var response =
         asAdmin()
             .contentType(ContentType.JSON)
             .header("If-Match", "999")
@@ -133,7 +132,7 @@ class GlobalExceptionHandlerIT {
 
   @Test
   void accessDenied_returns403_problemJson_codeAndLocalizedTitle() {
-    Response response =
+    var response =
         asUser()
             .contentType(ContentType.JSON)
             .header("Accept-Language", "es")
@@ -157,7 +156,7 @@ class GlobalExceptionHandlerIT {
     Map<String, Object> body = validCreateBody();
     body.remove("name");
 
-    Response response =
+    var response =
         asAdmin()
             .contentType(ContentType.JSON)
             .header("Accept-Language", "es")
@@ -179,7 +178,7 @@ class GlobalExceptionHandlerIT {
 
   @Test
   void noAcceptLanguage_returnsDefaultEnglishTitle() {
-    Response response = asUser().get(PATH + "/" + UUID.randomUUID()).then().extract().response();
+    var response = asUser().get(PATH + "/" + UUID.randomUUID()).then().extract().response();
 
     assertThat(response)
         .hasStatus(404)

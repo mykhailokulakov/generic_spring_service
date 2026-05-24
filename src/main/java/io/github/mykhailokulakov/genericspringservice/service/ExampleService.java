@@ -44,19 +44,19 @@ public class ExampleService {
   }
 
   public Example replace(UUID id, Long expectedVersion, Example replacement) {
-    ExampleEntity entity = loadAndCheckVersion(id, expectedVersion);
+    var entity = loadAndCheckVersion(id, expectedVersion);
     mapper.applyReplacement(replacement, entity);
     return mapper.toModel(repository.saveAndFlush(entity));
   }
 
   public Example patch(UUID id, Long expectedVersion, ExamplePatch patch) {
-    ExampleEntity entity = loadAndCheckVersion(id, expectedVersion);
+    var entity = loadAndCheckVersion(id, expectedVersion);
     mapper.applyPatch(patch, entity);
     return mapper.toModel(repository.saveAndFlush(entity));
   }
 
   public void softDelete(UUID id) {
-    ExampleEntity entity =
+    var entity =
         repository
             .findById(id)
             .orElseThrow(() -> new NotFoundException(ErrorCode.EXAMPLE_NOT_FOUND, id));
@@ -67,7 +67,7 @@ public class ExampleService {
     if (expectedVersion == null) {
       throw new ConflictException(ErrorCode.IF_MATCH_REQUIRED, id);
     }
-    ExampleEntity entity =
+    var entity =
         repository
             .findById(id)
             .orElseThrow(() -> new NotFoundException(ErrorCode.EXAMPLE_NOT_FOUND, id));

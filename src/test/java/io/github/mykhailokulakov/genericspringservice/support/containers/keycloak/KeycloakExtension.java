@@ -1,6 +1,5 @@
 package io.github.mykhailokulakov.genericspringservice.support.containers.keycloak;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dasniko.testcontainers.keycloak.KeycloakContainer;
 import io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth;
@@ -21,19 +20,19 @@ public class KeycloakExtension implements BeforeAllCallback, AfterAllCallback {
 
   @Override
   public void beforeAll(ExtensionContext ctx) {
-    Class<?> testClass = ctx.getRequiredTestClass();
-    WithKeycloak[] declarations = testClass.getAnnotationsByType(WithKeycloak.class);
+    var testClass = ctx.getRequiredTestClass();
+    var declarations = testClass.getAnnotationsByType(WithKeycloak.class);
     if (declarations.length == 0) {
       declarations = new WithKeycloak[] {defaults()};
     }
 
     for (WithKeycloak decl : declarations) {
       var key = new ContainerKey(decl.name(), decl.image(), decl.realmImport());
-      Holder holder =
+      var holder =
           CONTAINERS.computeIfAbsent(
               key,
               k -> {
-                KeycloakContainer container =
+                var container =
                     new KeycloakContainer(
                             DockerImageName.parse(k.image())
                                 .asCompatibleSubstituteFor("quay.io/keycloak/keycloak")
@@ -82,8 +81,8 @@ public class KeycloakExtension implements BeforeAllCallback, AfterAllCallback {
         throw new IllegalArgumentException(
             "Realm import not found on classpath: " + classpathLocation);
       }
-      JsonNode root = MAPPER.readTree(in);
-      JsonNode realm = root.get("realm");
+      var root = MAPPER.readTree(in);
+      var realm = root.get("realm");
       if (realm == null || realm.isNull()) {
         throw new IllegalArgumentException(
             "Realm import is missing \"realm\" field: " + classpathLocation);

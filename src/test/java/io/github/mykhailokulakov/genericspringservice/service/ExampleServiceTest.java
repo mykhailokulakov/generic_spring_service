@@ -66,7 +66,7 @@ class ExampleServiceTest {
     when(repository.save(entity)).thenReturn(entity);
     when(mapper.toModel(entity)).thenReturn(model);
 
-    Example result = service.create(model);
+    var result = service.create(model);
 
     assertThat(result).isSameAs(model);
     verify(repository).save(entity);
@@ -93,7 +93,7 @@ class ExampleServiceTest {
     when(repository.saveAndFlush(entity)).thenReturn(entity);
     when(mapper.toModel(entity)).thenReturn(model);
 
-    Example result = service.replace(id, 3L, model);
+    var result = service.replace(id, 3L, model);
 
     assertThat(result).isSameAs(model);
     verify(mapper).applyReplacement(model, entity);
@@ -143,7 +143,7 @@ class ExampleServiceTest {
     when(repository.saveAndFlush(entity)).thenReturn(entity);
     when(mapper.toModel(entity)).thenReturn(model);
 
-    Example result = service.patch(id, 3L, patch);
+    var result = service.patch(id, 3L, patch);
 
     assertThat(result).isSameAs(model);
     verify(mapper).applyPatch(patch, entity);

@@ -3,7 +3,6 @@ package io.github.mykhailokulakov.genericspringservice.exception;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import java.net.URI;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -68,7 +67,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     pd.setTitle(messages.getMessage("error.validation.title", null, locale));
     pd.setDetail(messages.getMessage(ErrorCode.VALIDATION_FAILED.key(), null, locale));
     pd.setProperty("code", ErrorCode.VALIDATION_FAILED.key());
-    List<Map<String, Object>> violations =
+    var violations =
         ex.getBindingResult().getAllErrors().stream()
             .map(
                 error ->
@@ -91,7 +90,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     pd.setTitle(messages.getMessage("error.validation.title", null, locale));
     pd.setDetail(messages.getMessage(ErrorCode.VALIDATION_FAILED.key(), null, locale));
     pd.setProperty("code", ErrorCode.VALIDATION_FAILED.key());
-    List<Map<String, Object>> violations =
+    var violations =
         ex.getConstraintViolations().stream()
             .map(
                 cv ->

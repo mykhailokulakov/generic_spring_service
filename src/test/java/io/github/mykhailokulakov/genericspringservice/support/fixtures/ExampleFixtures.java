@@ -83,7 +83,7 @@ public final class ExampleFixtures {
     }
 
     public Builder withRandomDefaults() {
-      ThreadLocalRandom rnd = ThreadLocalRandom.current();
+      var rnd = ThreadLocalRandom.current();
       String suffix = UUID.randomUUID().toString().substring(0, 8);
       this.name = "example-" + suffix;
       this.description = "random description " + suffix;
@@ -94,7 +94,7 @@ public final class ExampleFixtures {
           Instant.parse("2026-01-01T00:00:00Z").plus(rnd.nextLong(0, 365), ChronoUnit.DAYS);
       this.status = ExampleStatus.ACTIVE;
       int tagCount = rnd.nextInt(0, 4);
-      Set<String> randomTags = new HashSet<>();
+      var randomTags = new HashSet<String>();
       while (randomTags.size() < tagCount) {
         randomTags.add(TAG_POOL[rnd.nextInt(TAG_POOL.length)]);
       }

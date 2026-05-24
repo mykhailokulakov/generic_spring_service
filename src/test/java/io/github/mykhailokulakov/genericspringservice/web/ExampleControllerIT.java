@@ -10,7 +10,6 @@ import io.github.mykhailokulakov.genericspringservice.support.IntegrationTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.WithSeededExamples;
 import io.restassured.http.ContentType;
-import io.restassured.response.Response;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -36,7 +35,7 @@ class ExampleControllerIT {
   // --- helpers ---------------------------------------------------------------
 
   private static Map<String, Object> fullCreateBody() {
-    Map<String, Object> body = new LinkedHashMap<>();
+    var body = new LinkedHashMap<String, Object>();
     body.put("name", "Widget A");
     body.put("description", "A useful widget");
     body.put("quantity", 10);
@@ -48,14 +47,14 @@ class ExampleControllerIT {
   }
 
   private static Map<String, Object> minimalCreateBody() {
-    Map<String, Object> body = new LinkedHashMap<>();
+    var body = new LinkedHashMap<String, Object>();
     body.put("name", "minimal");
     body.put("status", "DRAFT");
     return body;
   }
 
   private static Map<String, Object> fullUpdateBody() {
-    Map<String, Object> body = new LinkedHashMap<>();
+    var body = new LinkedHashMap<String, Object>();
     body.put("name", "Widget B");
     body.put("description", "Replaced description");
     body.put("quantity", 42);
@@ -67,7 +66,7 @@ class ExampleControllerIT {
   }
 
   private UUID createExampleAsAdmin(Map<String, Object> body) {
-    Response response =
+    var response =
         asAdmin()
             .contentType(ContentType.JSON)
             .body(body)
@@ -93,7 +92,7 @@ class ExampleControllerIT {
     void adminCreatesWithAllFields_returns201_andGetReturnsSame() {
       Map<String, Object> body = fullCreateBody();
 
-      Response created =
+      var created =
           asAdmin()
               .contentType(ContentType.JSON)
               .body(body)
@@ -114,8 +113,8 @@ class ExampleControllerIT {
       assertThat(created.jsonPath().getList("tags", String.class))
           .containsExactlyInAnyOrder("alpha", "beta");
 
-      UUID id = UUID.fromString(created.jsonPath().getString("id"));
-      Response fetched = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
+      var id = UUID.fromString(created.jsonPath().getString("id"));
+      var fetched = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
       assertThat(fetched.jsonPath().getString("id")).isEqualTo(id.toString());
       assertThat(fetched.jsonPath().getString("name")).isEqualTo("Widget A");
       assertThat(fetched.jsonPath().getString("description")).isEqualTo("A useful widget");
@@ -123,7 +122,7 @@ class ExampleControllerIT {
 
     @Test
     void adminCreatesWithOnlyRequiredFields_returns201_andOptionalFieldsAreNull() {
-      Response created =
+      var created =
           asAdmin()
               .contentType(ContentType.JSON)
               .body(minimalCreateBody())
@@ -149,7 +148,7 @@ class ExampleControllerIT {
 
       UUID id = createExampleAsAdmin(body);
 
-      Response fetched = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
+      var fetched = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
       assertThat(fetched.jsonPath().getList("tags", String.class))
           .containsExactlyInAnyOrder("red", "green", "blue");
     }
@@ -166,7 +165,7 @@ class ExampleControllerIT {
 
     @Test
     void adminCreateProducesCreatedAtAndUpdatedAt() {
-      Response created =
+      var created =
           asAdmin()
               .contentType(ContentType.JSON)
               .body(fullCreateBody())
@@ -183,7 +182,7 @@ class ExampleControllerIT {
 
     @Test
     void noToken_returns401() {
-      Response response =
+      var response =
           asUnauthenticated()
               .contentType(ContentType.JSON)
               .body(fullCreateBody())
@@ -196,7 +195,7 @@ class ExampleControllerIT {
 
     @Test
     void userRoleNotAdmin_returns403() {
-      Response response =
+      var response =
           asUser()
               .contentType(ContentType.JSON)
               .body(fullCreateBody())
@@ -212,7 +211,7 @@ class ExampleControllerIT {
       Map<String, Object> body = fullCreateBody();
       body.remove("name");
 
-      Response response =
+      var response =
           asAdmin().contentType(ContentType.JSON).body(body).post(PATH).then().extract().response();
       assertThat(response)
           .hasStatus(400)
@@ -225,7 +224,7 @@ class ExampleControllerIT {
       Map<String, Object> body = fullCreateBody();
       body.put("name", "x".repeat(201));
 
-      Response response =
+      var response =
           asAdmin().contentType(ContentType.JSON).body(body).post(PATH).then().extract().response();
       assertThat(response)
           .hasStatus(400)
@@ -238,7 +237,7 @@ class ExampleControllerIT {
       Map<String, Object> body = fullCreateBody();
       body.put("status", "NOT_A_STATUS");
 
-      Response response =
+      var response =
           asAdmin().contentType(ContentType.JSON).body(body).post(PATH).then().extract().response();
       assertThat(response).hasStatus(400);
     }
@@ -258,7 +257,7 @@ class ExampleControllerIT {
     void userReadsAdminCreatedEntity_returns200_withFullBody() {
       UUID id = createExampleAsAdmin(fullCreateBody());
 
-      Response response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
+      var response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
       assertThat(response.jsonPath().getString("id")).isEqualTo(id.toString());
       assertThat(response.jsonPath().getString("name")).isEqualTo("Widget A");
       assertThat(response.jsonPath().getString("status")).isEqualTo("ACTIVE");
@@ -268,7 +267,7 @@ class ExampleControllerIT {
     void userReadsEntityWithAllFieldTypesPopulated_returns200_allFieldsPresent() {
       UUID id = createExampleAsAdmin(fullCreateBody());
 
-      Response response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
+      var response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
       assertThat(response.jsonPath().getString("id")).isNotBlank();
       assertThat(response.jsonPath().getString("name")).isNotBlank();
       assertThat(response.jsonPath().getString("description")).isNotBlank();
@@ -288,7 +287,7 @@ class ExampleControllerIT {
       body.put("tags", List.of());
       UUID id = createExampleAsAdmin(body);
 
-      Response response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
+      var response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
       assertThat(response.jsonPath().getList("tags", String.class)).isEmpty();
     }
 
@@ -296,7 +295,7 @@ class ExampleControllerIT {
     void userReadsImmediatelyAfterCreate_returns200_version0() {
       UUID id = createExampleAsAdmin(fullCreateBody());
 
-      Response response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
+      var response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
       assertThat(response.jsonPath().getLong("version")).isEqualTo(0L);
     }
 
@@ -312,7 +311,7 @@ class ExampleControllerIT {
           .then()
           .statusCode(200);
 
-      Response response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
+      var response = asUser().get(PATH + "/" + id).then().statusCode(200).extract().response();
       assertThat(response.jsonPath().getString("name")).isEqualTo("Widget B");
       assertThat(response.jsonPath().getString("status")).isEqualTo("ARCHIVED");
       assertThat(response.jsonPath().getLong("version")).isEqualTo(1L);
@@ -320,20 +319,20 @@ class ExampleControllerIT {
 
     @Test
     void noToken_returns401() {
-      Response response =
+      var response =
           asUnauthenticated().get(PATH + "/" + UUID.randomUUID()).then().extract().response();
       assertThat(response).hasStatus(401);
     }
 
     @Test
     void userReadsNonExistentId_returns404_withExampleNotFoundCode() {
-      Response response = asUser().get(PATH + "/" + UUID.randomUUID()).then().extract().response();
+      var response = asUser().get(PATH + "/" + UUID.randomUUID()).then().extract().response();
       assertThat(response).hasStatus(404).hasCode("error.example.not-found");
     }
 
     @Test
     void userReadsInvalidUuidFormat_returns400() {
-      Response response = asUser().get(PATH + "/not-a-uuid").then().extract().response();
+      var response = asUser().get(PATH + "/not-a-uuid").then().extract().response();
       assertThat(response).hasStatus(400);
     }
 
@@ -342,13 +341,13 @@ class ExampleControllerIT {
       UUID id = createExampleAsAdmin(fullCreateBody());
       asAdmin().delete(PATH + "/" + id).then().statusCode(204);
 
-      Response response = asUser().get(PATH + "/" + id).then().extract().response();
+      var response = asUser().get(PATH + "/" + id).then().extract().response();
       assertThat(response).hasStatus(404).hasCode("error.example.not-found");
     }
 
     @Test
     void acceptLanguageEsOn404_returnsSpanishDetail() {
-      Response response =
+      var response =
           asUser()
               .header("Accept-Language", "es")
               .get(PATH + "/" + UUID.randomUUID())
@@ -370,7 +369,7 @@ class ExampleControllerIT {
 
     @Test
     void userEmptyFilter_returnsPagedResults_totalIs20() {
-      Response response = asUser().get(PATH).then().statusCode(200).extract().response();
+      var response = asUser().get(PATH).then().statusCode(200).extract().response();
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(20L);
       assertThat(response.jsonPath().getList("content")).isNotEmpty();
     }
@@ -387,7 +386,7 @@ class ExampleControllerIT {
               .jsonPath()
               .getString("content[0].name");
 
-      Response response =
+      var response =
           asUser()
               .queryParam("name", anyName)
               .get(PATH)
@@ -402,7 +401,7 @@ class ExampleControllerIT {
 
     @Test
     void userFilteringByStatusInDraftActive_returnsMatchingSubset() {
-      Response response =
+      var response =
           asUser()
               .queryParam("statuses", "DRAFT", "ACTIVE")
               .get(PATH)
@@ -410,13 +409,13 @@ class ExampleControllerIT {
               .statusCode(200)
               .extract()
               .response();
-      List<String> statuses = response.jsonPath().getList("content.status", String.class);
+      var statuses = response.jsonPath().getList("content.status", String.class);
       assertThat(statuses).allMatch(s -> s.equals("DRAFT") || s.equals("ACTIVE"));
     }
 
     @Test
     void userFilteringByPriceRange_returnsMatchingSubset() {
-      Response response =
+      var response =
           asUser()
               .queryParam("minPrice", "0.00")
               .queryParam("maxPrice", "10000.00")
@@ -432,7 +431,7 @@ class ExampleControllerIT {
     void userFilteringByTags_returnsEntitiesWithAnyOfTheTags() {
       // @WithSeededExamples(tags = {"searchable"}) guarantees every seeded
       // entity carries this tag, so the filter has a deterministic target.
-      Response response =
+      var response =
           asUser()
               .queryParam("tags", "searchable")
               .get(PATH)
@@ -447,7 +446,7 @@ class ExampleControllerIT {
 
     @Test
     void userSortByCreatedAtDesc_returnsOrderedCorrectly() {
-      Response response =
+      var response =
           asUser()
               .queryParam("sort", "createdAt,desc")
               .queryParam("size", "20")
@@ -456,13 +455,13 @@ class ExampleControllerIT {
               .statusCode(200)
               .extract()
               .response();
-      List<String> createdAts = response.jsonPath().getList("content.createdAt", String.class);
+      var createdAts = response.jsonPath().getList("content.createdAt", String.class);
       assertThat(createdAts).isSortedAccordingTo((a, b) -> b.compareTo(a));
     }
 
     @Test
     void userPaging_page1Size5_returnsSecondPage() {
-      Response response =
+      var response =
           asUser()
               .queryParam("page", 1)
               .queryParam("size", 5)
@@ -479,20 +478,19 @@ class ExampleControllerIT {
 
     @Test
     void noToken_returns401() {
-      Response response = asUnauthenticated().get(PATH).then().extract().response();
+      var response = asUnauthenticated().get(PATH).then().extract().response();
       assertThat(response).hasStatus(401);
     }
 
     @Test
     void userWithInvalidStatusValueInQuery_returns400() {
-      Response response =
-          asUser().queryParam("statuses", "NOPE").get(PATH).then().extract().response();
+      var response = asUser().queryParam("statuses", "NOPE").get(PATH).then().extract().response();
       assertThat(response).hasStatus(400);
     }
 
     @Test
     void userMinPriceGreaterThanMaxPrice_returnsEmptyResultNotError() {
-      Response response =
+      var response =
           asUser()
               .queryParam("minPrice", "1000.00")
               .queryParam("maxPrice", "1.00")
@@ -507,14 +505,14 @@ class ExampleControllerIT {
 
     @Test
     void userMalformedDateInOccurredFrom_returns400() {
-      Response response =
+      var response =
           asUser().queryParam("occurredFrom", "not-a-date").get(PATH).then().extract().response();
       assertThat(response).hasStatus(400);
     }
 
     @Test
     void userMalformedIntegerInMinQuantity_returns400() {
-      Response response =
+      var response =
           asUser().queryParam("minQuantity", "abc").get(PATH).then().extract().response();
       assertThat(response).hasStatus(400);
     }
@@ -534,7 +532,7 @@ class ExampleControllerIT {
     void adminReplacesAllFields_returns200_newState_version1() {
       UUID id = createExampleAsAdmin(fullCreateBody());
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -556,7 +554,7 @@ class ExampleControllerIT {
       Map<String, Object> body = fullUpdateBody();
       body.put("tags", List.of());
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -581,7 +579,7 @@ class ExampleControllerIT {
           .then()
           .statusCode(200);
 
-      Response second =
+      var second =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "1")
@@ -599,7 +597,7 @@ class ExampleControllerIT {
       UUID id = createExampleAsAdmin(fullCreateBody());
       asAdmin().delete(PATH + "/" + id).then().statusCode(204);
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -615,7 +613,7 @@ class ExampleControllerIT {
     void acceptLanguageUnaffectedBySuccessPath() {
       UUID id = createExampleAsAdmin(fullCreateBody());
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -632,7 +630,7 @@ class ExampleControllerIT {
 
     @Test
     void noToken_returns401() {
-      Response response =
+      var response =
           asUnauthenticated()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -647,7 +645,7 @@ class ExampleControllerIT {
     @Test
     void userRole_returns403() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Response response =
+      var response =
           asUser()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -662,7 +660,7 @@ class ExampleControllerIT {
     @Test
     void missingIfMatchHeader_returnsIfMatchRequired() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .body(fullUpdateBody())
@@ -676,7 +674,7 @@ class ExampleControllerIT {
     @Test
     void staleIfMatch_returns409_optimisticLockCode() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "999")
@@ -694,7 +692,7 @@ class ExampleControllerIT {
       Map<String, Object> body = fullUpdateBody();
       body.remove("name");
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -723,9 +721,9 @@ class ExampleControllerIT {
     @Test
     void adminPatchesSingleField_returns200_onlyThatFieldChanged() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Map<String, Object> patch = Map.of("name", "renamed");
+      var patch = Map.<String, Object>of("name", "renamed");
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -744,11 +742,11 @@ class ExampleControllerIT {
     @Test
     void adminPatchesMultipleFields_returns200_onlyThoseChanged() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Map<String, Object> patch = new LinkedHashMap<>();
+      var patch = new LinkedHashMap<String, Object>();
       patch.put("name", "multi");
       patch.put("quantity", 99);
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -767,12 +765,12 @@ class ExampleControllerIT {
     @Test
     void adminPatchesWithNullFields_leavesFieldsUnchanged() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Map<String, Object> patch = new LinkedHashMap<>();
+      var patch = new LinkedHashMap<String, Object>();
       patch.put("name", null);
       patch.put("description", null);
       patch.put("quantity", null);
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -790,9 +788,9 @@ class ExampleControllerIT {
     @Test
     void adminPatchingTagsReplacesTheTagSet() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Map<String, Object> patch = Map.of("tags", List.of("only"));
+      var patch = Map.<String, Object>of("tags", List.of("only"));
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -808,9 +806,9 @@ class ExampleControllerIT {
     @Test
     void adminPatchIncrementsVersion() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Map<String, Object> patch = Map.of("name", "bumped");
+      var patch = Map.<String, Object>of("name", "bumped");
 
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -825,7 +823,7 @@ class ExampleControllerIT {
 
     @Test
     void noToken_returns401() {
-      Response response =
+      var response =
           asUnauthenticated()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -840,7 +838,7 @@ class ExampleControllerIT {
     @Test
     void userRole_returns403() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Response response =
+      var response =
           asUser()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -855,7 +853,7 @@ class ExampleControllerIT {
     @Test
     void missingIfMatch_returnsIfMatchRequired() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .body(Map.of("name", "x"))
@@ -869,7 +867,7 @@ class ExampleControllerIT {
     @Test
     void staleIfMatch_returns409() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "999")
@@ -883,7 +881,7 @@ class ExampleControllerIT {
 
     @Test
     void nonExistentId_returns404() {
-      Response response =
+      var response =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
@@ -912,7 +910,7 @@ class ExampleControllerIT {
 
       asAdmin().delete(PATH + "/" + id).then().statusCode(204);
 
-      Response response = asUser().get(PATH + "/" + id).then().extract().response();
+      var response = asUser().get(PATH + "/" + id).then().extract().response();
       assertThat(response).hasStatus(404).hasCode("error.example.not-found");
     }
 
@@ -939,7 +937,7 @@ class ExampleControllerIT {
       UUID id = createExampleAsAdmin(fullCreateBody());
       asAdmin().delete(PATH + "/" + id).then().statusCode(204);
 
-      Response response = asUser().get(PATH).then().statusCode(200).extract().response();
+      var response = asUser().get(PATH).then().statusCode(200).extract().response();
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(0L);
     }
 
@@ -948,13 +946,13 @@ class ExampleControllerIT {
       UUID id = createExampleAsAdmin(fullCreateBody());
       asAdmin().delete(PATH + "/" + id).then().statusCode(204);
 
-      Response response = asAdmin().delete(PATH + "/" + id).then().extract().response();
+      var response = asAdmin().delete(PATH + "/" + id).then().extract().response();
       assertThat(response).hasStatus(404).hasCode("error.example.not-found");
     }
 
     @Test
     void noToken_returns401() {
-      Response response =
+      var response =
           asUnauthenticated().delete(PATH + "/" + UUID.randomUUID()).then().extract().response();
       assertThat(response).hasStatus(401);
     }
@@ -962,26 +960,25 @@ class ExampleControllerIT {
     @Test
     void userRole_returns403() {
       UUID id = createExampleAsAdmin(fullCreateBody());
-      Response response = asUser().delete(PATH + "/" + id).then().extract().response();
+      var response = asUser().delete(PATH + "/" + id).then().extract().response();
       assertThat(response).hasStatus(403).hasCode("error.forbidden");
     }
 
     @Test
     void nonExistentId_returns404() {
-      Response response =
-          asAdmin().delete(PATH + "/" + UUID.randomUUID()).then().extract().response();
+      var response = asAdmin().delete(PATH + "/" + UUID.randomUUID()).then().extract().response();
       assertThat(response).hasStatus(404).hasCode("error.example.not-found");
     }
 
     @Test
     void invalidUuid_returns400() {
-      Response response = asAdmin().delete(PATH + "/not-a-uuid").then().extract().response();
+      var response = asAdmin().delete(PATH + "/not-a-uuid").then().extract().response();
       assertThat(response).hasStatus(400);
     }
 
     @Test
     void acceptLanguageEsOn404_returnsSpanishDetail() {
-      Response response =
+      var response =
           asAdmin()
               .header("Accept-Language", "es")
               .delete(PATH + "/" + UUID.randomUUID())

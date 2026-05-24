@@ -15,15 +15,15 @@ public class PostgresExtension implements BeforeAllCallback {
 
   @Override
   public void beforeAll(ExtensionContext ctx) {
-    Class<?> testClass = ctx.getRequiredTestClass();
-    WithPostgres[] declarations = collectAnnotations(testClass);
+    var testClass = ctx.getRequiredTestClass();
+    var declarations = collectAnnotations(testClass);
     if (declarations.length == 0) {
       declarations = new WithPostgres[] {defaults()};
     }
 
     for (WithPostgres decl : declarations) {
       var key = new ContainerKey(decl.name(), decl.image());
-      PostgreSQLContainer<?> container =
+      var container =
           CONTAINERS.computeIfAbsent(
               key,
               k ->

@@ -21,7 +21,7 @@ public class RestAssuredExtension implements BeforeEachCallback, AfterAllCallbac
                         "RestAssuredExtension requires a field annotated with @LocalServerPort"
                             + " on the test class (or an enclosing instance)"));
 
-    Field field = findPortField(instance.getClass());
+    var field = findPortField(instance.getClass());
     field.setAccessible(true);
     Object value = field.get(instance);
     if (!(value instanceof Number number)) {

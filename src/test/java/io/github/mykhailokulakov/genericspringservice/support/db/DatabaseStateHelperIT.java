@@ -29,8 +29,8 @@ class DatabaseStateHelperIT {
 
   @Test
   void countsIncludeAndExcludeSoftDeleted() {
-    ExampleEntity kept = repository.save(newExample("kept"));
-    ExampleEntity deleted = repository.save(newExample("deleted"));
+    var kept = repository.save(newExample("kept"));
+    var deleted = repository.save(newExample("deleted"));
     repository.delete(deleted);
 
     assertThat(db.countIncludingDeleted(ExampleEntity.class)).isEqualTo(2L);

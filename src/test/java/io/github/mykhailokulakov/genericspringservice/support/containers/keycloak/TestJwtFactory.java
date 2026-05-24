@@ -1,6 +1,5 @@
 package io.github.mykhailokulakov.genericspringservice.support.containers.keycloak;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -97,14 +96,14 @@ public class TestJwtFactory {
             + enc(username)
             + "&password="
             + enc(password);
-    HttpRequest req =
+    var req =
         HttpRequest.newBuilder(URI.create(tokenUrl))
             .timeout(Duration.ofSeconds(30))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .POST(HttpRequest.BodyPublishers.ofString(form))
             .build();
     try {
-      HttpResponse<String> res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+      var res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
       if (res.statusCode() / 100 != 2) {
         throw new IllegalStateException(
             "Keycloak token request failed ("
@@ -114,8 +113,8 @@ public class TestJwtFactory {
                 + ": "
                 + res.body());
       }
-      JsonNode body = MAPPER.readTree(res.body());
-      JsonNode token = body.get("access_token");
+      var body = MAPPER.readTree(res.body());
+      var token = body.get("access_token");
       if (token == null || token.isNull()) {
         throw new IllegalStateException("Token response missing access_token: " + res.body());
       }
