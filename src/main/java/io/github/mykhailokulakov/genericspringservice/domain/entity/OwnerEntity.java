@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
@@ -18,6 +19,7 @@ import org.hibernate.annotations.NotFoundAction;
 @Table(name = "owner")
 @Getter
 @Setter
+@ToString
 @SuperBuilder
 @NoArgsConstructor
 public class OwnerEntity extends SoftDeletable {
@@ -28,5 +30,6 @@ public class OwnerEntity extends SoftDeletable {
   @OneToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "example_id")
   @NotFound(action = NotFoundAction.IGNORE)
+  @ToString.Exclude
   private ExampleEntity example;
 }

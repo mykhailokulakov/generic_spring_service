@@ -13,12 +13,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "left_item")
 @Getter
 @Setter
+@ToString
 @SuperBuilder
 @NoArgsConstructor
 public class LeftEntity extends SoftDeletable {
@@ -32,5 +34,6 @@ public class LeftEntity extends SoftDeletable {
       joinColumns = @JoinColumn(name = "left_id"),
       inverseJoinColumns = @JoinColumn(name = "right_id"))
   @Builder.Default
+  @ToString.Exclude
   private Set<RightEntity> rights = new HashSet<>();
 }

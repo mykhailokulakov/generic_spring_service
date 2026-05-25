@@ -12,12 +12,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "parent")
 @Getter
 @Setter
+@ToString
 @SuperBuilder
 @NoArgsConstructor
 public class ParentEntity extends SoftDeletable {
@@ -27,5 +29,6 @@ public class ParentEntity extends SoftDeletable {
 
   @OneToMany(mappedBy = "parent", cascade = CascadeType.PERSIST)
   @Builder.Default
+  @ToString.Exclude
   private List<ChildEntity> children = new ArrayList<>();
 }

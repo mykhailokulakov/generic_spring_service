@@ -11,12 +11,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "right_item")
 @Getter
 @Setter
+@ToString
 @SuperBuilder
 @NoArgsConstructor
 public class RightEntity extends SoftDeletable {
@@ -26,5 +28,6 @@ public class RightEntity extends SoftDeletable {
 
   @ManyToMany(mappedBy = "rights")
   @Builder.Default
+  @ToString.Exclude
   private Set<LeftEntity> lefts = new HashSet<>();
 }

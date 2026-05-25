@@ -10,6 +10,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
@@ -18,6 +19,7 @@ import org.hibernate.annotations.NotFoundAction;
 @Table(name = "child")
 @Getter
 @Setter
+@ToString
 @SuperBuilder
 @NoArgsConstructor
 public class ChildEntity extends SoftDeletable {
@@ -28,5 +30,6 @@ public class ChildEntity extends SoftDeletable {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "parent_id", nullable = false)
   @NotFound(action = NotFoundAction.IGNORE)
+  @ToString.Exclude
   private ParentEntity parent;
 }
