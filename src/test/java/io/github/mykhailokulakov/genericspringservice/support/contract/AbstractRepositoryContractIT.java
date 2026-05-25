@@ -191,12 +191,15 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
     assertThat(dbHelper.countIncludingDeleted(ChildEntity.class)).isOne();
     assertThat(dbHelper.countWhereDeleted(ChildEntity.class)).isZero();
 
-    tx().executeWithoutResult(
-            status -> {
-              var childReloaded = em.find(ChildEntity.class, parentRef.childId);
-              assertThat(childReloaded).isNotNull();
-              assertThat(childReloaded.getParent().getId()).isEqualTo(parentRef.parentId);
-            });
+    var fkValue =
+        tx().execute(
+                status ->
+                    (UUID)
+                        em.createNativeQuery(
+                                "SELECT parent_id FROM test_child WHERE id = :id", UUID.class)
+                            .setParameter("id", parentRef.childId)
+                            .getSingleResult());
+    assertThat(fkValue).isEqualTo(parentRef.parentId);
   }
 
   @Test
