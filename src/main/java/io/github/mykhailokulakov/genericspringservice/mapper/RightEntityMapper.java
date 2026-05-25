@@ -2,12 +2,14 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.RightEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Right;
+import io.github.mykhailokulakov.genericspringservice.domain.model.RightPatch;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 @Mapper(componentModel = "spring")
-public interface RightEntityMapper extends EntityMapper<RightEntity, Right> {
+public interface RightEntityMapper
+    extends EntityMapper<RightEntity, Right>, PatchableMapper<RightEntity, RightPatch> {
 
   @Override
   @Mapping(target = "lefts", ignore = true)

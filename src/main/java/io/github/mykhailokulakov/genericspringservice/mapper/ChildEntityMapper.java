@@ -2,12 +2,14 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Child;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ChildPatch;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 @Mapper(componentModel = "spring")
-public interface ChildEntityMapper extends EntityMapper<ChildEntity, Child> {
+public interface ChildEntityMapper
+    extends EntityMapper<ChildEntity, Child>, PatchableMapper<ChildEntity, ChildPatch> {
 
   @Override
   @Mapping(target = "parentId", source = "parent.id")

@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Parent;
-import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractMapperTestContract;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ParentPatch;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractPatchableMapperTestContract;
 import org.mapstruct.factory.Mappers;
 
-class ParentEntityMapperTest extends AbstractMapperTestContract<ParentEntity, Parent> {
+class ParentEntityMapperTest
+    extends AbstractPatchableMapperTestContract<ParentEntity, Parent, ParentPatch> {
 
   @Override
   protected ParentEntityMapper mapper() {

@@ -6,13 +6,14 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
-import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractMapperTestContract;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractPatchableMapperTestContract;
 import java.util.Set;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, Example> {
+class ExampleEntityMapperTest
+    extends AbstractPatchableMapperTestContract<ExampleEntity, Example, ExamplePatch> {
 
   @Override
   protected ExampleEntityMapper mapper() {
@@ -51,26 +52,6 @@ class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, 
   }
 
   @Test
-  void applyReplacementOnNullIsNoOp() {
-    var entity = mapper().toEntity(newModel());
-    var originalName = entity.getName();
-
-    mapper().applyReplacement(null, entity);
-
-    assertThat(entity.getName()).isEqualTo(originalName);
-  }
-
-  @Test
-  void applyPatchOnNullIsNoOp() {
-    var entity = mapper().toEntity(newModel());
-    var originalName = entity.getName();
-
-    mapper().applyPatch(null, entity);
-
-    assertThat(entity.getName()).isEqualTo(originalName);
-  }
-
-  @Test
   void applyReplacementSetsTagsOnEntityWithoutTags() {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).tags(null).build();
 
@@ -81,22 +62,6 @@ class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, 
   }
 
   @Test
-  void applyPatchUpdatesEveryProvidedField() {
-    var entity = mapper().toEntity(newModel());
-    var patch = Instancio.create(ExamplePatch.class);
-
-    mapper().applyPatch(patch, entity);
-
-    assertThat(entity.getName()).isEqualTo(patch.name());
-    assertThat(entity.getDescription()).isEqualTo(patch.description());
-    assertThat(entity.getQuantity()).isEqualTo(patch.quantity());
-    assertThat(entity.getPrice()).isEqualByComparingTo(patch.price());
-    assertThat(entity.getOccurredAt()).isEqualTo(patch.occurredAt());
-    assertThat(entity.getStatus()).isEqualTo(patch.status());
-    assertThat(entity.getTags()).containsExactlyInAnyOrderElementsOf(patch.tags());
-  }
-
-  @Test
   void applyPatchSetsTagsOnEntityWithoutTags() {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).tags(null).build();
 
@@ -104,24 +69,5 @@ class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, 
     mapper().applyPatch(patch, entity);
 
     assertThat(entity.getTags()).containsExactlyInAnyOrder("x", "y");
-  }
-
-  @Test
-  void applyPatchIgnoresNullFields() {
-    var entity = mapper().toEntity(newModel());
-    var originalName = entity.getName();
-    var originalPrice = entity.getPrice();
-    var originalStatus = entity.getStatus();
-    var originalTags = Set.copyOf(entity.getTags());
-
-    var patch = ExamplePatch.builder().description("patched").quantity(99).build();
-    mapper().applyPatch(patch, entity);
-
-    assertThat(entity.getName()).isEqualTo(originalName);
-    assertThat(entity.getDescription()).isEqualTo("patched");
-    assertThat(entity.getQuantity()).isEqualTo(99);
-    assertThat(entity.getPrice()).isEqualByComparingTo(originalPrice);
-    assertThat(entity.getStatus()).isEqualTo(originalStatus);
-    assertThat(entity.getTags()).containsExactlyInAnyOrderElementsOf(originalTags);
   }
 }

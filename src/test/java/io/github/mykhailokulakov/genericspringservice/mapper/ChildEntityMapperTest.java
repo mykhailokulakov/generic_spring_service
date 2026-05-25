@@ -5,12 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Child;
-import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractMapperTestContract;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ChildPatch;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractPatchableMapperTestContract;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class ChildEntityMapperTest extends AbstractMapperTestContract<ChildEntity, Child> {
+class ChildEntityMapperTest
+    extends AbstractPatchableMapperTestContract<ChildEntity, Child, ChildPatch> {
 
   @Override
   protected ChildEntityMapper mapper() {

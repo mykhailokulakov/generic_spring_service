@@ -2,12 +2,14 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Owner;
+import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerPatch;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 @Mapper(componentModel = "spring")
-public interface OwnerEntityMapper extends EntityMapper<OwnerEntity, Owner> {
+public interface OwnerEntityMapper
+    extends EntityMapper<OwnerEntity, Owner>, PatchableMapper<OwnerEntity, OwnerPatch> {
 
   @Override
   @Mapping(target = "exampleId", source = "example.id")
