@@ -195,8 +195,7 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
         tx().execute(
                 status ->
                     (UUID)
-                        em.createNativeQuery(
-                                "SELECT parent_id FROM test_child WHERE id = :id", UUID.class)
+                        em.createNativeQuery("SELECT parent_id FROM test_child WHERE id = :id")
                             .setParameter("id", parentRef.childId)
                             .getSingleResult());
     assertThat(fkValue).isEqualTo(parentRef.parentId);
