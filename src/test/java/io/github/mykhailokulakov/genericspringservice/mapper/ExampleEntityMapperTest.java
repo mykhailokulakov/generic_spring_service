@@ -112,6 +112,7 @@ class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, 
     var originalName = entity.getName();
     var originalPrice = entity.getPrice();
     var originalStatus = entity.getStatus();
+    var originalTags = Set.copyOf(entity.getTags());
 
     var patch = ExamplePatch.builder().description("patched").quantity(99).build();
     mapper().applyPatch(patch, entity);
@@ -121,5 +122,6 @@ class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, 
     assertThat(entity.getQuantity()).isEqualTo(99);
     assertThat(entity.getPrice()).isEqualByComparingTo(originalPrice);
     assertThat(entity.getStatus()).isEqualTo(originalStatus);
+    assertThat(entity.getTags()).containsExactlyInAnyOrderElementsOf(originalTags);
   }
 }
