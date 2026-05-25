@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.within;
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepoFixture;
+import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
 import io.github.mykhailokulakov.testentities.ChildEntity;
 import io.github.mykhailokulakov.testentities.LeftEntity;
 import io.github.mykhailokulakov.testentities.OwnerEntity;
@@ -14,6 +14,7 @@ import io.github.mykhailokulakov.testentities.ParentEntity;
 import io.github.mykhailokulakov.testentities.ProfileEntity;
 import io.github.mykhailokulakov.testentities.RightEntity;
 import jakarta.persistence.EntityManager;
+import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
@@ -37,18 +38,26 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
   @Autowired private DatabaseStateHelper dbHelper;
   @Autowired private PlatformTransactionManager txManager;
 
+  private Class<E> resolvedEntityType;
   private JpaRepository<E, ?> cachedRepository;
 
-  protected abstract RepoFixture<E> fixture();
+  protected abstract void mutate(E entity);
+
+  @SuppressWarnings("unchecked")
+  private Class<E> entityType() {
+    if (resolvedEntityType == null) {
+      var superclass = (ParameterizedType) getClass().getGenericSuperclass();
+      resolvedEntityType = (Class<E>) superclass.getActualTypeArguments()[0];
+    }
+    return resolvedEntityType;
+  }
 
   @SuppressWarnings("unchecked")
   private JpaRepository<E, ?> repository() {
     if (cachedRepository == null) {
       cachedRepository =
           (JpaRepository<E, ?>)
-              new Repositories(applicationContext)
-                  .getRepositoryFor(fixture().entityType())
-                  .orElseThrow();
+              new Repositories(applicationContext).getRepositoryFor(entityType()).orElseThrow();
     }
     return cachedRepository;
   }
@@ -66,9 +75,13 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
     return repository().saveAndFlush(entity);
   }
 
+  private E newEntity() {
+    return RandomEntities.create(entityType());
+  }
+
   @Test
   void save_assignsIdAndAuditTimestamps() {
-    var entity = fixture().newPersistable();
+    var entity = newEntity();
 
     assertThat(entity.getId()).isNull();
     assertThat(entity.getCreatedAt()).isNull();
@@ -86,7 +99,7 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
 
   @Test
   void findById_returnsPersistedEntity() {
-    var saved = persistAndFlush(fixture().newPersistable());
+    var saved = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
     var repo = (JpaRepository<E, Object>) repository();
@@ -100,13 +113,13 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
 
   @Test
   void update_incrementsVersion() {
-    var saved = persistAndFlush(fixture().newPersistable());
+    var saved = persistAndFlush(newEntity());
     var initialVersion = saved.getVersion();
 
     @SuppressWarnings("unchecked")
     var repo = (JpaRepository<E, Object>) repository();
     var reloaded = repo.findById(saved.getId()).orElseThrow();
-    fixture().mutate(reloaded);
+    mutate(reloaded);
     repo.saveAndFlush(reloaded);
 
     var updated = repo.findById(saved.getId()).orElseThrow();
@@ -115,7 +128,7 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
 
   @Test
   void delete_softDeletesAndExcludesFromQueries() {
-    var saved = persistAndFlush(fixture().newPersistable());
+    var saved = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
     var repo = (JpaRepository<E, Object>) repository();
@@ -128,21 +141,21 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
 
   @Test
   void delete_keepsRowInTable() {
-    var saved = persistAndFlush(fixture().newPersistable());
+    var saved = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
     var repo = (JpaRepository<E, Object>) repository();
     repo.deleteById(saved.getId());
     repo.flush();
 
-    assertThat(dbHelper.countIncludingDeleted(fixture().entityType())).isOne();
-    assertThat(dbHelper.countWhereDeleted(fixture().entityType())).isOne();
+    assertThat(dbHelper.countIncludingDeleted(entityType())).isOne();
+    assertThat(dbHelper.countWhereDeleted(entityType())).isOne();
   }
 
   @Test
   void count_excludesSoftDeleted() {
-    persistAndFlush(fixture().newPersistable());
-    var toDelete = persistAndFlush(fixture().newPersistable());
+    persistAndFlush(newEntity());
+    var toDelete = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
     var repo = (JpaRepository<E, Object>) repository();
@@ -150,7 +163,7 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
     repo.flush();
 
     assertThat(repo.count()).isOne();
-    assertThat(dbHelper.countIncludingDeleted(fixture().entityType())).isEqualTo(2);
+    assertThat(dbHelper.countIncludingDeleted(entityType())).isEqualTo(2);
   }
 
   @Test

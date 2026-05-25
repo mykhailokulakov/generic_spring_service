@@ -11,30 +11,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-public final class ExampleFixtures implements RepoFixture<ExampleEntity> {
-
-  public static final ExampleFixtures INSTANCE = new ExampleFixtures();
+public final class ExampleFixtures {
 
   private static final String[] TAG_POOL = {
     "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa"
   };
 
   private ExampleFixtures() {}
-
-  @Override
-  public Class<ExampleEntity> entityType() {
-    return ExampleEntity.class;
-  }
-
-  @Override
-  public ExampleEntity newPersistable() {
-    return RandomEntities.create(ExampleEntity.class);
-  }
-
-  @Override
-  public void mutate(ExampleEntity entity) {
-    entity.setName("mutated-" + UUID.randomUUID().toString().substring(0, 8));
-  }
 
   public static ExampleEntity aDraftExample() {
     return builder().build();

@@ -7,8 +7,6 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractRepositoryContractIT;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.ExampleFixtures;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepoFixture;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -27,8 +25,8 @@ class ExampleRepositoryIT extends AbstractRepositoryContractIT<ExampleEntity> {
   private static final Instant T0 = Instant.parse("2026-05-01T00:00:00Z");
 
   @Override
-  protected RepoFixture<ExampleEntity> fixture() {
-    return ExampleFixtures.INSTANCE;
+  protected void mutate(ExampleEntity entity) {
+    entity.setName("mutated-" + java.util.UUID.randomUUID().toString().substring(0, 8));
   }
 
   private ExampleEntity persist(
