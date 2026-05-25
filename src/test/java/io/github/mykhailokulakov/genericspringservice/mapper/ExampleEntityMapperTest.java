@@ -1,6 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.instancio.Select.field;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
@@ -10,6 +11,7 @@ import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractM
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
+import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
@@ -57,9 +59,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void toEntityWithNullTagsProducesEmptySet() {
-    var model =
-        new Example(
-            null, "name", null, null, null, null, ExampleStatus.DRAFT, null, null, null, null);
+    var model = Instancio.of(Example.class).set(field(Example.class, "tags"), null).create();
 
     assertThat(mapper().toEntity(model).getTags()).isEmpty();
   }
@@ -89,10 +89,9 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
 
-    mapper()
-        .applyReplacement(
-            new Example(null, null, null, null, null, null, null, Set.of("only"), null, null, null),
-            entity);
+    var replacement =
+        Instancio.of(Example.class).set(field(Example.class, "tags"), Set.of("only")).create();
+    mapper().applyReplacement(replacement, entity);
 
     assertThat(entity.getTags()).containsExactly("only");
   }
