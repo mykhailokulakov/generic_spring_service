@@ -402,16 +402,16 @@ generic_spring_service/
 │       │   │   │   ├── ModelFixture.java
 │       │   │   │   ├── RandomEntities.java
 │       │   │   │   └── RandomModels.java
-│       │   │   ├── contract/
-│       │   │   │   ├── AbstractRepositoryContractIT.java
-│       │   │   │   └── AbstractMapperContractIT.java
-│       │   │   └── testentities/
-│       │   │       ├── ParentEntity.java
-│       │   │       ├── ChildEntity.java
-│       │   │       ├── OwnerEntity.java
-│       │   │       ├── ProfileEntity.java
-│       │   │       ├── LeftEntity.java
-│       │   │       └── RightEntity.java
+│       │   │   └── contract/
+│       │   │       ├── AbstractRepositoryContractIT.java
+│       │   │       └── AbstractMapperContractIT.java
+│       ├── java/io/github/mykhailokulakov/testentities/
+│       │   ├── ParentEntity.java
+│       │   ├── ChildEntity.java
+│       │   ├── OwnerEntity.java
+│       │   ├── ProfileEntity.java
+│       │   ├── LeftEntity.java
+│       │   └── RightEntity.java
 │       │   ├── service/
 │       │   │   └── ExampleServiceTest.java
 │       │   ├── repository/

@@ -1,4 +1,4 @@
-package io.github.mykhailokulakov.genericspringservice.support.testentities;
+package io.github.mykhailokulakov.testentities;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import jakarta.persistence.Column;
