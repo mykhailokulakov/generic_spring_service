@@ -38,31 +38,18 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
 
   protected abstract void assertMappedFields(E entity, M model);
 
+  private E fullyPopulatedEntity() {
+    return Instancio.of(repoFixture().entityType()).withSettings(ALL_FIELDS_SETTINGS).create();
+  }
+
   @Test
   void toModel_copiesAuditFieldsFromEntity() {
-    var entity =
-        Instancio.of(repoFixture().entityType()).withSettings(ALL_FIELDS_SETTINGS).create();
+    var entity = fullyPopulatedEntity();
 
     var model = toModel().apply(entity);
 
     assertThat(model).isNotNull();
-    assertThat(entity.getId()).isNotNull();
-    assertThat(entity.getCreatedAt()).isNotNull();
-    assertThat(entity.getUpdatedAt()).isNotNull();
-    assertThat(entity.getVersion()).isNotNull();
-  }
-
-  @Test
-  void toEntity_leavesManagedFieldsUnset() {
-    var entity = repoFixture().newPersistable();
-
-    var model = toModel().apply(entity);
-    var mapped = toEntity().apply(model);
-
-    assertThat(mapped.getId()).isNull();
-    assertThat(mapped.getCreatedAt()).isNull();
-    assertThat(mapped.getUpdatedAt()).isNull();
-    assertThat(mapped.getVersion()).isNull();
+    assertMappedFields(toEntity().apply(model), model);
   }
 
   @Test
@@ -76,6 +63,9 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     var models = toModelList().apply(entities);
 
     assertThat(models).hasSameSizeAs(entities);
+    for (int i = 0; i < entities.size(); i++) {
+      assertMappedFields(entities.get(i), models.get(i));
+    }
   }
 
   @Test
@@ -86,16 +76,27 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     var entities = toEntityList().apply(models);
 
     assertThat(entities).hasSameSizeAs(models);
+    for (int i = 0; i < models.size(); i++) {
+      assertMappedFields(entities.get(i), models.get(i));
+    }
   }
 
   @Test
   void applyPatch_updatesMappedFieldsOnly() {
-    var entity = repoFixture().newPersistable();
-    var source = modelFixture().newModel();
+    var entity = fullyPopulatedEntity();
+    var idBefore = entity.getId();
+    var createdAtBefore = entity.getCreatedAt();
+    var updatedAtBefore = entity.getUpdatedAt();
+    var versionBefore = entity.getVersion();
 
+    var source = modelFixture().newModel();
     applyPatch(source, entity);
 
     assertMappedFields(entity, source);
+    assertThat(entity.getId()).isEqualTo(idBefore);
+    assertThat(entity.getCreatedAt()).isEqualTo(createdAtBefore);
+    assertThat(entity.getUpdatedAt()).isEqualTo(updatedAtBefore);
+    assertThat(entity.getVersion()).isEqualTo(versionBefore);
   }
 
   @Test
@@ -103,8 +104,9 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     var original = repoFixture().newPersistable();
 
     var model = toModel().apply(original);
-    var backToEntity = toEntity().apply(model);
+    assertMappedFields(original, model);
 
+    var backToEntity = toEntity().apply(model);
     assertMappedFields(backToEntity, model);
   }
 }
