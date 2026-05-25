@@ -38,8 +38,7 @@ class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, 
 
   @Test
   void toModelPreservesNullTags() {
-    var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
-    entity.setTags(null);
+    var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).tags(null).build();
 
     assertThat(mapper().toModel(entity).tags()).isNull();
   }
@@ -73,8 +72,7 @@ class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, 
 
   @Test
   void applyReplacementSetsTagsOnEntityWithoutTags() {
-    var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
-    entity.setTags(null);
+    var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).tags(null).build();
 
     var replacement = Instancio.create(Example.class).toBuilder().tags(Set.of("only")).build();
     mapper().applyReplacement(replacement, entity);
@@ -100,8 +98,7 @@ class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, 
 
   @Test
   void applyPatchSetsTagsOnEntityWithoutTags() {
-    var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
-    entity.setTags(null);
+    var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).tags(null).build();
 
     var patch = Instancio.create(ExamplePatch.class).toBuilder().tags(Set.of("x", "y")).build();
     mapper().applyPatch(patch, entity);
