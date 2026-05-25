@@ -28,7 +28,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
 
   protected abstract EntityMapper<E, M> mapper();
 
-  protected abstract void assertMappedFields(E entity, M model);
+  protected abstract void assertDomainFields(E entity, M model);
 
   @SuppressWarnings("unchecked")
   private Class<E> entityType() {
@@ -67,7 +67,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     var model = mapper().toModel(entity);
 
     assertThat(model).isNotNull();
-    assertMappedFields(mapper().toEntity(model), model);
+    assertDomainFields(mapper().toEntity(model), model);
   }
 
   @Test
@@ -78,7 +78,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
 
     assertThat(models).hasSameSizeAs(entities);
     for (int i = 0; i < entities.size(); i++) {
-      assertMappedFields(entities.get(i), models.get(i));
+      assertDomainFields(entities.get(i), models.get(i));
     }
   }
 
@@ -90,7 +90,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
 
     assertThat(entities).hasSameSizeAs(models);
     for (int i = 0; i < models.size(); i++) {
-      assertMappedFields(entities.get(i), models.get(i));
+      assertDomainFields(entities.get(i), models.get(i));
     }
   }
 
@@ -105,7 +105,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     var source = newModel();
     mapper().applyReplacement(source, entity);
 
-    assertMappedFields(entity, source);
+    assertDomainFields(entity, source);
     assertThat(entity.getId()).isEqualTo(idBefore);
     assertThat(entity.getCreatedAt()).isEqualTo(createdAtBefore);
     assertThat(entity.getUpdatedAt()).isEqualTo(updatedAtBefore);
@@ -117,9 +117,9 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     var original = newEntity();
 
     var model = mapper().toModel(original);
-    assertMappedFields(original, model);
+    assertDomainFields(original, model);
 
     var backToEntity = mapper().toEntity(model);
-    assertMappedFields(backToEntity, model);
+    assertDomainFields(backToEntity, model);
   }
 }

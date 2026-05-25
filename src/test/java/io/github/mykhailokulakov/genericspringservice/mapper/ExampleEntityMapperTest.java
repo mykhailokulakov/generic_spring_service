@@ -22,7 +22,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
   }
 
   @Override
-  protected void assertMappedFields(ExampleEntity entity, Example model) {
+  protected void assertDomainFields(ExampleEntity entity, Example model) {
     assertThat(entity.getName()).isEqualTo(model.name());
     assertThat(entity.getDescription()).isEqualTo(model.description());
     assertThat(entity.getQuantity()).isEqualTo(model.quantity());
