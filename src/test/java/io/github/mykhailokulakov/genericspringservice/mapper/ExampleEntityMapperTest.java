@@ -16,11 +16,9 @@ import org.mapstruct.factory.Mappers;
 
 class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Example> {
 
-  private final ExampleEntityMapper mapper = Mappers.getMapper(ExampleEntityMapper.class);
-
   @Override
-  protected EntityMapper<ExampleEntity, Example> mapper() {
-    return mapper;
+  protected ExampleEntityMapper mapper() {
+    return Mappers.getMapper(ExampleEntityMapper.class);
   }
 
   @Override
@@ -42,12 +40,12 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void toModelReturnsNullForNullEntity() {
-    assertThat(mapper.toModel(null)).isNull();
+    assertThat(mapper().toModel(null)).isNull();
   }
 
   @Test
   void toEntityReturnsNullForNullModel() {
-    assertThat(mapper.toEntity(null)).isNull();
+    assertThat(mapper().toEntity(null)).isNull();
   }
 
   @Test
@@ -55,7 +53,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
 
-    assertThat(mapper.toModel(entity).tags()).isNull();
+    assertThat(mapper().toModel(entity).tags()).isNull();
   }
 
   @Test
@@ -64,25 +62,25 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
         new Example(
             null, "name", null, null, null, null, ExampleStatus.DRAFT, null, null, null, null);
 
-    assertThat(mapper.toEntity(model).getTags()).isEmpty();
+    assertThat(mapper().toEntity(model).getTags()).isEmpty();
   }
 
   @Test
   void applyReplacementOnNullIsNoOp() {
-    var entity = mapper.toEntity(RandomModels.create(Example.class));
+    var entity = mapper().toEntity(RandomModels.create(Example.class));
     var originalName = entity.getName();
 
-    mapper.applyReplacement(null, entity);
+    mapper().applyReplacement(null, entity);
 
     assertThat(entity.getName()).isEqualTo(originalName);
   }
 
   @Test
   void applyPatchOnNullIsNoOp() {
-    var entity = mapper.toEntity(RandomModels.create(Example.class));
+    var entity = mapper().toEntity(RandomModels.create(Example.class));
     var originalName = entity.getName();
 
-    mapper.applyPatch(null, entity);
+    mapper().applyPatch(null, entity);
 
     assertThat(entity.getName()).isEqualTo(originalName);
   }
@@ -92,16 +90,17 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
 
-    mapper.applyReplacement(
-        new Example(null, null, null, null, null, null, null, Set.of("only"), null, null, null),
-        entity);
+    mapper()
+        .applyReplacement(
+            new Example(null, null, null, null, null, null, null, Set.of("only"), null, null, null),
+            entity);
 
     assertThat(entity.getTags()).containsExactly("only");
   }
 
   @Test
   void applyPatchUpdatesEveryProvidedField() {
-    var entity = mapper.toEntity(RandomModels.create(Example.class));
+    var entity = mapper().toEntity(RandomModels.create(Example.class));
     var patch =
         new ExamplePatch(
             "n",
@@ -112,7 +111,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
             ExampleStatus.ARCHIVED,
             Set.of("only"));
 
-    mapper.applyPatch(patch, entity);
+    mapper().applyPatch(patch, entity);
 
     assertThat(entity.getName()).isEqualTo("n");
     assertThat(entity.getDescription()).isEqualTo("d");
@@ -128,20 +127,20 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
 
-    mapper.applyPatch(
-        new ExamplePatch(null, null, null, null, null, null, Set.of("x", "y")), entity);
+    mapper()
+        .applyPatch(new ExamplePatch(null, null, null, null, null, null, Set.of("x", "y")), entity);
 
     assertThat(entity.getTags()).containsExactlyInAnyOrder("x", "y");
   }
 
   @Test
   void applyPatchIgnoresNullFields() {
-    var entity = mapper.toEntity(RandomModels.create(Example.class));
+    var entity = mapper().toEntity(RandomModels.create(Example.class));
     var originalName = entity.getName();
     var originalPrice = entity.getPrice();
     var originalStatus = entity.getStatus();
 
-    mapper.applyPatch(new ExamplePatch(null, "patched", 99, null, null, null, null), entity);
+    mapper().applyPatch(new ExamplePatch(null, "patched", 99, null, null, null, null), entity);
 
     assertThat(entity.getName()).isEqualTo(originalName);
     assertThat(entity.getDescription()).isEqualTo("patched");
