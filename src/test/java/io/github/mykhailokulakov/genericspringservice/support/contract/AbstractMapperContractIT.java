@@ -60,14 +60,22 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     return Instancio.of(entityType()).withSettings(ALL_FIELDS_SETTINGS).create();
   }
 
+  private void assertAllFields(E original, E roundTripped) {
+    assertThat(roundTripped.getId()).isEqualTo(original.getId());
+    assertThat(roundTripped.getCreatedAt()).isEqualTo(original.getCreatedAt());
+    assertThat(roundTripped.getUpdatedAt()).isEqualTo(original.getUpdatedAt());
+    assertThat(roundTripped.getVersion()).isEqualTo(original.getVersion());
+  }
+
   @Test
-  void toModel_copiesAuditFieldsFromEntity() {
+  void toModel_roundTripsChainFields() {
     var entity = fullyPopulatedEntity();
 
     var model = mapper().toModel(entity);
+    var roundTripped = mapper().toEntity(model);
 
-    assertThat(model).isNotNull();
-    assertDomainFields(mapper().toEntity(model), model);
+    assertAllFields(entity, roundTripped);
+    assertDomainFields(roundTripped, model);
   }
 
   @Test
@@ -114,12 +122,13 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
 
   @Test
   void roundTrip_preservesMappedFields() {
-    var original = newEntity();
+    var original = fullyPopulatedEntity();
 
     var model = mapper().toModel(original);
-    assertDomainFields(original, model);
-
     var backToEntity = mapper().toEntity(model);
+
+    assertAllFields(original, backToEntity);
+    assertDomainFields(original, model);
     assertDomainFields(backToEntity, model);
   }
 }
