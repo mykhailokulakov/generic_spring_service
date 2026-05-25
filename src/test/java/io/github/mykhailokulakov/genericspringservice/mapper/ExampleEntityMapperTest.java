@@ -8,8 +8,6 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractMapperContractIT;
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.Set;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
@@ -99,25 +97,17 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
   @Test
   void applyPatchUpdatesEveryProvidedField() {
     var entity = mapper().toEntity(newModel());
-    var patch =
-        new ExamplePatch(
-            "n",
-            "d",
-            8,
-            new BigDecimal("1.23"),
-            Instant.parse("2027-06-01T00:00:00Z"),
-            ExampleStatus.ARCHIVED,
-            Set.of("only"));
+    var patch = Instancio.create(ExamplePatch.class);
 
     mapper().applyPatch(patch, entity);
 
-    assertThat(entity.getName()).isEqualTo("n");
-    assertThat(entity.getDescription()).isEqualTo("d");
-    assertThat(entity.getQuantity()).isEqualTo(8);
-    assertThat(entity.getPrice()).isEqualByComparingTo("1.23");
-    assertThat(entity.getOccurredAt()).isEqualTo(Instant.parse("2027-06-01T00:00:00Z"));
-    assertThat(entity.getStatus()).isEqualTo(ExampleStatus.ARCHIVED);
-    assertThat(entity.getTags()).containsExactly("only");
+    assertThat(entity.getName()).isEqualTo(patch.name());
+    assertThat(entity.getDescription()).isEqualTo(patch.description());
+    assertThat(entity.getQuantity()).isEqualTo(patch.quantity());
+    assertThat(entity.getPrice()).isEqualByComparingTo(patch.price());
+    assertThat(entity.getOccurredAt()).isEqualTo(patch.occurredAt());
+    assertThat(entity.getStatus()).isEqualTo(patch.status());
+    assertThat(entity.getTags()).containsExactlyInAnyOrderElementsOf(patch.tags());
   }
 
   @Test
@@ -126,7 +116,11 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     entity.setTags(null);
 
     mapper()
-        .applyPatch(new ExamplePatch(null, null, null, null, null, null, Set.of("x", "y")), entity);
+        .applyPatch(
+            Instancio.of(ExamplePatch.class)
+                .set(field(ExamplePatch.class, "tags"), Set.of("x", "y"))
+                .create(),
+            entity);
 
     assertThat(entity.getTags()).containsExactlyInAnyOrder("x", "y");
   }
