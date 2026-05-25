@@ -11,6 +11,7 @@ spring:
         generate_statistics: true
   flyway:
     clean-disabled: false
+    locations: classpath:db/migration,classpath:db/migration-test
   security:
     oauth2:
       resourceserver:

@@ -215,7 +215,7 @@ OAuth2 Resource Server pattern. Service does not manage users. JWT validated aga
 - `spring-boot-starter-opentelemetry` (new in Boot 4) → OTLP export of traces, metrics, logs.
 - Logback with `logstash-logback-encoder` for JSON logs. MDC propagates `traceId`/`spanId`.
 
-### 4.8 Test infrastructure — composable container extensions
+### 4.8 Test infrastructure — container extensions and contract tests
 
 #### 4.8.1 Container extensions
 
@@ -236,6 +236,26 @@ Design principle: extract a helper only when duplication has paid for the abstra
 - a JSON assertion DSL on top of RestAssured — RestAssured + the ProblemDetail assertion are enough; a third layer would be a homegrown framework with its own learning curve.
 
 Future helpers earn their place the same way: extracted only after the duplication is real and the call site is demonstrably better with them than without.
+
+#### 4.8.3 Contract test bases
+
+Three abstract test bases (`support/contract/`) capture the cross-entity invariants that every entity inheriting the persistence chain must satisfy. A contract base may only assert invariants true of every entity in the system — persistence semantics, mapping round-trip, soft-delete behavior. Business-specific assertions stay in the hand-written per-entity test. This is the line that stops the layer becoming a framework: if you want to assert something true of `Example` but not of an arbitrary entity, it does not belong in the base.
+
+- **`AbstractRepositoryContractIT<E extends SoftDeletable>`** — asserts `save_assignsIdAndAuditTimestamps`, `findById_returnsPersistedEntity`, `update_incrementsVersion`, `delete_softDeletesAndExcludesFromQueries`, `delete_keepsRowInTable`, `count_excludesSoftDeleted`. Additionally exercises three `SoftDeletable` association test entities (`ParentEntity`/`ChildEntity`, `OwnerEntity`/`ProfileEntity`, `LeftEntity`/`RightEntity`) under `support/testentities/` to verify that soft-deleting a `@OneToMany` parent does not hard-delete or orphan children (since `@SoftDelete` issues an UPDATE, any `ON DELETE CASCADE` never fires), that owning `@ManyToOne`/`@OneToOne` foreign keys survive reload, and that `@ManyToMany` join-table associations survive reload.
+- **`AbstractMapperContractIT<E extends SoftDeletable, M>`** — asserts `toModel_copiesAuditFieldsFromEntity`, `toEntity_leavesManagedFieldsUnset`, `toModelList_mapsEveryElement`, `toEntityList_mapsEveryElement`, `applyPatch_updatesMappedFieldsOnly`, `roundTrip_preservesMappedFields`. Round-trip comparisons use the declared mapped-field set only (never whole-object equality) via `assertMappedFields(E entity, M model)` — the single per-entity hook each subclass implements.
+- **`AbstractControllerContractIT`** — forward-referenced; will follow the same pattern for controller-layer cross-entity invariants.
+
+**One fixture per entity.** `RepoFixture<E>` (provides `entityType()` and `newPersistable()`) and `ModelFixture<M>` (provides `modelType()` and `newModel()`) are tiny interfaces in `support/fixtures/`. An entity with a model implements both on a single fixture class (e.g. `ExampleFixtures implements RepoFixture<ExampleEntity>, ModelFixture<Example>`), so one fixture feeds everything: the contract bases, `@WithSeededExamples`, and any hand-written tests.
+
+**Generator scope.** `RandomEntities` and `RandomModels` are thin Instancio wrappers — a configured `Instancio.of(type).withSettings(SETTINGS).ignore(<chain fields>).create()`. The generator fills only what is needed to persist and round-trip: the concrete entity's own plain fields, its `@ElementCollection`s, and its embeddables (one level deep). It must NOT populate persistence-chain fields (`id`, `createdAt`, `updatedAt`, `version`); those are framework-managed, and asserting the framework sets them is the contract's job. The ignore-set is expressed structurally — `fields().declaredIn(Identifiable.class)`, etc. — so it applies to every entity without per-entity enumeration. Past ~20 lines of logic the wrappers would be drifting back into the hand-rolled generator; they stay thin.
+
+**Association test entities.** Six test-only entities in `support/testentities/`, all extending `SoftDeletable`: `ParentEntity`/`ChildEntity` (`@OneToMany`/`@ManyToOne`), `OwnerEntity`/`ProfileEntity` (`@OneToOne`, owning side on `OwnerEntity`), `LeftEntity`/`RightEntity` (`@ManyToMany`). Their schemas live in test-only Flyway migrations under `src/test/resources/db/migration-test/`, applied to the test schema only. They never appear in `src/main` — fork-tax stays zero. They exist so the repository contract can exercise association behavior under soft-delete: the don't-orphan-children invariant (soft-deleting a parent issues an UPDATE, so child FK survives) is a cross-entity persistence invariant that belongs in the contract base.
+
+#### 4.8.4 Decision notes
+
+- **`PageResponse` over Spring's `PagedModel`** — Spring's `Page` JSON representation is unstable across major versions, and `PagedModel` drags in the HATEOAS module. `PageResponse` is a plain record with stable, predictable serialization.
+- **`DatabaseStateHelper`'s soft-delete-peek is genuinely custom** — no library provides a count that sees past Hibernate's `@SoftDelete` filter. The two native-SQL methods (`countIncludingDeleted`, `countWhereDeleted`) are the only way to verify that `repository.delete*()` issued an UPDATE rather than a DELETE. This is the one piece of test infrastructure that cannot be replaced by a third-party dependency.
+- **Custom container extensions vs `@ServiceConnection`** — the custom container extensions (`@WithPostgres`, `@WithKeycloak`) are justified only by the multi-named-container need (each annotation is repeatable with a `name()` parameter, enabling multiple independent containers in a single test class). For the single-container case, Spring Boot's `@ServiceConnection` would suffice. This is a known trade-off, not a redo: if the multi-container need ever disappears, the extensions can be replaced by `@ServiceConnection` with no production-code changes.
 
 ### 4.9 Build & packaging
 
@@ -374,10 +394,24 @@ generic_spring_service/
 │       │   │   │       ├── WithKeycloak.java
 │       │   │   │       ├── KeycloakExtension.java
 │       │   │   │       └── TestJwtFactory.java
-│       │   │   └── fixtures/
-│       │   │       ├── WithSeededExamples.java
-│       │   │       ├── SeededExamplesExtension.java
-│       │   │       └── ExampleFixtures.java
+│       │   │   ├── fixtures/
+│       │   │   │   ├── WithSeededExamples.java
+│       │   │   │   ├── SeededExamplesExtension.java
+│       │   │   │   ├── ExampleFixtures.java
+│       │   │   │   ├── RepoFixture.java
+│       │   │   │   ├── ModelFixture.java
+│       │   │   │   ├── RandomEntities.java
+│       │   │   │   └── RandomModels.java
+│       │   │   ├── contract/
+│       │   │   │   ├── AbstractRepositoryContractIT.java
+│       │   │   │   └── AbstractMapperContractIT.java
+│       │   │   └── testentities/
+│       │   │       ├── ParentEntity.java
+│       │   │       ├── ChildEntity.java
+│       │   │       ├── OwnerEntity.java
+│       │   │       ├── ProfileEntity.java
+│       │   │       ├── LeftEntity.java
+│       │   │       └── RightEntity.java
 │       │   ├── service/
 │       │   │   └── ExampleServiceTest.java
 │       │   ├── repository/
@@ -394,6 +428,8 @@ generic_spring_service/
 │       │       └── MessageResolutionIT.java
 │       └── resources/
 │           ├── application-test.yml
+│           ├── db/migration-test/
+│           │   └── V1000__test_association_entities.sql
 │           └── keycloak/
 │               └── test-realm.json
 ├── .gitignore

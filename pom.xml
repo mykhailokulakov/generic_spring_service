@@ -29,6 +29,7 @@
         <testcontainers-keycloak.version>4.2.1</testcontainers-keycloak.version>
         <restassured.version>6.0.0</restassured.version>
         <archunit.version>1.4.2</archunit.version>
+        <instancio.version>5.5.1</instancio.version>
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
         <spotless-maven-plugin.version>3.5.1</spotless-maven-plugin.version>
         <dependency-check-maven.version>12.2.2</dependency-check-maven.version>
@@ -263,6 +264,12 @@
             <groupId>com.tngtech.archunit</groupId>
             <artifactId>archunit-junit5</artifactId>
             <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.instancio</groupId>
+            <artifactId>instancio-junit</artifactId>
+            <version>${instancio.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
