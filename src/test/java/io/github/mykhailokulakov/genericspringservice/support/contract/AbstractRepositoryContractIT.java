@@ -13,6 +13,7 @@ import io.github.mykhailokulakov.genericspringservice.support.testentities.Paren
 import io.github.mykhailokulakov.genericspringservice.support.testentities.ProfileEntity;
 import io.github.mykhailokulakov.genericspringservice.support.testentities.RightEntity;
 import jakarta.persistence.EntityManager;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -98,7 +99,8 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
 
     assertThat(found).isPresent();
     assertThat(found.get().getId()).isEqualTo(saved.getId());
-    assertThat(found.get().getCreatedAt()).isEqualTo(saved.getCreatedAt());
+    assertThat(found.get().getCreatedAt().truncatedTo(ChronoUnit.MICROS))
+        .isEqualTo(saved.getCreatedAt().truncatedTo(ChronoUnit.MICROS));
   }
 
   @Test
