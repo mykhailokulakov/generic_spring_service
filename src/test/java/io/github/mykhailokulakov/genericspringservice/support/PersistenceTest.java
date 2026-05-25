@@ -7,6 +7,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ActiveProfiles;
 
 @Target(ElementType.TYPE)
@@ -26,4 +27,5 @@ import org.springframework.test.context.ActiveProfiles;
       "io.github.mykhailokulakov.genericspringservice",
       "io.github.mykhailokulakov.testentities"
     })
+@EnableJpaRepositories("io.github.mykhailokulakov.testentities.repository")
 public @interface PersistenceTest {}

@@ -75,7 +75,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     return repository().saveAndFlush(entity);
   }
 
-  private E newEntity() {
+  protected E newEntity() {
     return RandomEntities.create(entityType());
   }
 
