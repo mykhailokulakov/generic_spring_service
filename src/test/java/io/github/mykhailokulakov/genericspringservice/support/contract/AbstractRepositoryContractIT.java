@@ -19,6 +19,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -27,6 +28,8 @@ import org.springframework.web.context.WebApplicationContext;
 
 @IntegrationTest
 public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
+
+  @LocalServerPort private int port;
 
   @Autowired private WebApplicationContext applicationContext;
   @Autowired private EntityManager em;
