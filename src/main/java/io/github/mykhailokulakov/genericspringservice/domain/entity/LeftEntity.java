@@ -1,4 +1,4 @@
-package io.github.mykhailokulakov.testentities;
+package io.github.mykhailokulakov.genericspringservice.domain.entity;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import jakarta.persistence.Column;
@@ -16,7 +16,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 @Entity
-@Table(name = "test_left")
+@Table(name = "left_item")
 @Getter
 @Setter
 @SuperBuilder
@@ -28,7 +28,7 @@ public class LeftEntity extends SoftDeletable {
 
   @ManyToMany
   @JoinTable(
-      name = "test_left_right",
+      name = "left_right_item",
       joinColumns = @JoinColumn(name = "left_id"),
       inverseJoinColumns = @JoinColumn(name = "right_id"))
   @Builder.Default

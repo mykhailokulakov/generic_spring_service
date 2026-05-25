@@ -1,15 +1,14 @@
-package io.github.mykhailokulakov.testentities.contract;
+package io.github.mykhailokulakov.genericspringservice.repository;
 
+import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
+import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractRepositoryTestContract;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
-import io.github.mykhailokulakov.testentities.ChildEntity;
-import io.github.mykhailokulakov.testentities.ParentEntity;
-import io.github.mykhailokulakov.testentities.repository.ParentEntityRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
-class ChildEntityRepositoryIT extends AbstractRepositoryTestContract<ChildEntity> {
+class ChildRepositoryIT extends AbstractRepositoryTestContract<ChildEntity> {
 
-  @Autowired private ParentEntityRepository parentRepository;
+  @Autowired private ParentRepository parentRepository;
 
   @Override
   protected ChildEntity newEntity() {

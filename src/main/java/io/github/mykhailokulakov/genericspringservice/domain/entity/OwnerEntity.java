@@ -1,11 +1,11 @@
-package io.github.mykhailokulakov.testentities;
+package io.github.mykhailokulakov.genericspringservice.domain.entity;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -15,18 +15,18 @@ import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
 @Entity
-@Table(name = "test_child")
+@Table(name = "owner")
 @Getter
 @Setter
 @SuperBuilder
 @NoArgsConstructor
-public class ChildEntity extends SoftDeletable {
+public class OwnerEntity extends SoftDeletable {
 
-  @Column(name = "value", nullable = false, length = 200)
-  private String value;
+  @Column(name = "handle", nullable = false, length = 200)
+  private String handle;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "parent_id", nullable = false)
+  @OneToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "example_id")
   @NotFound(action = NotFoundAction.IGNORE)
-  private ParentEntity parent;
+  private ExampleEntity example;
 }

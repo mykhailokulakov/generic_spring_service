@@ -5,9 +5,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ActiveProfiles;
 
 @Target(ElementType.TYPE)
@@ -17,15 +15,8 @@ import org.springframework.test.context.ActiveProfiles;
     properties = {
       "spring.autoconfigure.exclude="
           + "org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration,"
-          + "org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration",
-      "spring.flyway.locations=classpath:db/migration,classpath:db/migration-test"
+          + "org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration"
     })
 @ActiveProfiles("test")
 @WithPostgres
-@EntityScan(
-    basePackages = {
-      "io.github.mykhailokulakov.genericspringservice",
-      "io.github.mykhailokulakov.testentities"
-    })
-@EnableJpaRepositories("io.github.mykhailokulakov.testentities.repository")
 public @interface PersistenceTest {}

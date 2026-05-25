@@ -1,4 +1,4 @@
-package io.github.mykhailokulakov.testentities;
+package io.github.mykhailokulakov.genericspringservice.domain.entity;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import jakarta.persistence.CascadeType;
@@ -15,7 +15,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 @Entity
-@Table(name = "test_parent")
+@Table(name = "parent")
 @Getter
 @Setter
 @SuperBuilder

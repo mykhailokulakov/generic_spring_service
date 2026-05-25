@@ -251,7 +251,7 @@ Three abstract test bases (`support/contract/`) capture the cross-entity invaria
 
 **Generator scope.** `RandomEntities` and `RandomModels` are thin Instancio wrappers — a configured `Instancio.of(type).withSettings(SETTINGS).ignore(<chain fields>).create()`. The generator fills only what is needed to persist and round-trip: the concrete entity's own plain fields, its `@ElementCollection`s, and its embeddables (one level deep). It must NOT populate persistence-chain fields (`id`, `createdAt`, `updatedAt`, `version`); those are framework-managed, and asserting the framework sets them is the contract's job. The ignore-set is expressed structurally — `fields().declaredIn(Identifiable.class)`, etc. — so it applies to every entity without per-entity enumeration. Past ~20 lines of logic the wrappers would be drifting back into the hand-rolled generator; they stay thin.
 
-**Association test entities.** Six test-only entities in `support/testentities/`, all extending `SoftDeletable`: `ParentEntity`/`ChildEntity` (`@OneToMany`/`@ManyToOne`), `OwnerEntity`/`ProfileEntity` (`@OneToOne`, owning side on `OwnerEntity`), `LeftEntity`/`RightEntity` (`@ManyToMany`). Their schemas live in test-only Flyway migrations under `src/test/resources/db/migration-test/`, applied to the test schema only. They never appear in `src/main` — fork-tax stays zero. They exist so the repository contract can exercise association behavior under soft-delete: the don't-orphan-children invariant (soft-deleting a parent issues an UPDATE, so child FK survives) is a cross-entity persistence invariant that belongs in the contract base.
+**Association entities.** Five domain entities in `domain/entity/`, all extending `SoftDeletable`: `ParentEntity`/`ChildEntity` (`@OneToMany`/`@ManyToOne`), `OwnerEntity` (`@OneToOne` to `ExampleEntity`), `LeftEntity`/`RightEntity` (`@ManyToMany`). Their schemas live in `V3__association_entities.sql`. The repository contract exercises association behavior under soft-delete: the don't-orphan-children invariant (soft-deleting a parent issues an UPDATE, so child FK survives) is a cross-entity persistence invariant that belongs in the contract base.
 
 #### 4.8.4 Decision notes
 
@@ -316,9 +316,18 @@ generic_spring_service/
 │   │   │   ├── domain/
 │   │   │   │   ├── entity/
 │   │   │   │   │   ├── ExampleEntity.java
-│   │   │   │   │   └── ExampleStatus.java
+│   │   │   │   │   ├── ParentEntity.java
+│   │   │   │   │   ├── ChildEntity.java
+│   │   │   │   │   ├── OwnerEntity.java
+│   │   │   │   │   ├── LeftEntity.java
+│   │   │   │   │   └── RightEntity.java
 │   │   │   │   └── model/
-│   │   │   │       └── Example.java             # record
+│   │   │   │       ├── Example.java             # record
+│   │   │   │       ├── Parent.java
+│   │   │   │       ├── Child.java
+│   │   │   │       ├── Owner.java
+│   │   │   │       ├── Left.java
+│   │   │   │       └── Right.java
 │   │   │   ├── exception/
 │   │   │   │   ├── DomainException.java
 │   │   │   │   ├── NotFoundException.java
@@ -329,9 +338,19 @@ generic_spring_service/
 │   │   │   │   └── GlobalExceptionHandler.java
 │   │   │   ├── mapper/
 │   │   │   │   ├── ExampleEntityMapper.java     # Entity ↔ Model
+│   │   │   │   ├── ParentEntityMapper.java
+│   │   │   │   ├── ChildEntityMapper.java
+│   │   │   │   ├── OwnerEntityMapper.java
+│   │   │   │   ├── LeftEntityMapper.java
+│   │   │   │   ├── RightEntityMapper.java
 │   │   │   │   └── ExampleApiMapper.java        # Model ↔ DTOs
 │   │   │   ├── repository/
 │   │   │   │   ├── ExampleRepository.java
+│   │   │   │   ├── ParentRepository.java
+│   │   │   │   ├── ChildRepository.java
+│   │   │   │   ├── OwnerRepository.java
+│   │   │   │   ├── LeftRepository.java
+│   │   │   │   ├── RightRepository.java
 │   │   │   │   └── specification/
 │   │   │   │       └── ExampleSpecifications.java
 │   │   │   ├── security/
@@ -368,7 +387,8 @@ generic_spring_service/
 │   │       ├── application-test.yml
 │   │       ├── db/migration/
 │   │       │   ├── V1__base.sql
-│   │       │   └── V2__example.sql
+│   │       │   ├── V2__example.sql
+│   │       │   └── V3__association_entities.sql
 │   │       ├── i18n/
 │   │       │   ├── messages.properties
 │   │       │   ├── messages_en.properties
@@ -407,19 +427,22 @@ generic_spring_service/
 │       │   │   └── contract/
 │       │   │       ├── AbstractRepositoryContractIT.java
 │       │   │       └── AbstractMapperContractIT.java
-│       ├── java/io/github/mykhailokulakov/testentities/
-│       │   ├── ParentEntity.java
-│       │   ├── ChildEntity.java
-│       │   ├── OwnerEntity.java
-│       │   ├── ProfileEntity.java
-│       │   ├── LeftEntity.java
-│       │   └── RightEntity.java
 │       │   ├── service/
 │       │   │   └── ExampleServiceTest.java
 │       │   ├── repository/
-│       │   │   └── ExampleRepositoryIT.java
+│       │   │   ├── ExampleRepositoryIT.java
+│       │   │   ├── ParentRepositoryIT.java
+│       │   │   ├── ChildRepositoryIT.java
+│       │   │   ├── OwnerRepositoryIT.java
+│       │   │   ├── LeftRepositoryIT.java
+│       │   │   └── RightRepositoryIT.java
 │       │   ├── mapper/
 │       │   │   ├── ExampleEntityMapperTest.java
+│       │   │   ├── ParentEntityMapperTest.java
+│       │   │   ├── ChildEntityMapperTest.java
+│       │   │   ├── OwnerEntityMapperTest.java
+│       │   │   ├── LeftEntityMapperTest.java
+│       │   │   ├── RightEntityMapperTest.java
 │       │   │   └── ExampleApiMapperTest.java
 │       │   ├── web/
 │       │   │   ├── ExampleControllerIT.java
@@ -430,8 +453,6 @@ generic_spring_service/
 │       │       └── MessageResolutionIT.java
 │       └── resources/
 │           ├── application-test.yml
-│           ├── db/migration-test/
-│           │   └── V1000__test_association_entities.sql
 │           └── keycloak/
 │               └── test-realm.json
 ├── .gitignore

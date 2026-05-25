@@ -1,4 +1,4 @@
-package io.github.mykhailokulakov.testentities;
+package io.github.mykhailokulakov.genericspringservice.domain.entity;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import jakarta.persistence.Column;
@@ -14,7 +14,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 @Entity
-@Table(name = "test_right")
+@Table(name = "right_item")
 @Getter
 @Setter
 @SuperBuilder

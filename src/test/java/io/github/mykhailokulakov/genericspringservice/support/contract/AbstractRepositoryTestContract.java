@@ -4,17 +4,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
+import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
+import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
+import io.github.mykhailokulakov.genericspringservice.domain.entity.LeftEntity;
+import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
+import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
+import io.github.mykhailokulakov.genericspringservice.domain.entity.RightEntity;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
-import io.github.mykhailokulakov.testentities.ChildEntity;
-import io.github.mykhailokulakov.testentities.LeftEntity;
-import io.github.mykhailokulakov.testentities.OwnerEntity;
-import io.github.mykhailokulakov.testentities.ParentEntity;
-import io.github.mykhailokulakov.testentities.ProfileEntity;
-import io.github.mykhailokulakov.testentities.RightEntity;
 import jakarta.persistence.EntityManager;
 import java.lang.reflect.ParameterizedType;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
@@ -238,24 +240,30 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     var ids =
         new Object() {
           UUID ownerId;
-          UUID profileId;
+          UUID exampleId;
         };
 
     tx().executeWithoutResult(
             status -> {
-              var profile = ProfileEntity.builder().bio("test bio").build();
-              var owner = OwnerEntity.builder().handle("owner").profile(profile).build();
+              var example =
+                  ExampleEntity.builder()
+                      .name("test")
+                      .status(ExampleStatus.ACTIVE)
+                      .price(BigDecimal.ONE)
+                      .build();
+              em.persist(example);
+              var owner = OwnerEntity.builder().handle("owner").example(example).build();
               em.persist(owner);
               em.flush();
               ids.ownerId = owner.getId();
-              ids.profileId = profile.getId();
+              ids.exampleId = example.getId();
             });
 
     tx().executeWithoutResult(
             status -> {
               var reloaded = em.find(OwnerEntity.class, ids.ownerId);
-              assertThat(reloaded.getProfile()).isNotNull();
-              assertThat(reloaded.getProfile().getId()).isEqualTo(ids.profileId);
+              assertThat(reloaded.getExample()).isNotNull();
+              assertThat(reloaded.getExample().getId()).isEqualTo(ids.exampleId);
             });
   }
 
