@@ -72,5 +72,6 @@ public class ExampleEntity extends SoftDeletable {
   @Column(name = "tag", nullable = false, length = 64)
   @BatchSize(size = 50)
   @Builder.Default
+  @ToString.Exclude
   private Set<String> tags = new HashSet<>();
 }
