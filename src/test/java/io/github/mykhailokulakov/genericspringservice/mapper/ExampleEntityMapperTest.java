@@ -7,7 +7,6 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractMapperContractIT;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomModels;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
@@ -67,7 +66,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void applyReplacementOnNullIsNoOp() {
-    var entity = mapper().toEntity(RandomModels.create(Example.class));
+    var entity = mapper().toEntity(newModel());
     var originalName = entity.getName();
 
     mapper().applyReplacement(null, entity);
@@ -77,7 +76,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void applyPatchOnNullIsNoOp() {
-    var entity = mapper().toEntity(RandomModels.create(Example.class));
+    var entity = mapper().toEntity(newModel());
     var originalName = entity.getName();
 
     mapper().applyPatch(null, entity);
@@ -100,7 +99,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void applyPatchUpdatesEveryProvidedField() {
-    var entity = mapper().toEntity(RandomModels.create(Example.class));
+    var entity = mapper().toEntity(newModel());
     var patch =
         new ExamplePatch(
             "n",
@@ -135,7 +134,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void applyPatchIgnoresNullFields() {
-    var entity = mapper().toEntity(RandomModels.create(Example.class));
+    var entity = mapper().toEntity(newModel());
     var originalName = entity.getName();
     var originalPrice = entity.getPrice();
     var originalStatus = entity.getStatus();

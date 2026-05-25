@@ -16,4 +16,5 @@ public record Example(
     Set<String> tags,
     Instant createdAt,
     Instant updatedAt,
-    Long version) {}
+    Long version)
+    implements DomainModel {}

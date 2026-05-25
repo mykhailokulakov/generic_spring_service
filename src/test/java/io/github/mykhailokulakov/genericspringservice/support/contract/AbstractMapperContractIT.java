@@ -3,6 +3,7 @@ package io.github.mykhailokulakov.genericspringservice.support.contract;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
+import io.github.mykhailokulakov.genericspringservice.domain.model.DomainModel;
 import io.github.mykhailokulakov.genericspringservice.mapper.EntityMapper;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomModels;
@@ -15,7 +16,7 @@ import org.instancio.settings.OnSetFieldError;
 import org.instancio.settings.Settings;
 import org.junit.jupiter.api.Test;
 
-public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
+public abstract class AbstractMapperContractIT<E extends SoftDeletable, M extends DomainModel> {
 
   private static final Settings ALL_FIELDS_SETTINGS =
       Settings.create()
@@ -31,7 +32,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
   protected abstract void assertDomainFields(E entity, M model);
 
   @SuppressWarnings("unchecked")
-  private Class<E> entityType() {
+  protected Class<E> entityType() {
     if (entityType == null) {
       var superclass = (ParameterizedType) getClass().getGenericSuperclass();
       entityType = (Class<E>) superclass.getActualTypeArguments()[0];
@@ -40,7 +41,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
   }
 
   @SuppressWarnings("unchecked")
-  private Class<M> modelType() {
+  protected Class<M> modelType() {
     if (modelType == null) {
       var superclass = (ParameterizedType) getClass().getGenericSuperclass();
       modelType = (Class<M>) superclass.getActualTypeArguments()[1];
@@ -48,11 +49,11 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     return modelType;
   }
 
-  private E newEntity() {
+  protected E newEntity() {
     return RandomEntities.create(entityType());
   }
 
-  private M newModel() {
+  protected M newModel() {
     return RandomModels.create(modelType());
   }
 
@@ -60,22 +61,21 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     return Instancio.of(entityType()).withSettings(ALL_FIELDS_SETTINGS).create();
   }
 
-  private void assertAllFields(E original, E roundTripped) {
-    assertThat(roundTripped.getId()).isEqualTo(original.getId());
-    assertThat(roundTripped.getCreatedAt()).isEqualTo(original.getCreatedAt());
-    assertThat(roundTripped.getUpdatedAt()).isEqualTo(original.getUpdatedAt());
-    assertThat(roundTripped.getVersion()).isEqualTo(original.getVersion());
+  private void assertChainFields(E entity, M model) {
+    assertThat(model.id()).isEqualTo(entity.getId());
+    assertThat(model.createdAt()).isEqualTo(entity.getCreatedAt());
+    assertThat(model.updatedAt()).isEqualTo(entity.getUpdatedAt());
+    assertThat(model.version()).isEqualTo(entity.getVersion());
   }
 
   @Test
-  void toModel_roundTripsChainFields() {
+  void toModel_mapsAllFields() {
     var entity = fullyPopulatedEntity();
 
     var model = mapper().toModel(entity);
-    var roundTripped = mapper().toEntity(model);
 
-    assertAllFields(entity, roundTripped);
-    assertDomainFields(roundTripped, model);
+    assertChainFields(entity, model);
+    assertDomainFields(entity, model);
   }
 
   @Test
@@ -121,14 +121,15 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
   }
 
   @Test
-  void roundTrip_preservesMappedFields() {
-    var original = fullyPopulatedEntity();
+  void roundTrip_preservesAllFields() {
+    var entity = fullyPopulatedEntity();
 
-    var model = mapper().toModel(original);
+    var model = mapper().toModel(entity);
+    assertChainFields(entity, model);
+    assertDomainFields(entity, model);
+
     var backToEntity = mapper().toEntity(model);
-
-    assertAllFields(original, backToEntity);
-    assertDomainFields(original, model);
+    assertChainFields(backToEntity, model);
     assertDomainFields(backToEntity, model);
   }
 }
