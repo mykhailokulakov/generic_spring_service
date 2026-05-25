@@ -3,10 +3,10 @@ package io.github.mykhailokulakov.genericspringservice.support.contract;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
+import io.github.mykhailokulakov.genericspringservice.mapper.EntityMapper;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.ModelFixture;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepoFixture;
 import java.util.List;
-import java.util.function.Function;
 import org.instancio.Instancio;
 import org.instancio.settings.AssignmentType;
 import org.instancio.settings.Keys;
@@ -22,19 +22,11 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
           .set(Keys.ON_SET_FIELD_ERROR, OnSetFieldError.IGNORE)
           .lock();
 
+  protected abstract EntityMapper<E, M> mapper();
+
   protected abstract RepoFixture<E> repoFixture();
 
   protected abstract ModelFixture<M> modelFixture();
-
-  protected abstract Function<E, M> toModel();
-
-  protected abstract Function<M, E> toEntity();
-
-  protected abstract Function<List<E>, List<M>> toModelList();
-
-  protected abstract Function<List<M>, List<E>> toEntityList();
-
-  protected abstract void applyPatch(M source, E target);
 
   protected abstract void assertMappedFields(E entity, M model);
 
@@ -46,10 +38,10 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
   void toModel_copiesAuditFieldsFromEntity() {
     var entity = fullyPopulatedEntity();
 
-    var model = toModel().apply(entity);
+    var model = mapper().toModel(entity);
 
     assertThat(model).isNotNull();
-    assertMappedFields(toEntity().apply(model), model);
+    assertMappedFields(mapper().toEntity(model), model);
   }
 
   @Test
@@ -60,7 +52,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
             repoFixture().newPersistable(),
             repoFixture().newPersistable());
 
-    var models = toModelList().apply(entities);
+    var models = entities.stream().map(mapper()::toModel).toList();
 
     assertThat(models).hasSameSizeAs(entities);
     for (int i = 0; i < entities.size(); i++) {
@@ -73,7 +65,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     var models =
         List.of(modelFixture().newModel(), modelFixture().newModel(), modelFixture().newModel());
 
-    var entities = toEntityList().apply(models);
+    var entities = models.stream().map(mapper()::toEntity).toList();
 
     assertThat(entities).hasSameSizeAs(models);
     for (int i = 0; i < models.size(); i++) {
@@ -90,7 +82,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     var versionBefore = entity.getVersion();
 
     var source = modelFixture().newModel();
-    applyPatch(source, entity);
+    mapper().applyReplacement(source, entity);
 
     assertMappedFields(entity, source);
     assertThat(entity.getId()).isEqualTo(idBefore);
@@ -103,10 +95,10 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
   void roundTrip_preservesMappedFields() {
     var original = repoFixture().newPersistable();
 
-    var model = toModel().apply(original);
+    var model = mapper().toModel(original);
     assertMappedFields(original, model);
 
-    var backToEntity = toEntity().apply(model);
+    var backToEntity = mapper().toEntity(model);
     assertMappedFields(backToEntity, model);
   }
 }

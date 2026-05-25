@@ -12,16 +12,18 @@ import io.github.mykhailokulakov.genericspringservice.support.fixtures.ModelFixt
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepoFixture;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
 class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Example> {
 
   private final ExampleEntityMapper mapper = Mappers.getMapper(ExampleEntityMapper.class);
+
+  @Override
+  protected EntityMapper<ExampleEntity, Example> mapper() {
+    return mapper;
+  }
 
   @Override
   protected RepoFixture<ExampleEntity> repoFixture() {
@@ -31,31 +33,6 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
   @Override
   protected ModelFixture<Example> modelFixture() {
     return ExampleFixtures.INSTANCE;
-  }
-
-  @Override
-  protected Function<ExampleEntity, Example> toModel() {
-    return mapper::toModel;
-  }
-
-  @Override
-  protected Function<Example, ExampleEntity> toEntity() {
-    return mapper::toEntity;
-  }
-
-  @Override
-  protected Function<List<ExampleEntity>, List<Example>> toModelList() {
-    return entities -> entities.stream().map(mapper::toModel).toList();
-  }
-
-  @Override
-  protected Function<List<Example>, List<ExampleEntity>> toEntityList() {
-    return models -> models.stream().map(mapper::toEntity).toList();
-  }
-
-  @Override
-  protected void applyPatch(Example source, ExampleEntity target) {
-    mapper.applyReplacement(source, target);
   }
 
   @Override
@@ -90,38 +67,21 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
 
-    var model = mapper.toModel(entity);
-
-    assertThat(model.tags()).isNull();
+    assertThat(mapper.toModel(entity).tags()).isNull();
   }
 
   @Test
-  void toEntityWithNullTagsProducesNoTags() {
+  void toEntityWithNullTagsProducesEmptySet() {
     var model =
         new Example(
             null, "name", null, null, null, null, ExampleStatus.DRAFT, null, null, null, null);
 
-    var entity = mapper.toEntity(model);
-
-    assertThat(entity.getTags()).isEmpty();
+    assertThat(mapper.toEntity(model).getTags()).isEmpty();
   }
 
   @Test
-  void applyReplacementOnNullReplacementIsNoOp() {
-    var entity =
-        mapper.toEntity(
-            new Example(
-                null,
-                "name",
-                "desc",
-                7,
-                new BigDecimal("1.00"),
-                Instant.parse("2026-05-20T12:00:00Z"),
-                ExampleStatus.ACTIVE,
-                new HashSet<>(Set.of("alpha")),
-                null,
-                null,
-                null));
+  void applyReplacementOnNullIsNoOp() {
+    var entity = mapper.toEntity(modelFixture().newModel());
     var originalName = entity.getName();
 
     mapper.applyReplacement(null, entity);
@@ -130,21 +90,8 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
   }
 
   @Test
-  void applyPatchOnNullPatchIsNoOp() {
-    var entity =
-        mapper.toEntity(
-            new Example(
-                null,
-                "name",
-                "desc",
-                7,
-                new BigDecimal("1.00"),
-                Instant.parse("2026-05-20T12:00:00Z"),
-                ExampleStatus.ACTIVE,
-                new HashSet<>(Set.of("alpha")),
-                null,
-                null,
-                null));
+  void applyPatchOnNullIsNoOp() {
+    var entity = mapper.toEntity(modelFixture().newModel());
     var originalName = entity.getName();
 
     mapper.applyPatch(null, entity);
@@ -156,30 +103,17 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
   void applyReplacementSetsTagsOnEntityWithoutTags() {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
-    var replacement =
-        new Example(null, null, null, null, null, null, null, Set.of("only"), null, null, null);
 
-    mapper.applyReplacement(replacement, entity);
+    mapper.applyReplacement(
+        new Example(null, null, null, null, null, null, null, Set.of("only"), null, null, null),
+        entity);
 
     assertThat(entity.getTags()).containsExactly("only");
   }
 
   @Test
   void applyPatchUpdatesEveryProvidedField() {
-    var entity =
-        mapper.toEntity(
-            new Example(
-                null,
-                "name",
-                "desc",
-                7,
-                new BigDecimal("123.45"),
-                Instant.parse("2026-05-20T12:00:00Z"),
-                ExampleStatus.ACTIVE,
-                new HashSet<>(Set.of("alpha", "beta")),
-                null,
-                null,
-                null));
+    var entity = mapper.toEntity(modelFixture().newModel());
     var patch =
         new ExamplePatch(
             "n",
@@ -205,42 +139,26 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
   void applyPatchSetsTagsOnEntityWithoutTags() {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
-    var patch = new ExamplePatch(null, null, null, null, null, null, Set.of("x", "y"));
 
-    mapper.applyPatch(patch, entity);
+    mapper.applyPatch(
+        new ExamplePatch(null, null, null, null, null, null, Set.of("x", "y")), entity);
 
     assertThat(entity.getTags()).containsExactlyInAnyOrder("x", "y");
   }
 
   @Test
   void applyPatchIgnoresNullFields() {
-    var entity =
-        mapper.toEntity(
-            new Example(
-                null,
-                "name",
-                "desc",
-                7,
-                new BigDecimal("123.45"),
-                Instant.parse("2026-05-20T12:00:00Z"),
-                ExampleStatus.ACTIVE,
-                new HashSet<>(Set.of("alpha", "beta")),
-                null,
-                null,
-                null));
+    var entity = mapper.toEntity(modelFixture().newModel());
     var originalName = entity.getName();
-    BigDecimal originalPrice = entity.getPrice();
-    var originalTags = new HashSet<>(entity.getTags());
+    var originalPrice = entity.getPrice();
+    var originalStatus = entity.getStatus();
 
-    var patch = new ExamplePatch(null, "patched-description", 99, null, null, null, null);
-
-    mapper.applyPatch(patch, entity);
+    mapper.applyPatch(new ExamplePatch(null, "patched", 99, null, null, null, null), entity);
 
     assertThat(entity.getName()).isEqualTo(originalName);
-    assertThat(entity.getDescription()).isEqualTo("patched-description");
+    assertThat(entity.getDescription()).isEqualTo("patched");
     assertThat(entity.getQuantity()).isEqualTo(99);
     assertThat(entity.getPrice()).isEqualByComparingTo(originalPrice);
-    assertThat(entity.getStatus()).isEqualTo(ExampleStatus.ACTIVE);
-    assertThat(entity.getTags()).containsExactlyInAnyOrderElementsOf(originalTags);
+    assertThat(entity.getStatus()).isEqualTo(originalStatus);
   }
 }

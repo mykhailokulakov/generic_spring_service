@@ -10,12 +10,9 @@ import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring")
-public interface ExampleEntityMapper {
+public interface ExampleEntityMapper extends EntityMapper<ExampleEntity, Example> {
 
-  Example toModel(ExampleEntity entity);
-
-  ExampleEntity toEntity(Example model);
-
+  @Override
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "createdAt", ignore = true)
   @Mapping(target = "updatedAt", ignore = true)
