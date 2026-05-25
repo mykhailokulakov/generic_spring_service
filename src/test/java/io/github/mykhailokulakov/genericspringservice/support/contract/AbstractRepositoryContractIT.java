@@ -3,7 +3,7 @@ package io.github.mykhailokulakov.genericspringservice.support.contract;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
-import io.github.mykhailokulakov.genericspringservice.support.IntegrationTest;
+import io.github.mykhailokulakov.genericspringservice.support.containers.postgres.WithPostgres;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepoFixture;
 import io.github.mykhailokulakov.genericspringservice.support.testentities.ChildEntity;
@@ -20,19 +20,26 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.support.Repositories;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
 
-@IntegrationTest
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.NONE,
+    properties = {
+      "spring.autoconfigure.exclude="
+          + "org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration,"
+          + "org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration"
+    })
+@ActiveProfiles("test")
+@WithPostgres
 @Import(DatabaseStateHelper.class)
 public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
-
-  @LocalServerPort private int port;
 
   @Autowired private WebApplicationContext applicationContext;
   @Autowired private EntityManager em;
