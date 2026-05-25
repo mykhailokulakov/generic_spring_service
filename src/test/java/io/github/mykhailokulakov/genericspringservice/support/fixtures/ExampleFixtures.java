@@ -1,7 +1,6 @@
 package io.github.mykhailokulakov.genericspringservice.support.fixtures;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -12,7 +11,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-public final class ExampleFixtures implements RepoFixture<ExampleEntity>, ModelFixture<Example> {
+public final class ExampleFixtures implements RepoFixture<ExampleEntity> {
 
   public static final ExampleFixtures INSTANCE = new ExampleFixtures();
 
@@ -35,16 +34,6 @@ public final class ExampleFixtures implements RepoFixture<ExampleEntity>, ModelF
   @Override
   public void mutate(ExampleEntity entity) {
     entity.setName("mutated-" + UUID.randomUUID().toString().substring(0, 8));
-  }
-
-  @Override
-  public Class<Example> modelType() {
-    return Example.class;
-  }
-
-  @Override
-  public Example newModel() {
-    return RandomModels.create(Example.class);
   }
 
   public static ExampleEntity aDraftExample() {

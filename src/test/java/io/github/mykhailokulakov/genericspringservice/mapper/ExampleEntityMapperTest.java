@@ -7,9 +7,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractMapperContractIT;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.ExampleFixtures;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.ModelFixture;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepoFixture;
+import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomModels;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
@@ -23,16 +21,6 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
   @Override
   protected EntityMapper<ExampleEntity, Example> mapper() {
     return mapper;
-  }
-
-  @Override
-  protected RepoFixture<ExampleEntity> repoFixture() {
-    return ExampleFixtures.INSTANCE;
-  }
-
-  @Override
-  protected ModelFixture<Example> modelFixture() {
-    return ExampleFixtures.INSTANCE;
   }
 
   @Override
@@ -81,7 +69,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void applyReplacementOnNullIsNoOp() {
-    var entity = mapper.toEntity(modelFixture().newModel());
+    var entity = mapper.toEntity(RandomModels.create(Example.class));
     var originalName = entity.getName();
 
     mapper.applyReplacement(null, entity);
@@ -91,7 +79,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void applyPatchOnNullIsNoOp() {
-    var entity = mapper.toEntity(modelFixture().newModel());
+    var entity = mapper.toEntity(RandomModels.create(Example.class));
     var originalName = entity.getName();
 
     mapper.applyPatch(null, entity);
@@ -113,7 +101,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void applyPatchUpdatesEveryProvidedField() {
-    var entity = mapper.toEntity(modelFixture().newModel());
+    var entity = mapper.toEntity(RandomModels.create(Example.class));
     var patch =
         new ExamplePatch(
             "n",
@@ -148,7 +136,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void applyPatchIgnoresNullFields() {
-    var entity = mapper.toEntity(modelFixture().newModel());
+    var entity = mapper.toEntity(RandomModels.create(Example.class));
     var originalName = entity.getName();
     var originalPrice = entity.getPrice();
     var originalStatus = entity.getStatus();

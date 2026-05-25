@@ -4,8 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import io.github.mykhailokulakov.genericspringservice.mapper.EntityMapper;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.ModelFixture;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepoFixture;
+import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
+import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomModels;
+import java.lang.reflect.ParameterizedType;
 import java.util.List;
 import org.instancio.Instancio;
 import org.instancio.settings.AssignmentType;
@@ -22,16 +23,41 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
           .set(Keys.ON_SET_FIELD_ERROR, OnSetFieldError.IGNORE)
           .lock();
 
+  private Class<E> entityType;
+  private Class<M> modelType;
+
   protected abstract EntityMapper<E, M> mapper();
-
-  protected abstract RepoFixture<E> repoFixture();
-
-  protected abstract ModelFixture<M> modelFixture();
 
   protected abstract void assertMappedFields(E entity, M model);
 
+  @SuppressWarnings("unchecked")
+  private Class<E> entityType() {
+    if (entityType == null) {
+      var superclass = (ParameterizedType) getClass().getGenericSuperclass();
+      entityType = (Class<E>) superclass.getActualTypeArguments()[0];
+    }
+    return entityType;
+  }
+
+  @SuppressWarnings("unchecked")
+  private Class<M> modelType() {
+    if (modelType == null) {
+      var superclass = (ParameterizedType) getClass().getGenericSuperclass();
+      modelType = (Class<M>) superclass.getActualTypeArguments()[1];
+    }
+    return modelType;
+  }
+
+  private E newEntity() {
+    return RandomEntities.create(entityType());
+  }
+
+  private M newModel() {
+    return RandomModels.create(modelType());
+  }
+
   private E fullyPopulatedEntity() {
-    return Instancio.of(repoFixture().entityType()).withSettings(ALL_FIELDS_SETTINGS).create();
+    return Instancio.of(entityType()).withSettings(ALL_FIELDS_SETTINGS).create();
   }
 
   @Test
@@ -46,11 +72,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
 
   @Test
   void toModelList_mapsEveryElement() {
-    var entities =
-        List.of(
-            repoFixture().newPersistable(),
-            repoFixture().newPersistable(),
-            repoFixture().newPersistable());
+    var entities = List.of(newEntity(), newEntity(), newEntity());
 
     var models = entities.stream().map(mapper()::toModel).toList();
 
@@ -62,8 +84,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
 
   @Test
   void toEntityList_mapsEveryElement() {
-    var models =
-        List.of(modelFixture().newModel(), modelFixture().newModel(), modelFixture().newModel());
+    var models = List.of(newModel(), newModel(), newModel());
 
     var entities = models.stream().map(mapper()::toEntity).toList();
 
@@ -81,7 +102,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
     var updatedAtBefore = entity.getUpdatedAt();
     var versionBefore = entity.getVersion();
 
-    var source = modelFixture().newModel();
+    var source = newModel();
     mapper().applyReplacement(source, entity);
 
     assertMappedFields(entity, source);
@@ -93,7 +114,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
 
   @Test
   void roundTrip_preservesMappedFields() {
-    var original = repoFixture().newPersistable();
+    var original = newEntity();
 
     var model = mapper().toModel(original);
     assertMappedFields(original, model);
