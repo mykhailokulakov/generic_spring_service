@@ -16,7 +16,7 @@ import org.instancio.settings.OnSetFieldError;
 import org.instancio.settings.Settings;
 import org.junit.jupiter.api.Test;
 
-public abstract class AbstractMapperContractIT<E extends SoftDeletable, M extends DomainModel> {
+public abstract class AbstractMapperTestContract<E extends SoftDeletable, M extends DomainModel> {
 
   private static final Settings ALL_FIELDS_SETTINGS =
       Settings.create()
@@ -66,6 +66,16 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M extend
     assertThat(model.createdAt()).isEqualTo(entity.getCreatedAt());
     assertThat(model.updatedAt()).isEqualTo(entity.getUpdatedAt());
     assertThat(model.version()).isEqualTo(entity.getVersion());
+  }
+
+  @Test
+  void toModel_returnsNullForNullInput() {
+    assertThat(mapper().toModel(null)).isNull();
+  }
+
+  @Test
+  void toEntity_returnsNullForNullInput() {
+    assertThat(mapper().toEntity(null)).isNull();
   }
 
   @Test

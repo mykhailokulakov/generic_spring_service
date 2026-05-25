@@ -6,7 +6,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
-import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractRepositoryContractIT;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractRepositoryTestContract;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -18,7 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
-class ExampleRepositoryIT extends AbstractRepositoryContractIT<ExampleEntity> {
+class ExampleRepositoryIT extends AbstractRepositoryTestContract<ExampleEntity> {
 
   @Autowired ExampleRepository repository;
 

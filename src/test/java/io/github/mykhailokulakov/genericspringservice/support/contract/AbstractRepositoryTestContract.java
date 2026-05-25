@@ -31,7 +31,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @PersistenceTest
 @Import(DatabaseStateHelper.class)
-public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
+public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
 
   @Autowired private ApplicationContext applicationContext;
   @Autowired private EntityManager em;

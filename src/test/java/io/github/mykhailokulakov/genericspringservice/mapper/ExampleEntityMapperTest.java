@@ -6,13 +6,13 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
-import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractMapperContractIT;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractMapperTestContract;
 import java.util.Set;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Example> {
+class ExampleEntityMapperTest extends AbstractMapperTestContract<ExampleEntity, Example> {
 
   @Override
   protected ExampleEntityMapper mapper() {
@@ -34,16 +34,6 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     if (model.tags() != null) {
       assertThat(entity.getTags()).containsExactlyInAnyOrderElementsOf(model.tags());
     }
-  }
-
-  @Test
-  void toModelReturnsNullForNullEntity() {
-    assertThat(mapper().toModel(null)).isNull();
-  }
-
-  @Test
-  void toEntityReturnsNullForNullModel() {
-    assertThat(mapper().toEntity(null)).isNull();
   }
 
   @Test
