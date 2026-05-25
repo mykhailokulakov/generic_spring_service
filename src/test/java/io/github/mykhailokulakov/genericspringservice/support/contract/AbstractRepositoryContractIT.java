@@ -62,10 +62,7 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
   }
 
   private E persistAndFlush(E entity) {
-    var repo = repository();
-    var saved = repo.saveAndFlush(entity);
-    em.clear();
-    return saved;
+    return repository().saveAndFlush(entity);
   }
 
   @Test
@@ -110,7 +107,6 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
     var reloaded = repo.findById(saved.getId()).orElseThrow();
     fixture().mutate(reloaded);
     repo.saveAndFlush(reloaded);
-    em.clear();
 
     var updated = repo.findById(saved.getId()).orElseThrow();
     assertThat(updated.getVersion()).isGreaterThan(initialVersion);
@@ -124,7 +120,6 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
     var repo = (JpaRepository<E, Object>) repository();
     repo.deleteById(saved.getId());
     repo.flush();
-    em.clear();
 
     assertThat(repo.findById(saved.getId())).isEmpty();
     assertThat(repo.findAll()).isEmpty();
@@ -138,7 +133,6 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
     var repo = (JpaRepository<E, Object>) repository();
     repo.deleteById(saved.getId());
     repo.flush();
-    em.clear();
 
     assertThat(dbHelper.countIncludingDeleted(fixture().entityType())).isOne();
     assertThat(dbHelper.countWhereDeleted(fixture().entityType())).isOne();
@@ -153,7 +147,6 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
     var repo = (JpaRepository<E, Object>) repository();
     repo.deleteById(toDelete.getId());
     repo.flush();
-    em.clear();
 
     assertThat(repo.count()).isOne();
     assertThat(dbHelper.countIncludingDeleted(fixture().entityType())).isEqualTo(2);
