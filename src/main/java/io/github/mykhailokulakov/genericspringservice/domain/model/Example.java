@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
+import lombok.Builder;
 
+@Builder(toBuilder = true)
 public record Example(
     UUID id,
     String name,
@@ -16,4 +18,5 @@ public record Example(
     Set<String> tags,
     Instant createdAt,
     Instant updatedAt,
-    Long version) {}
+    Long version)
+    implements DomainModel {}

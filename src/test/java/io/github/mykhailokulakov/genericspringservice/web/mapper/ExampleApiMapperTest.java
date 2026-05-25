@@ -9,7 +9,7 @@ import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateExampleReque
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Set;
-import java.util.UUID;
+import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
@@ -17,24 +17,9 @@ class ExampleApiMapperTest {
 
   private final ExampleApiMapper mapper = Mappers.getMapper(ExampleApiMapper.class);
 
-  private Example sampleModel() {
-    return new Example(
-        UUID.fromString("22222222-2222-2222-2222-222222222222"),
-        "name",
-        "description",
-        7,
-        new BigDecimal("123.45"),
-        Instant.parse("2026-05-20T12:00:00Z"),
-        ExampleStatus.ACTIVE,
-        Set.of("alpha", "beta"),
-        Instant.parse("2026-05-19T00:00:00Z"),
-        Instant.parse("2026-05-19T01:00:00Z"),
-        4L);
-  }
-
   @Test
   void toResponseCopiesEveryField() {
-    Example model = sampleModel();
+    var model = Instancio.create(Example.class);
 
     var response = mapper.toResponse(model);
 

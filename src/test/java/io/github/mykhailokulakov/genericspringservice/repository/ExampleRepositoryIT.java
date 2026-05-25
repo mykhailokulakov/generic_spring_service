@@ -6,49 +6,27 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
-import io.github.mykhailokulakov.genericspringservice.support.containers.postgres.WithPostgres;
-import jakarta.persistence.EntityManager;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractRepositoryTestContract;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.Set;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Spring Boot 4 dropped the {@code @DataJpaTest} slice in favor of full {@code @SpringBootTest}
- * with explicit autoconfig excludes; we exclude the security + OAuth2 resource-server
- * autoconfigurations so this slice does not need a live Keycloak.
- */
-@SpringBootTest(
-    webEnvironment = SpringBootTest.WebEnvironment.NONE,
-    properties = {
-      "spring.autoconfigure.exclude="
-          + "org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration,"
-          + "org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration"
-    })
-@ActiveProfiles("test")
-@Transactional
-@WithPostgres
-class ExampleRepositoryIT {
+class ExampleRepositoryIT extends AbstractRepositoryTestContract<ExampleEntity> {
 
   @Autowired ExampleRepository repository;
-  @Autowired EntityManager em;
 
   private static final Instant T0 = Instant.parse("2026-05-01T00:00:00Z");
 
-  @BeforeEach
-  void cleanDb() {
-    em.createNativeQuery("DELETE FROM example_tag").executeUpdate();
-    em.createNativeQuery("DELETE FROM example").executeUpdate();
+  @Override
+  protected void mutate(ExampleEntity entity) {
+    entity.setName("mutated-" + java.util.UUID.randomUUID().toString().substring(0, 8));
   }
 
   private ExampleEntity persist(
@@ -197,20 +175,6 @@ class ExampleRepositoryIT {
   }
 
   @Test
-  void softDeleted_isExcluded() {
-    var kept = persist("kept", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
-    var gone = persist("gone", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of());
-
-    repository.deleteById(gone.getId());
-
-    var page =
-        repository.findAll(
-            ExampleSpecifications.matches(ExampleFilter.empty()), Pageable.unpaged());
-
-    assertThat(page.getContent()).extracting(ExampleEntity::getId).containsExactly(kept.getId());
-  }
-
-  @Test
   void paginationAndSort_returnsRequestedSlice() {
     for (int i = 0; i < 7; i++) {
       persist(
@@ -302,8 +266,6 @@ class ExampleRepositoryIT {
 
   @Test
   void tagsContainsAny_doesNotInflatePageCountForMultiMatch() {
-    // Entity has 2 of the 3 requested tags — must still count as ONE row,
-    // not two. A naive root.join(tags).in(...) inflates the count.
     persist("multi", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("a", "b"));
     persist("single", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("a"));
 
@@ -322,7 +284,6 @@ class ExampleRepositoryIT {
     persist("a", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("red"));
     persist("b", null, 1, new BigDecimal("1"), T0, ExampleStatus.ACTIVE, Set.of("blue"));
 
-    // Blank-only tag set must drop the filter entirely, returning every row.
     Set<String> blanksOnly = new HashSet<>();
     blanksOnly.add("");
     blanksOnly.add("   ");
@@ -334,7 +295,6 @@ class ExampleRepositoryIT {
         .extracting(ExampleEntity::getName)
         .containsExactlyInAnyOrder("a", "b");
 
-    // Mix of blank + real tag must filter on the real tag only.
     Set<String> mixed = new HashSet<>();
     mixed.add(" ");
     mixed.add("red");

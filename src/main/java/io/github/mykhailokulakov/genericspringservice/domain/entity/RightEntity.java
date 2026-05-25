@@ -1,0 +1,33 @@
+package io.github.mykhailokulakov.genericspringservice.domain.entity;
+
+import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import java.util.HashSet;
+import java.util.Set;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.experimental.SuperBuilder;
+
+@Entity
+@Table(name = "right_item")
+@Getter
+@Setter
+@ToString
+@SuperBuilder
+@NoArgsConstructor
+public class RightEntity extends SoftDeletable {
+
+  @Column(name = "name", nullable = false, length = 200)
+  private String name;
+
+  @ManyToMany(mappedBy = "rights")
+  @Builder.Default
+  @ToString.Exclude
+  private Set<LeftEntity> lefts = new HashSet<>();
+}

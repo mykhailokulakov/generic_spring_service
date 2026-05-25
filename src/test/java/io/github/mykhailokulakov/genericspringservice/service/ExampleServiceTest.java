@@ -17,11 +17,9 @@ import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.ExampleEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
+import org.instancio.Instancio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,19 +43,7 @@ class ExampleServiceTest {
   void setUp() {
     id = UUID.randomUUID();
     entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).version(3L).build();
-    model =
-        new Example(
-            id,
-            "e",
-            "d",
-            1,
-            new BigDecimal("9.99"),
-            Instant.parse("2026-05-20T00:00:00Z"),
-            ExampleStatus.DRAFT,
-            Set.of("a"),
-            Instant.parse("2026-05-19T00:00:00Z"),
-            Instant.parse("2026-05-19T00:00:00Z"),
-            3L);
+    model = Instancio.create(Example.class);
   }
 
   @Test
@@ -119,7 +105,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_throwsIfMatchRequiredWhenVersionNull() {
-    var patch = new ExamplePatch(null, null, null, null, null, null, null);
+    var patch = Instancio.create(ExamplePatch.class);
     assertThatThrownBy(() -> service.patch(id, null, patch))
         .isInstanceOf(ConflictException.class)
         .hasMessage(ErrorCode.IF_MATCH_REQUIRED.key());
@@ -138,7 +124,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_appliesPatchOnMatchingVersion() {
-    var patch = new ExamplePatch("new", null, null, null, null, null, null);
+    var patch = Instancio.create(ExamplePatch.class);
     when(repository.findById(id)).thenReturn(Optional.of(entity));
     when(repository.saveAndFlush(entity)).thenReturn(entity);
     when(mapper.toModel(entity)).thenReturn(model);
@@ -152,7 +138,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_throwsNotFoundWhenMissing() {
-    var patch = new ExamplePatch(null, null, null, null, null, null, null);
+    var patch = Instancio.create(ExamplePatch.class);
     when(repository.findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.patch(id, 3L, patch)).isInstanceOf(NotFoundException.class);
@@ -161,7 +147,7 @@ class ExampleServiceTest {
 
   @Test
   void patch_throwsConflictOnVersionMismatch() {
-    var patch = new ExamplePatch(null, null, null, null, null, null, null);
+    var patch = Instancio.create(ExamplePatch.class);
     when(repository.findById(id)).thenReturn(Optional.of(entity));
 
     assertThatThrownBy(() -> service.patch(id, 2L, patch)).isInstanceOf(ConflictException.class);
