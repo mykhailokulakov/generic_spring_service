@@ -95,7 +95,7 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
   }
 
   @Test
-  void applyPatch_updatesMappedFieldsOnly() {
+  void applyReplacement_updatesMappedFieldsOnly() {
     var entity = fullyPopulatedEntity();
     var idBefore = entity.getId();
     var createdAtBefore = entity.getCreatedAt();
