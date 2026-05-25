@@ -27,7 +27,9 @@ public class ParentEntity extends SoftDeletable {
   @Column(name = "label", nullable = false, length = 200)
   private String label;
 
-  @OneToMany(mappedBy = "parent", cascade = CascadeType.PERSIST)
+  @OneToMany(
+      mappedBy = "parent",
+      cascade = {CascadeType.PERSIST, CascadeType.REMOVE})
   @Builder.Default
   @ToString.Exclude
   private List<ChildEntity> children = new ArrayList<>();

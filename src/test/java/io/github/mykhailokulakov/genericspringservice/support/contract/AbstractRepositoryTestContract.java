@@ -169,7 +169,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void softDeleteParent_doesNotOrphanChildren() {
+  void softDeleteParent_cascadesToChildren() {
     var parentRef =
         new Object() {
           UUID parentId;
@@ -197,16 +197,9 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     assertThat(dbHelper.countIncludingDeleted(ParentEntity.class)).isOne();
     assertThat(dbHelper.countWhereDeleted(ParentEntity.class)).isOne();
     assertThat(dbHelper.countIncludingDeleted(ChildEntity.class)).isOne();
-    assertThat(dbHelper.countWhereDeleted(ChildEntity.class)).isZero();
-
-    tx().executeWithoutResult(
-            status -> {
-              var childReloaded = em.find(ChildEntity.class, parentRef.childId);
-              assertThat(childReloaded).isNotNull();
-              assertThat(childReloaded.getParent())
-                  .as("soft-deleted parent resolves to null via @NotFound(IGNORE)")
-                  .isNull();
-            });
+    assertThat(dbHelper.countWhereDeleted(ChildEntity.class))
+        .as("cascade soft-delete: child is also soft-deleted when parent is")
+        .isOne();
   }
 
   @Test
