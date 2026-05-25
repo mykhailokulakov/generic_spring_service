@@ -4,13 +4,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.ModelFixture;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepoFixture;
 import java.util.List;
 import java.util.function.Function;
+import org.instancio.Instancio;
+import org.instancio.settings.AssignmentType;
+import org.instancio.settings.Keys;
+import org.instancio.settings.OnSetFieldError;
+import org.instancio.settings.Settings;
 import org.junit.jupiter.api.Test;
 
 public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
+
+  private static final Settings ALL_FIELDS_SETTINGS =
+      Settings.create()
+          .set(Keys.ASSIGNMENT_TYPE, AssignmentType.FIELD)
+          .set(Keys.ON_SET_FIELD_ERROR, OnSetFieldError.IGNORE)
+          .lock();
 
   protected abstract RepoFixture<E> repoFixture();
 
@@ -30,21 +40,29 @@ public abstract class AbstractMapperContractIT<E extends SoftDeletable, M> {
 
   @Test
   void toModel_copiesAuditFieldsFromEntity() {
-    var entity = RandomEntities.create(repoFixture().entityType());
+    var entity =
+        Instancio.of(repoFixture().entityType()).withSettings(ALL_FIELDS_SETTINGS).create();
 
     var model = toModel().apply(entity);
 
     assertThat(model).isNotNull();
+    assertThat(entity.getId()).isNotNull();
+    assertThat(entity.getCreatedAt()).isNotNull();
+    assertThat(entity.getUpdatedAt()).isNotNull();
+    assertThat(entity.getVersion()).isNotNull();
   }
 
   @Test
   void toEntity_leavesManagedFieldsUnset() {
-    var model = modelFixture().newModel();
+    var entity = repoFixture().newPersistable();
 
-    var entity = toEntity().apply(model);
+    var model = toModel().apply(entity);
+    var mapped = toEntity().apply(model);
 
-    assertThat(entity).isNotNull();
-    assertThat(entity.getId()).as("id should come from model, not generated").isNotNull();
+    assertThat(mapped.getId()).isNull();
+    assertThat(mapped.getCreatedAt()).isNull();
+    assertThat(mapped.getUpdatedAt()).isNull();
+    assertThat(mapped.getVersion()).isNull();
   }
 
   @Test

@@ -33,6 +33,11 @@ public final class ExampleFixtures implements RepoFixture<ExampleEntity>, ModelF
   }
 
   @Override
+  public void mutate(ExampleEntity entity) {
+    entity.setName("mutated-" + UUID.randomUUID().toString().substring(0, 8));
+  }
+
+  @Override
   public Class<Example> modelType() {
     return Example.class;
   }

@@ -15,6 +15,7 @@ import io.github.mykhailokulakov.genericspringservice.support.testentities.Right
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,13 +33,20 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
   @Autowired private DatabaseStateHelper dbHelper;
   @Autowired private PlatformTransactionManager txManager;
 
+  private JpaRepository<E, ?> cachedRepository;
+
   protected abstract RepoFixture<E> fixture();
 
   @SuppressWarnings("unchecked")
   private JpaRepository<E, ?> repository() {
-    var repositories = new Repositories(applicationContext);
-    return (JpaRepository<E, ?>)
-        repositories.getRepositoryFor(fixture().entityType()).orElseThrow();
+    if (cachedRepository == null) {
+      cachedRepository =
+          (JpaRepository<E, ?>)
+              new Repositories(applicationContext)
+                  .getRepositoryFor(fixture().entityType())
+                  .orElseThrow();
+    }
+    return cachedRepository;
   }
 
   private TransactionTemplate tx() {
@@ -96,6 +104,7 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
     @SuppressWarnings("unchecked")
     var repo = (JpaRepository<E, Object>) repository();
     var reloaded = repo.findById(saved.getId()).orElseThrow();
+    fixture().mutate(reloaded);
     repo.saveAndFlush(reloaded);
     em.clear();
 
@@ -150,8 +159,8 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
   void softDeleteParent_doesNotOrphanChildren() {
     var parentRef =
         new Object() {
-          java.util.UUID parentId;
-          java.util.UUID childId;
+          UUID parentId;
+          UUID childId;
         };
 
     tx().executeWithoutResult(
@@ -189,8 +198,8 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
   void manyToOne_foreignKeySurvivesReload() {
     var ids =
         new Object() {
-          java.util.UUID parentId;
-          java.util.UUID childId;
+          UUID parentId;
+          UUID childId;
         };
 
     tx().executeWithoutResult(
@@ -215,8 +224,8 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
   void oneToOne_foreignKeySurvivesReload() {
     var ids =
         new Object() {
-          java.util.UUID ownerId;
-          java.util.UUID profileId;
+          UUID ownerId;
+          UUID profileId;
         };
 
     tx().executeWithoutResult(
@@ -241,8 +250,8 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
   void manyToMany_associationSurvivesReload() {
     var ids =
         new Object() {
-          java.util.UUID leftId;
-          java.util.UUID rightId;
+          UUID leftId;
+          UUID rightId;
         };
 
     tx().executeWithoutResult(

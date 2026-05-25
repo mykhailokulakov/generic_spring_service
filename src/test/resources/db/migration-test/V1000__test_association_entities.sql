@@ -38,7 +38,7 @@ CREATE TABLE test_owner (
     version      bigint       NOT NULL,
     deleted_at   timestamptz,
     handle       varchar(200) NOT NULL,
-    profile_id   uuid,
+    profile_id   uuid UNIQUE,
     CONSTRAINT pk_test_owner PRIMARY KEY (id),
     CONSTRAINT fk_test_owner_profile FOREIGN KEY (profile_id)
         REFERENCES test_profile (id)

@@ -5,4 +5,6 @@ public interface RepoFixture<E> {
   Class<E> entityType();
 
   E newPersistable();
+
+  void mutate(E entity);
 }
