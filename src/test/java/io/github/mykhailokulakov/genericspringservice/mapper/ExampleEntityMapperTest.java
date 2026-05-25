@@ -1,7 +1,6 @@
 package io.github.mykhailokulakov.genericspringservice.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.instancio.Select.field;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
@@ -57,7 +56,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
 
   @Test
   void toEntityWithNullTagsProducesEmptySet() {
-    var model = Instancio.of(Example.class).set(field(Example.class, "tags"), null).create();
+    var model = Instancio.create(Example.class).toBuilder().tags(null).build();
 
     assertThat(mapper().toEntity(model).getTags()).isEmpty();
   }
@@ -87,8 +86,7 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
 
-    var replacement =
-        Instancio.of(Example.class).set(field(Example.class, "tags"), Set.of("only")).create();
+    var replacement = Instancio.create(Example.class).toBuilder().tags(Set.of("only")).build();
     mapper().applyReplacement(replacement, entity);
 
     assertThat(entity.getTags()).containsExactly("only");
@@ -115,12 +113,8 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).build();
     entity.setTags(null);
 
-    mapper()
-        .applyPatch(
-            Instancio.of(ExamplePatch.class)
-                .set(field(ExamplePatch.class, "tags"), Set.of("x", "y"))
-                .create(),
-            entity);
+    var patch = Instancio.create(ExamplePatch.class).toBuilder().tags(Set.of("x", "y")).build();
+    mapper().applyPatch(patch, entity);
 
     assertThat(entity.getTags()).containsExactlyInAnyOrder("x", "y");
   }
@@ -132,7 +126,8 @@ class ExampleEntityMapperTest extends AbstractMapperContractIT<ExampleEntity, Ex
     var originalPrice = entity.getPrice();
     var originalStatus = entity.getStatus();
 
-    mapper().applyPatch(new ExamplePatch(null, "patched", 99, null, null, null, null), entity);
+    var patch = ExamplePatch.builder().description("patched").quantity(99).build();
+    mapper().applyPatch(patch, entity);
 
     assertThat(entity.getName()).isEqualTo(originalName);
     assertThat(entity.getDescription()).isEqualTo("patched");
