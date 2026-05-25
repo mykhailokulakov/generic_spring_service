@@ -1,6 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.support.contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
@@ -13,7 +14,7 @@ import io.github.mykhailokulakov.testentities.ParentEntity;
 import io.github.mykhailokulakov.testentities.ProfileEntity;
 import io.github.mykhailokulakov.testentities.RightEntity;
 import jakarta.persistence.EntityManager;
-import java.time.temporal.ChronoUnit;
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -93,8 +94,8 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
 
     assertThat(found).isPresent();
     assertThat(found.get().getId()).isEqualTo(saved.getId());
-    assertThat(found.get().getCreatedAt().truncatedTo(ChronoUnit.MICROS))
-        .isEqualTo(saved.getCreatedAt().truncatedTo(ChronoUnit.MICROS));
+    assertThat(found.get().getCreatedAt())
+        .isCloseTo(saved.getCreatedAt(), within(Duration.ofNanos(1000)));
   }
 
   @Test
@@ -183,14 +184,14 @@ public abstract class AbstractRepositoryContractIT<E extends SoftDeletable> {
     assertThat(dbHelper.countIncludingDeleted(ChildEntity.class)).isOne();
     assertThat(dbHelper.countWhereDeleted(ChildEntity.class)).isZero();
 
-    var fkValue =
-        tx().execute(
-                status ->
-                    (UUID)
-                        em.createNativeQuery("SELECT parent_id FROM test_child WHERE id = :id")
-                            .setParameter("id", parentRef.childId)
-                            .getSingleResult());
-    assertThat(fkValue).isEqualTo(parentRef.parentId);
+    tx().executeWithoutResult(
+            status -> {
+              var childReloaded = em.find(ChildEntity.class, parentRef.childId);
+              assertThat(childReloaded).isNotNull();
+              assertThat(childReloaded.getParent())
+                  .as("soft-deleted parent resolves to null via @NotFound(IGNORE)")
+                  .isNull();
+            });
   }
 
   @Test
