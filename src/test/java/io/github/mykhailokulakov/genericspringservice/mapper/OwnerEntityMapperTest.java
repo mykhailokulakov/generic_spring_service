@@ -6,14 +6,12 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Owner;
-import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerPatch;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractPatchableMapperTestContract;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class OwnerEntityMapperTest
-    extends AbstractPatchableMapperTestContract<OwnerEntity, Owner, OwnerPatch> {
+class OwnerEntityMapperTest extends AbstractPatchableMapperTestContract<OwnerEntity, Owner> {
 
   @Override
   protected OwnerEntityMapper mapper() {

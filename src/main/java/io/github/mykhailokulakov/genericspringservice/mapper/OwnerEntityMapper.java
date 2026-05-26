@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Owner;
-import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerPatch;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -11,12 +10,16 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring")
 public interface OwnerEntityMapper
-    extends EntityMapper<OwnerEntity, Owner>, PatchableMapper<OwnerEntity, OwnerPatch> {
+    extends EntityMapper<OwnerEntity, Owner>, PatchableMapper<OwnerEntity, Owner> {
 
   @Override
   @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "createdAt", ignore = true)
+  @Mapping(target = "updatedAt", ignore = true)
+  @Mapping(target = "version", ignore = true)
   @Mapping(target = "example", ignore = true)
-  void applyPatch(OwnerPatch patch, @MappingTarget OwnerEntity entity);
+  void applyPatch(Owner model, @MappingTarget OwnerEntity entity);
 
   @Override
   @Mapping(target = "exampleId", source = "example.id")

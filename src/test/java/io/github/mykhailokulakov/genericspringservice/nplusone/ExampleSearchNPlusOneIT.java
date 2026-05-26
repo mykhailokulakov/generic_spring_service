@@ -3,7 +3,6 @@ package io.github.mykhailokulakov.genericspringservice.nplusone;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
@@ -64,7 +63,11 @@ class ExampleSearchNPlusOneIT {
     stats.clear();
 
     var pageable = PageRequest.of(0, 10);
-    var page = repository.findAll(ExampleSpecifications.matches(ExampleFilter.empty()), pageable);
+    var page =
+        repository.findAll(
+            ExampleSpecifications.matches(
+                null, null, null, null, null, null, null, null, null, null, null),
+            pageable);
 
     int totalTags = 0;
     for (ExampleEntity e : page.getContent()) {

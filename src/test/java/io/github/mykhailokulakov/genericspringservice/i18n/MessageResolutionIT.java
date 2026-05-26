@@ -19,7 +19,7 @@ import org.springframework.context.NoSuchMessageException;
 @IntegrationTest
 class MessageResolutionIT {
 
-  private static final Locale SPANISH = Locale.forLanguageTag("es");
+  private static final Locale UKRAINIAN = Locale.forLanguageTag("uk");
 
   @LocalServerPort int port;
   @Autowired MessageSource messages;
@@ -33,17 +33,17 @@ class MessageResolutionIT {
 
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
-  void everyErrorCodeResolvesInSpanish(ErrorCode code) {
-    var resolved = messages.getMessage(code.key(), null, SPANISH);
+  void everyErrorCodeResolvesInUkrainian(ErrorCode code) {
+    var resolved = messages.getMessage(code.key(), null, UKRAINIAN);
     assertThat(resolved).isNotBlank().isNotEqualTo(code.key());
   }
 
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
-  void spanishMessageDiffersFromEnglishMessage(ErrorCode code) {
+  void ukrainianMessageDiffersFromEnglishMessage(ErrorCode code) {
     var english = messages.getMessage(code.key(), null, Locale.ENGLISH);
-    var spanish = messages.getMessage(code.key(), null, SPANISH);
-    assertThat(spanish).isNotEqualTo(english);
+    var ukrainian = messages.getMessage(code.key(), null, UKRAINIAN);
+    assertThat(ukrainian).isNotEqualTo(english);
   }
 
   @ParameterizedTest

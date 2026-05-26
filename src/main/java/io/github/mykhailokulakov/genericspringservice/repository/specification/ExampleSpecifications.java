@@ -1,14 +1,18 @@
 package io.github.mykhailokulakov.genericspringservice.repository.specification;
 
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.allOfNonNull;
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.containsIgnoreCase;
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.in;
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.rangeBetween;
+
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity_;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
-import jakarta.persistence.metamodel.SingularAttribute;
-import java.util.ArrayList;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
@@ -16,67 +20,27 @@ public final class ExampleSpecifications {
 
   private ExampleSpecifications() {}
 
-  public static Specification<ExampleEntity> matches(ExampleFilter f) {
-    if (f == null) {
-      return Specification.unrestricted();
-    }
-    var parts = new ArrayList<Specification<ExampleEntity>>();
-    addIfPresent(parts, nameContains(f.name()));
-    addIfPresent(parts, descriptionContains(f.description()));
-    addIfPresent(parts, rangeBetween(ExampleEntity_.quantity, f.minQuantity(), f.maxQuantity()));
-    addIfPresent(parts, rangeBetween(ExampleEntity_.price, f.minPrice(), f.maxPrice()));
-    addIfPresent(parts, rangeBetween(ExampleEntity_.occurredAt, f.occurredFrom(), f.occurredTo()));
-    addIfPresent(parts, statusIn(f.statuses()));
-    addIfPresent(parts, hasAnyTag(f.tags()));
-    if (parts.isEmpty()) {
-      return Specification.unrestricted();
-    }
-    return Specification.allOf(parts);
-  }
-
-  private static void addIfPresent(
-      List<Specification<ExampleEntity>> parts, Specification<ExampleEntity> spec) {
-    if (spec != null) {
-      parts.add(spec);
-    }
-  }
-
-  private static Specification<ExampleEntity> nameContains(String value) {
-    if (!StringUtils.hasText(value)) return null;
-    var pattern = "%" + escapeLikePattern(value).toLowerCase(Locale.ROOT) + "%";
-    return (root, q, cb) -> cb.like(cb.lower(root.get(ExampleEntity_.name)), pattern, LIKE_ESCAPE);
-  }
-
-  private static Specification<ExampleEntity> descriptionContains(String value) {
-    if (!StringUtils.hasText(value)) return null;
-    var pattern = "%" + escapeLikePattern(value).toLowerCase(Locale.ROOT) + "%";
-    return (root, q, cb) ->
-        cb.like(cb.lower(root.get(ExampleEntity_.description)), pattern, LIKE_ESCAPE);
-  }
-
-  private static final char LIKE_ESCAPE = '\\';
-
-  private static String escapeLikePattern(String value) {
-    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-  }
-
-  private static <T extends Comparable<? super T>> Specification<ExampleEntity> rangeBetween(
-      SingularAttribute<ExampleEntity, T> attr, T min, T max) {
-    if (min == null && max == null) return null;
-    return (root, q, cb) -> {
-      if (min != null && max != null) {
-        return cb.between(root.get(attr), min, max);
-      }
-      if (min != null) {
-        return cb.greaterThanOrEqualTo(root.get(attr), min);
-      }
-      return cb.lessThanOrEqualTo(root.get(attr), max);
-    };
-  }
-
-  private static Specification<ExampleEntity> statusIn(Set<ExampleStatus> statuses) {
-    if (statuses == null || statuses.isEmpty()) return null;
-    return (root, q, cb) -> root.get(ExampleEntity_.status).in(statuses);
+  public static Specification<ExampleEntity> matches(
+      List<UUID> ids,
+      String name,
+      String description,
+      Integer minQuantity,
+      Integer maxQuantity,
+      BigDecimal minPrice,
+      BigDecimal maxPrice,
+      Instant occurredFrom,
+      Instant occurredTo,
+      Set<ExampleStatus> statuses,
+      Set<String> tags) {
+    return allOfNonNull(
+        in(ExampleEntity_.id, ids),
+        containsIgnoreCase(ExampleEntity_.name, name),
+        containsIgnoreCase(ExampleEntity_.description, description),
+        rangeBetween(ExampleEntity_.quantity, minQuantity, maxQuantity),
+        rangeBetween(ExampleEntity_.price, minPrice, maxPrice),
+        rangeBetween(ExampleEntity_.occurredAt, occurredFrom, occurredTo),
+        in(ExampleEntity_.status, statuses),
+        hasAnyTag(tags));
   }
 
   private static Specification<ExampleEntity> hasAnyTag(Set<String> tags) {
