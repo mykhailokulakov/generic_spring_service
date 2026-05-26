@@ -17,6 +17,6 @@ public abstract sealed class DomainException extends RuntimeException
   }
 
   public Object[] getArgs() {
-    return args;
+    return args.clone();
   }
 }

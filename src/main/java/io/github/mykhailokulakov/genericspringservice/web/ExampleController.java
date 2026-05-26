@@ -23,6 +23,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -51,7 +52,8 @@ public class ExampleController {
   @ApiResponse(responseCode = "200", description = "Page of matching examples.")
   @StandardApiResponses
   public PageResponse<ExampleResponse> search(
-      @Valid @ParameterObject ExampleFilter filter, @ParameterObject Pageable pageable) {
+      @Valid @ParameterObject ExampleFilter filter,
+      @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
     return PageResponse.of(service.search(filter, pageable).map(apiMapper::toResponse));
   }
 

@@ -3,13 +3,20 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.LeftEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Left;
 import io.github.mykhailokulakov.genericspringservice.domain.model.LeftPatch;
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring")
 public interface LeftEntityMapper
     extends EntityMapper<LeftEntity, Left>, PatchableMapper<LeftEntity, LeftPatch> {
+
+  @Override
+  @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+  @Mapping(target = "rights", ignore = true)
+  void applyPatch(LeftPatch patch, @MappingTarget LeftEntity entity);
 
   @Override
   @Mapping(target = "rights", ignore = true)

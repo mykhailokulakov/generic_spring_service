@@ -32,10 +32,7 @@ public class ExampleService {
 
   @Transactional(readOnly = true)
   public Example getById(UUID id) {
-    return repository
-        .findById(id)
-        .map(mapper::toModel)
-        .orElseThrow(() -> new NotFoundException(ErrorCode.EXAMPLE_NOT_FOUND, id));
+    return mapper.toModel(findOrThrow(id));
   }
 
   @Transactional(readOnly = true)
@@ -56,21 +53,20 @@ public class ExampleService {
   }
 
   public void softDelete(UUID id) {
-    var entity =
-        repository
-            .findById(id)
-            .orElseThrow(() -> new NotFoundException(ErrorCode.EXAMPLE_NOT_FOUND, id));
-    repository.delete(entity);
+    repository.delete(findOrThrow(id));
+  }
+
+  private ExampleEntity findOrThrow(UUID id) {
+    return repository
+        .findById(id)
+        .orElseThrow(() -> new NotFoundException(ErrorCode.EXAMPLE_NOT_FOUND, id));
   }
 
   private ExampleEntity loadAndCheckVersion(UUID id, Long expectedVersion) {
+    var entity = findOrThrow(id);
     if (expectedVersion == null) {
       throw new ConflictException(ErrorCode.IF_MATCH_REQUIRED, id);
     }
-    var entity =
-        repository
-            .findById(id)
-            .orElseThrow(() -> new NotFoundException(ErrorCode.EXAMPLE_NOT_FOUND, id));
     if (!Objects.equals(entity.getVersion(), expectedVersion)) {
       throw new ConflictException(ErrorCode.OPTIMISTIC_LOCK, id);
     }

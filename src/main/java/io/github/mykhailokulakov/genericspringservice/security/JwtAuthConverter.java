@@ -14,12 +14,21 @@ import org.springframework.stereotype.Component;
 public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationToken> {
 
   @Override
-  @SuppressWarnings("unchecked")
   public AbstractAuthenticationToken convert(Jwt jwt) {
     Map<String, Object> realm = jwt.getClaim("realm_access");
-    Collection<String> roles =
-        realm == null ? List.of() : (Collection<String>) realm.getOrDefault("roles", List.of());
-    var authorities = roles.stream().map(r -> new SimpleGrantedAuthority("ROLE_" + r)).toList();
+    if (realm == null) {
+      return new JwtAuthenticationToken(jwt, List.of(), jwt.getSubject());
+    }
+    var rolesObj = realm.getOrDefault("roles", List.of());
+    if (!(rolesObj instanceof Collection<?> rawRoles)) {
+      return new JwtAuthenticationToken(jwt, List.of(), jwt.getSubject());
+    }
+    var authorities =
+        rawRoles.stream()
+            .filter(String.class::isInstance)
+            .map(String.class::cast)
+            .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
+            .toList();
     return new JwtAuthenticationToken(jwt, authorities, jwt.getSubject());
   }
 }

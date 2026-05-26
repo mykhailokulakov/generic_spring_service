@@ -4,10 +4,11 @@ import static io.restassured.RestAssured.given;
 
 import io.github.mykhailokulakov.genericspringservice.support.containers.keycloak.TestJwtFactory;
 import io.restassured.specification.RequestSpecification;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class RestAssuredAuth {
 
-  private static volatile TestJwtFactory jwtFactory;
+  private static final AtomicReference<TestJwtFactory> JWT_FACTORY = new AtomicReference<>();
 
   private RestAssuredAuth() {}
 
@@ -34,11 +35,11 @@ public final class RestAssuredAuth {
    * direct test use — tests should call the {@code as*()} methods instead.
    */
   public static void setJwtFactory(TestJwtFactory factory) {
-    jwtFactory = factory;
+    JWT_FACTORY.set(factory);
   }
 
   private static TestJwtFactory requireFactory() {
-    var factory = jwtFactory;
+    var factory = JWT_FACTORY.get();
     if (factory == null) {
       throw new IllegalStateException(
           "RestAssuredAuth has no TestJwtFactory — is @WithKeycloak on the test class?");
