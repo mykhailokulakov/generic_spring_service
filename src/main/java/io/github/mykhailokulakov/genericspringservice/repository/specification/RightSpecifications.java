@@ -2,6 +2,7 @@ package io.github.mykhailokulakov.genericspringservice.repository.specification;
 
 import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.allOfNonNull;
 import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.containsIgnoreCase;
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.in;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.RightEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.RightEntity_;
@@ -14,11 +15,6 @@ public final class RightSpecifications {
   private RightSpecifications() {}
 
   public static Specification<RightEntity> matches(List<UUID> ids, String name) {
-    return allOfNonNull(idIn(ids), containsIgnoreCase(RightEntity_.name, name));
-  }
-
-  private static Specification<RightEntity> idIn(List<UUID> ids) {
-    if (ids == null || ids.isEmpty()) return null;
-    return (root, q, cb) -> root.get(RightEntity_.id).in(ids);
+    return allOfNonNull(in(RightEntity_.id, ids), containsIgnoreCase(RightEntity_.name, name));
   }
 }

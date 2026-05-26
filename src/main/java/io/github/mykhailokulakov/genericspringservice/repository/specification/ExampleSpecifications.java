@@ -2,11 +2,12 @@ package io.github.mykhailokulakov.genericspringservice.repository.specification;
 
 import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.allOfNonNull;
 import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.containsIgnoreCase;
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.in;
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.rangeBetween;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity_;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
-import jakarta.persistence.metamodel.SingularAttribute;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -32,38 +33,14 @@ public final class ExampleSpecifications {
       Set<ExampleStatus> statuses,
       Set<String> tags) {
     return allOfNonNull(
-        idIn(ids),
+        in(ExampleEntity_.id, ids),
         containsIgnoreCase(ExampleEntity_.name, name),
         containsIgnoreCase(ExampleEntity_.description, description),
         rangeBetween(ExampleEntity_.quantity, minQuantity, maxQuantity),
         rangeBetween(ExampleEntity_.price, minPrice, maxPrice),
         rangeBetween(ExampleEntity_.occurredAt, occurredFrom, occurredTo),
-        statusIn(statuses),
+        in(ExampleEntity_.status, statuses),
         hasAnyTag(tags));
-  }
-
-  private static Specification<ExampleEntity> idIn(List<UUID> ids) {
-    if (ids == null || ids.isEmpty()) return null;
-    return (root, q, cb) -> root.get(ExampleEntity_.id).in(ids);
-  }
-
-  private static <T extends Comparable<? super T>> Specification<ExampleEntity> rangeBetween(
-      SingularAttribute<ExampleEntity, T> attr, T min, T max) {
-    if (min == null && max == null) return null;
-    return (root, q, cb) -> {
-      if (min != null && max != null) {
-        return cb.between(root.get(attr), min, max);
-      }
-      if (min != null) {
-        return cb.greaterThanOrEqualTo(root.get(attr), min);
-      }
-      return cb.lessThanOrEqualTo(root.get(attr), max);
-    };
-  }
-
-  private static Specification<ExampleEntity> statusIn(Set<ExampleStatus> statuses) {
-    if (statuses == null || statuses.isEmpty()) return null;
-    return (root, q, cb) -> root.get(ExampleEntity_.status).in(statuses);
   }
 
   private static Specification<ExampleEntity> hasAnyTag(Set<String> tags) {

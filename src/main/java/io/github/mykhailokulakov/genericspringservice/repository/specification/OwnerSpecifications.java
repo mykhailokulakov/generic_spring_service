@@ -2,6 +2,8 @@ package io.github.mykhailokulakov.genericspringservice.repository.specification;
 
 import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.allOfNonNull;
 import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.containsIgnoreCase;
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.fkIn;
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.in;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity_;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
@@ -17,16 +19,8 @@ public final class OwnerSpecifications {
   public static Specification<OwnerEntity> matches(
       List<UUID> ids, List<UUID> exampleIds, String handle) {
     return allOfNonNull(
-        idIn(ids), exampleIdIn(exampleIds), containsIgnoreCase(OwnerEntity_.handle, handle));
-  }
-
-  private static Specification<OwnerEntity> idIn(List<UUID> ids) {
-    if (ids == null || ids.isEmpty()) return null;
-    return (root, q, cb) -> root.get(OwnerEntity_.id).in(ids);
-  }
-
-  private static Specification<OwnerEntity> exampleIdIn(List<UUID> exampleIds) {
-    if (exampleIds == null || exampleIds.isEmpty()) return null;
-    return (root, q, cb) -> root.get(OwnerEntity_.example).get(ExampleEntity_.id).in(exampleIds);
+        in(OwnerEntity_.id, ids),
+        fkIn(OwnerEntity_.example, ExampleEntity_.id, exampleIds),
+        containsIgnoreCase(OwnerEntity_.handle, handle));
   }
 }
