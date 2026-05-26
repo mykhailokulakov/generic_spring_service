@@ -138,29 +138,8 @@ jobs:
           echo "New version:   ${NEW}"
           echo "Next snapshot: ${NEXT}-SNAPSHOT"
 
-      - name: Set release version in pom
-        run: ./mvnw -B -ntp versions:set -DnewVersion=${{ steps.ver.outputs.new }} -DgenerateBackupPoms=false
-
-      # Idempotent: if a previous run failed after pushing this commit
-      # but before the tag was pushed (e.g. git-cliff install hiccup),
-      # rerunning the workflow checks out the already-bumped pom and
-      # `versions:set` becomes a no-op. The unguarded `git commit` would
-      # then exit "nothing to commit" and the documented pre-tag retry
-      # path would be broken. Skip the commit+push when the pom is
-      # already at the release version on origin/main.
-      - name: Commit release version bump
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- pom.xml; then
-            echo "pom.xml already at v${{ steps.ver.outputs.new }} — skipping bump commit (rerun after partial failure)."
-            exit 0
-          fi
-          git add pom.xml
-          git commit -m "chore(release): v${{ steps.ver.outputs.new }} [skip ci]"
-          git push origin HEAD:main
-
-      # Pinned by version. Verify the tarball against the per-asset
-      # .sha512 file from the same release before trusting the binary on PATH.
+      # Install git-cliff and generate changelog BEFORE the version bump
+      # commit, so a git-cliff failure leaves no half-released state.
       - name: Install git-cliff (pinned)
         env:
           GIT_CLIFF_VERSION: '2.9.1'
@@ -181,6 +160,27 @@ jobs:
           git-cliff --tag "v${{ steps.ver.outputs.new }}" --strip header --output CHANGELOG_RELEASE.md
           echo "---- CHANGELOG_RELEASE.md ----"
           cat CHANGELOG_RELEASE.md
+
+      - name: Set release version in pom
+        run: ./mvnw -B -ntp versions:set -DnewVersion=${{ steps.ver.outputs.new }} -DgenerateBackupPoms=false
+
+      # Idempotent: if a previous run failed after pushing this commit
+      # but before the tag was pushed, rerunning the workflow checks out
+      # the already-bumped pom and `versions:set` becomes a no-op. The
+      # unguarded `git commit` would then exit "nothing to commit" and
+      # the documented pre-tag retry path would be broken. Skip the
+      # commit+push when the pom is already at the release version on
+      # origin/main.
+      - name: Commit release version bump
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- pom.xml; then
+            echo "pom.xml already at v${{ steps.ver.outputs.new }} — skipping bump commit (rerun after partial failure)."
+            exit 0
+          fi
+          git add pom.xml
+          git commit -m "chore(release): v${{ steps.ver.outputs.new }} [skip ci]"
+          git push origin HEAD:main
 
       # ---- POINT OF NO RETURN ----
       # Everything below this line publishes externally visible

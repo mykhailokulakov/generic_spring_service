@@ -4,8 +4,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity_;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
-import java.math.BigDecimal;
-import java.time.Instant;
+import jakarta.persistence.metamodel.SingularAttribute;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -24,9 +23,9 @@ public final class ExampleSpecifications {
     var parts = new ArrayList<Specification<ExampleEntity>>();
     addIfPresent(parts, nameContains(f.name()));
     addIfPresent(parts, descriptionContains(f.description()));
-    addIfPresent(parts, quantityBetween(f.minQuantity(), f.maxQuantity()));
-    addIfPresent(parts, priceBetween(f.minPrice(), f.maxPrice()));
-    addIfPresent(parts, occurredBetween(f.occurredFrom(), f.occurredTo()));
+    addIfPresent(parts, rangeBetween(ExampleEntity_.quantity, f.minQuantity(), f.maxQuantity()));
+    addIfPresent(parts, rangeBetween(ExampleEntity_.price, f.minPrice(), f.maxPrice()));
+    addIfPresent(parts, rangeBetween(ExampleEntity_.occurredAt, f.occurredFrom(), f.occurredTo()));
     addIfPresent(parts, statusIn(f.statuses()));
     addIfPresent(parts, hasAnyTag(f.tags()));
     if (parts.isEmpty()) {
@@ -55,50 +54,23 @@ public final class ExampleSpecifications {
         cb.like(cb.lower(root.get(ExampleEntity_.description)), pattern, LIKE_ESCAPE);
   }
 
-  // Escape character used in LIKE patterns so user-supplied `%` / `_` literals
-  // don't act as wildcards.
   private static final char LIKE_ESCAPE = '\\';
 
   private static String escapeLikePattern(String value) {
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
-  private static Specification<ExampleEntity> quantityBetween(Integer min, Integer max) {
+  private static <T extends Comparable<? super T>> Specification<ExampleEntity> rangeBetween(
+      SingularAttribute<ExampleEntity, T> attr, T min, T max) {
     if (min == null && max == null) return null;
     return (root, q, cb) -> {
       if (min != null && max != null) {
-        return cb.between(root.get(ExampleEntity_.quantity), min, max);
+        return cb.between(root.get(attr), min, max);
       }
       if (min != null) {
-        return cb.greaterThanOrEqualTo(root.get(ExampleEntity_.quantity), min);
+        return cb.greaterThanOrEqualTo(root.get(attr), min);
       }
-      return cb.lessThanOrEqualTo(root.get(ExampleEntity_.quantity), max);
-    };
-  }
-
-  private static Specification<ExampleEntity> priceBetween(BigDecimal min, BigDecimal max) {
-    if (min == null && max == null) return null;
-    return (root, q, cb) -> {
-      if (min != null && max != null) {
-        return cb.between(root.get(ExampleEntity_.price), min, max);
-      }
-      if (min != null) {
-        return cb.greaterThanOrEqualTo(root.get(ExampleEntity_.price), min);
-      }
-      return cb.lessThanOrEqualTo(root.get(ExampleEntity_.price), max);
-    };
-  }
-
-  private static Specification<ExampleEntity> occurredBetween(Instant from, Instant to) {
-    if (from == null && to == null) return null;
-    return (root, q, cb) -> {
-      if (from != null && to != null) {
-        return cb.between(root.get(ExampleEntity_.occurredAt), from, to);
-      }
-      if (from != null) {
-        return cb.greaterThanOrEqualTo(root.get(ExampleEntity_.occurredAt), from);
-      }
-      return cb.lessThanOrEqualTo(root.get(ExampleEntity_.occurredAt), to);
+      return cb.lessThanOrEqualTo(root.get(attr), max);
     };
   }
 
@@ -107,15 +79,6 @@ public final class ExampleSpecifications {
     return (root, q, cb) -> root.get(ExampleEntity_.status).in(statuses);
   }
 
-  // Uses cb.isMember per tag OR'd together rather than a join. A join on the
-  // @ElementCollection multiplies rows for entities that match more than one
-  // requested tag — DISTINCT fixes the page query but the separate count query
-  // would still report an inflated total. cb.isMember translates to an EXISTS-
-  // style check, leaving both data and count queries one-row-per-entity.
-  //
-  // Null/blank tags are filtered out so they don't reach cb.isMember. If the
-  // request contained only blanks, the whole filter is dropped (returns null)
-  // rather than producing a predicate that matches nothing.
   private static Specification<ExampleEntity> hasAnyTag(Set<String> tags) {
     if (tags == null || tags.isEmpty()) return null;
     var specs =

@@ -60,6 +60,8 @@ This section records explicit choices we made and the rationale. Future contribu
 
 We ship our own four-class persistence chain (section 6.1). It is deliberate, not an oversight.
 
+`Identifiable` defines `equals`/`hashCode` with the following contract: two entities are equal if they are the same class and share a non-null `id`. Transient entities (id still null) are never equal to anything except themselves (`==`). `hashCode` returns `getClass().hashCode()` — a constant per entity type — so it is stable across the transient-to-persistent lifecycle and safe for use in `Set` and `Map` before the id is assigned. This is the well-known Vlad Mihalcea / JPA best-practice pattern.
+
 ### 3.2 We do NOT use a service interface for the example service
 
 `ExampleService` is a concrete `@Service` class. No interface. The "always extract an interface" reflex is a 2010 Java habit that no longer earns its keep:

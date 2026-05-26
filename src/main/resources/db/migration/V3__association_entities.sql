@@ -28,11 +28,13 @@ CREATE TABLE owner (
     version      bigint       NOT NULL,
     deleted_at   timestamptz,
     handle       varchar(200) NOT NULL,
-    example_id   uuid UNIQUE,
+    example_id   uuid,
     CONSTRAINT pk_owner PRIMARY KEY (id),
     CONSTRAINT fk_owner_example FOREIGN KEY (example_id)
         REFERENCES example (id)
 );
+
+CREATE UNIQUE INDEX ix_owner_example_id_active ON owner(example_id) WHERE deleted_at IS NULL;
 
 CREATE TABLE left_item (
     id           uuid         NOT NULL,
@@ -59,7 +61,7 @@ CREATE TABLE left_right_item (
     right_id     uuid NOT NULL,
     CONSTRAINT pk_left_right_item PRIMARY KEY (left_id, right_id),
     CONSTRAINT fk_lr_left FOREIGN KEY (left_id)
-        REFERENCES left_item (id),
+        REFERENCES left_item (id) ON DELETE CASCADE,
     CONSTRAINT fk_lr_right FOREIGN KEY (right_id)
-        REFERENCES right_item (id)
+        REFERENCES right_item (id) ON DELETE CASCADE
 );

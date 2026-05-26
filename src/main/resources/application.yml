@@ -25,6 +25,7 @@ spring:
     locations: classpath:db/migration
   jackson:
     serialization:
+      write-dates-as-timestamps: false
       indent-output: false
     deserialization:
       fail-on-unknown-properties: true
@@ -37,6 +38,10 @@ spring:
     basename: i18n/messages
     encoding: UTF-8
     fallback-to-system-locale: false
+  data:
+    web:
+      pageable:
+        max-page-size: 100
   web:
     locale-resolver: accept-header
 

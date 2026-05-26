@@ -96,20 +96,40 @@ class ExampleServiceTest {
 
   @Test
   void replace_throwsIfMatchRequiredWhenVersionNull() {
+    when(repository.findById(id)).thenReturn(Optional.of(entity));
+
     assertThatThrownBy(() -> service.replace(id, null, model))
         .isInstanceOf(ConflictException.class)
         .hasMessage(ErrorCode.IF_MATCH_REQUIRED.key());
-    verify(repository, never()).findById(any(UUID.class));
+    verify(repository, never()).save(any());
+  }
+
+  @Test
+  void replace_throwsNotFoundBeforeIfMatchWhenMissingAndVersionNull() {
+    when(repository.findById(id)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.replace(id, null, model))
+        .isInstanceOf(NotFoundException.class);
     verify(repository, never()).save(any());
   }
 
   @Test
   void patch_throwsIfMatchRequiredWhenVersionNull() {
     var patch = Instancio.create(ExamplePatch.class);
+    when(repository.findById(id)).thenReturn(Optional.of(entity));
+
     assertThatThrownBy(() -> service.patch(id, null, patch))
         .isInstanceOf(ConflictException.class)
         .hasMessage(ErrorCode.IF_MATCH_REQUIRED.key());
-    verify(repository, never()).findById(any(UUID.class));
+    verify(repository, never()).save(any());
+  }
+
+  @Test
+  void patch_throwsNotFoundBeforeIfMatchWhenMissingAndVersionNull() {
+    var patch = Instancio.create(ExamplePatch.class);
+    when(repository.findById(id)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.patch(id, null, patch)).isInstanceOf(NotFoundException.class);
     verify(repository, never()).save(any());
   }
 
