@@ -286,8 +286,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     persistAndFlush(newEntity());
     persistAndFlush(newEntity());
 
-    var page =
-        specExecutor().findAll(Specification.where((Specification<E>) null), Pageable.unpaged());
+    var page = specExecutor().findAll(Specification.unrestricted(), Pageable.unpaged());
 
     assertThat(page.getContent()).hasSize(3);
   }
@@ -300,9 +299,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
 
     var page =
         specExecutor()
-            .findAll(
-                Specification.where((Specification<E>) null),
-                PageRequest.of(0, 3, Sort.by("createdAt")));
+            .findAll(Specification.unrestricted(), PageRequest.of(0, 3, Sort.by("createdAt")));
 
     assertThat(page.getTotalElements()).isEqualTo(5);
     assertThat(page.getContent()).hasSize(3);
@@ -319,8 +316,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     repo.deleteById(toDelete.getId());
     repo.flush();
 
-    var page =
-        specExecutor().findAll(Specification.where((Specification<E>) null), Pageable.unpaged());
+    var page = specExecutor().findAll(Specification.unrestricted(), Pageable.unpaged());
 
     assertThat(page.getTotalElements()).isOne();
   }
