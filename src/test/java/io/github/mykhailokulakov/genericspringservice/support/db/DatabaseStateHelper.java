@@ -35,7 +35,8 @@ public class DatabaseStateHelper {
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void truncate(String tableName) {
-    em.createNativeQuery("TRUNCATE TABLE \"" + tableName + "\" RESTART IDENTITY CASCADE")
+    var sanitized = sanitizeIdentifier(tableName);
+    em.createNativeQuery("TRUNCATE TABLE \"" + sanitized + "\" RESTART IDENTITY CASCADE")
         .executeUpdate();
   }
 
@@ -56,6 +57,13 @@ public class DatabaseStateHelper {
                     "SELECT count(*) FROM \"" + table + "\" WHERE deleted_at IS NOT NULL")
                 .getSingleResult();
     return n.longValue();
+  }
+
+  private static String sanitizeIdentifier(String name) {
+    if (name == null || !name.matches("[a-zA-Z_][a-zA-Z0-9_]*")) {
+      throw new IllegalArgumentException("Invalid SQL identifier: " + name);
+    }
+    return name;
   }
 
   private static String tableName(Class<?> entityClass) {
