@@ -3,7 +3,6 @@ package io.github.mykhailokulakov.genericspringservice.common.persistence;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
-import java.util.Objects;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,9 +24,8 @@ public abstract class Identifiable {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    var that = (Identifiable) o;
-    return id != null && Objects.equals(id, that.id);
+    if (!(o instanceof Identifiable that)) return false;
+    return id != null && id.equals(that.getId());
   }
 
   @Override
