@@ -14,13 +14,21 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
+import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.instancio.Instancio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +51,27 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   private Class<E> resolvedEntityType;
   private JpaRepository<E, ?> cachedRepository;
 
-  protected abstract void mutate(E entity);
+  private void mutate(E entity) {
+    var field =
+        Arrays.stream(entityType().getDeclaredFields())
+            .filter(AbstractRepositoryTestContract::isMutableValueField)
+            .findFirst()
+            .orElseThrow();
+    field.setAccessible(true);
+    try {
+      field.set(entity, Instancio.create(field.getType()));
+    } catch (IllegalAccessException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private static boolean isMutableValueField(Field field) {
+    return !field.isAnnotationPresent(ManyToOne.class)
+        && !field.isAnnotationPresent(OneToOne.class)
+        && !field.isAnnotationPresent(OneToMany.class)
+        && !field.isAnnotationPresent(ManyToMany.class)
+        && !field.isAnnotationPresent(ElementCollection.class);
+  }
 
   @SuppressWarnings("unchecked")
   private Class<E> entityType() {
