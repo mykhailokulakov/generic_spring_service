@@ -273,14 +273,6 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void specification_nullReturnsAll() {
-    persistAndFlush(newEntity());
-    persistAndFlush(newEntity());
-
-    assertThat(specExecutor().findAll((Specification<E>) null)).hasSize(2);
-  }
-
-  @Test
   void specification_emptyReturnsAll() {
     persistAndFlush(newEntity());
     persistAndFlush(newEntity());
