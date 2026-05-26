@@ -4,7 +4,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractRepositoryTestContract;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
-import java.util.UUID;
+import org.instancio.Instancio;
 import org.springframework.beans.factory.annotation.Autowired;
 
 class OwnerRepositoryIT extends AbstractRepositoryTestContract<OwnerEntity> {
@@ -21,6 +21,6 @@ class OwnerRepositoryIT extends AbstractRepositoryTestContract<OwnerEntity> {
 
   @Override
   protected void mutate(OwnerEntity entity) {
-    entity.setHandle(UUID.randomUUID().toString());
+    entity.setHandle(Instancio.create(String.class));
   }
 }
