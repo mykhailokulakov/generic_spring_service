@@ -25,7 +25,7 @@ import org.springframework.context.annotation.Import;
 class GlobalExceptionHandlerIT {
 
   private static final String PATH = "/api/v1/examples";
-  private static final Locale SPANISH = Locale.forLanguageTag("es");
+  private static final Locale UKRAINIAN = Locale.forLanguageTag("uk");
 
   @LocalServerPort int port;
   @Autowired DatabaseStateHelper db;
@@ -68,7 +68,7 @@ class GlobalExceptionHandlerIT {
   void notFound_returns404_problemJson_codeAndLocalizedTitle() {
     var response =
         asUser()
-            .header("Accept-Language", "es")
+            .header("Accept-Language", "uk")
             .get(PATH + "/" + UUID.randomUUID())
             .then()
             .extract()
@@ -78,7 +78,7 @@ class GlobalExceptionHandlerIT {
         .hasStatus(404)
         .hasProblemJsonContentType()
         .hasCode(ErrorCode.EXAMPLE_NOT_FOUND.key())
-        .hasTitle(title("not-found", SPANISH));
+        .hasTitle(title("not-found", UKRAINIAN));
   }
 
   // --- handleConflict (ConflictException → IF_MATCH_REQUIRED) --------------
@@ -90,7 +90,7 @@ class GlobalExceptionHandlerIT {
     var response =
         asAdmin()
             .contentType(ContentType.JSON)
-            .header("Accept-Language", "es")
+            .header("Accept-Language", "uk")
             .body(Map.of("name", "renamed"))
             .patch(PATH + "/" + id)
             .then()
@@ -101,7 +101,7 @@ class GlobalExceptionHandlerIT {
         .hasStatus(412)
         .hasProblemJsonContentType()
         .hasCode(ErrorCode.IF_MATCH_REQUIRED.key())
-        .hasTitle(title("precondition-failed", SPANISH));
+        .hasTitle(title("precondition-failed", UKRAINIAN));
   }
 
   // --- handleConflict (ConflictException → OPTIMISTIC_LOCK) ----------------
@@ -114,7 +114,7 @@ class GlobalExceptionHandlerIT {
         asAdmin()
             .contentType(ContentType.JSON)
             .header("If-Match", "999")
-            .header("Accept-Language", "es")
+            .header("Accept-Language", "uk")
             .body(Map.of("name", "renamed"))
             .patch(PATH + "/" + id)
             .then()
@@ -125,7 +125,7 @@ class GlobalExceptionHandlerIT {
         .hasStatus(409)
         .hasProblemJsonContentType()
         .hasCode(ErrorCode.OPTIMISTIC_LOCK.key())
-        .hasTitle(title("conflict", SPANISH));
+        .hasTitle(title("conflict", UKRAINIAN));
   }
 
   // --- handleAccessDenied (AccessDeniedException) --------------------------
@@ -135,7 +135,7 @@ class GlobalExceptionHandlerIT {
     var response =
         asUser()
             .contentType(ContentType.JSON)
-            .header("Accept-Language", "es")
+            .header("Accept-Language", "uk")
             .body(validCreateBody())
             .post(PATH)
             .then()
@@ -146,7 +146,7 @@ class GlobalExceptionHandlerIT {
         .hasStatus(403)
         .hasProblemJsonContentType()
         .hasCode(ErrorCode.FORBIDDEN.key())
-        .hasTitle(title("forbidden", SPANISH));
+        .hasTitle(title("forbidden", UKRAINIAN));
   }
 
   // --- handleMethodArgumentNotValid (MethodArgumentNotValidException) ------
@@ -159,7 +159,7 @@ class GlobalExceptionHandlerIT {
     var response =
         asAdmin()
             .contentType(ContentType.JSON)
-            .header("Accept-Language", "es")
+            .header("Accept-Language", "uk")
             .body(body)
             .post(PATH)
             .then()
@@ -170,7 +170,7 @@ class GlobalExceptionHandlerIT {
         .hasStatus(400)
         .hasProblemJsonContentType()
         .hasCode(ErrorCode.VALIDATION_FAILED.key())
-        .hasTitle(title("validation", SPANISH))
+        .hasTitle(title("validation", UKRAINIAN))
         .hasViolation("name", "NotBlank");
   }
 

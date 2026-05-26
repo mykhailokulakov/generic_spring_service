@@ -346,16 +346,16 @@ class ExampleControllerIT {
     }
 
     @Test
-    void acceptLanguageEsOn404_returnsSpanishDetail() {
+    void acceptLanguageUkOn404_returnsUkrainianDetail() {
       var response =
           asUser()
-              .header("Accept-Language", "es")
+              .header("Accept-Language", "uk")
               .get(PATH + "/" + UUID.randomUUID())
               .then()
               .extract()
               .response();
       assertThat(response).hasStatus(404).hasCode("error.example.not-found");
-      assertThat(response.jsonPath().getString("detail")).startsWith("No se encontró");
+      assertThat(response.jsonPath().getString("detail")).startsWith("Приклад");
     }
   }
 
@@ -617,7 +617,7 @@ class ExampleControllerIT {
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "0")
-              .header("Accept-Language", "es")
+              .header("Accept-Language", "uk")
               .body(fullUpdateBody())
               .put(PATH + "/" + id)
               .then()
@@ -977,16 +977,16 @@ class ExampleControllerIT {
     }
 
     @Test
-    void acceptLanguageEsOn404_returnsSpanishDetail() {
+    void acceptLanguageUkOn404_returnsUkrainianDetail() {
       var response =
           asAdmin()
-              .header("Accept-Language", "es")
+              .header("Accept-Language", "uk")
               .delete(PATH + "/" + UUID.randomUUID())
               .then()
               .extract()
               .response();
       assertThat(response).hasStatus(404).hasCode("error.example.not-found");
-      assertThat(response.jsonPath().getString("detail")).startsWith("No se encontró");
+      assertThat(response.jsonPath().getString("detail")).startsWith("Приклад");
     }
   }
 }
