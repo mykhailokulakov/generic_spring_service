@@ -1,5 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.repository.specification;
 
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.containsIgnoreCase;
+
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity_;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
@@ -7,7 +9,6 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus
 import jakarta.persistence.metamodel.SingularAttribute;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
@@ -21,8 +22,8 @@ public final class ExampleSpecifications {
       return Specification.unrestricted();
     }
     var parts = new ArrayList<Specification<ExampleEntity>>();
-    addIfPresent(parts, nameContains(f.name()));
-    addIfPresent(parts, descriptionContains(f.description()));
+    addIfPresent(parts, containsIgnoreCase(ExampleEntity_.name, f.name()));
+    addIfPresent(parts, containsIgnoreCase(ExampleEntity_.description, f.description()));
     addIfPresent(parts, rangeBetween(ExampleEntity_.quantity, f.minQuantity(), f.maxQuantity()));
     addIfPresent(parts, rangeBetween(ExampleEntity_.price, f.minPrice(), f.maxPrice()));
     addIfPresent(parts, rangeBetween(ExampleEntity_.occurredAt, f.occurredFrom(), f.occurredTo()));
@@ -39,25 +40,6 @@ public final class ExampleSpecifications {
     if (spec != null) {
       parts.add(spec);
     }
-  }
-
-  private static Specification<ExampleEntity> nameContains(String value) {
-    if (!StringUtils.hasText(value)) return null;
-    var pattern = "%" + escapeLikePattern(value).toLowerCase(Locale.ROOT) + "%";
-    return (root, q, cb) -> cb.like(cb.lower(root.get(ExampleEntity_.name)), pattern, LIKE_ESCAPE);
-  }
-
-  private static Specification<ExampleEntity> descriptionContains(String value) {
-    if (!StringUtils.hasText(value)) return null;
-    var pattern = "%" + escapeLikePattern(value).toLowerCase(Locale.ROOT) + "%";
-    return (root, q, cb) ->
-        cb.like(cb.lower(root.get(ExampleEntity_.description)), pattern, LIKE_ESCAPE);
-  }
-
-  private static final char LIKE_ESCAPE = '\\';
-
-  private static String escapeLikePattern(String value) {
-    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
   private static <T extends Comparable<? super T>> Specification<ExampleEntity> rangeBetween(
