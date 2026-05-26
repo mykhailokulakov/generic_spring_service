@@ -1,6 +1,5 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
-import io.github.mykhailokulakov.genericspringservice.domain.model.ChildFilter;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresAdmin;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresUser;
 import io.github.mykhailokulakov.genericspringservice.service.ChildService;
@@ -16,12 +15,13 @@ import io.github.mykhailokulakov.genericspringservice.web.dto.PatchChildRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateChildRequest;
 import io.github.mykhailokulakov.genericspringservice.web.mapper.ChildApiMapper;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -52,9 +53,12 @@ public class ChildController {
   @ApiResponse(responseCode = "200", description = "Page of matching children.")
   @StandardApiResponses
   public PageResponse<ChildResponse> search(
-      @Valid @ParameterObject ChildFilter filter,
-      @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-    return PageResponse.of(service.search(filter, pageable).map(apiMapper::toResponse));
+      @RequestParam(value = "id", required = false) List<UUID> ids,
+      @RequestParam(value = "parentId", required = false) List<UUID> parentIds,
+      @RequestParam(value = "value", required = false) String value,
+      @Parameter(hidden = true) @PageableDefault(size = 20) Pageable pageable) {
+    return PageResponse.of(
+        service.search(ids, parentIds, value, pageable).map(apiMapper::toResponse));
   }
 
   @GetMapping("/{id}")

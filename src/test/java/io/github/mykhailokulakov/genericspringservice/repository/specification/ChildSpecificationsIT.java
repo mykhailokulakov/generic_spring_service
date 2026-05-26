@@ -4,11 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ChildFilter;
 import io.github.mykhailokulakov.genericspringservice.repository.ChildRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.ParentRepository;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,22 +38,12 @@ class ChildSpecificationsIT {
   }
 
   @Test
-  void nullFilter_returnsAll() {
-    var parent = persistParent("p");
-    persistChild("a", parent);
-    persistChild("b", parent);
-    var result = childRepository.findAll(ChildSpecifications.matches(null), Pageable.unpaged());
-    assertThat(result.getContent()).hasSize(2);
-  }
-
-  @Test
-  void emptyFilter_returnsAll() {
+  void allNullParams_returnsAll() {
     var parent = persistParent("p");
     persistChild("a", parent);
     persistChild("b", parent);
     var result =
-        childRepository.findAll(
-            ChildSpecifications.matches(ChildFilter.empty()), Pageable.unpaged());
+        childRepository.findAll(ChildSpecifications.matches(null, null, null), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(2);
   }
 
@@ -64,7 +54,7 @@ class ChildSpecificationsIT {
     persistChild("Beta", parent);
     var result =
         childRepository.findAll(
-            ChildSpecifications.matches(new ChildFilter("ALPHA", null)), Pageable.unpaged());
+            ChildSpecifications.matches(null, null, "ALPHA"), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(1);
     assertThat(result.getContent().getFirst().getValue()).isEqualTo("Alpha");
   }
@@ -75,32 +65,43 @@ class ChildSpecificationsIT {
     persistChild("Alpha", parent);
     var result =
         childRepository.findAll(
-            ChildSpecifications.matches(new ChildFilter("Gamma", null)), Pageable.unpaged());
+            ChildSpecifications.matches(null, null, "Gamma"), Pageable.unpaged());
     assertThat(result.getContent()).isEmpty();
   }
 
   @Test
-  void parentIdEquals_returnsOnlyMatchingChildren() {
+  void parentIdIn_returnsOnlyMatchingChildren() {
     var parent1 = persistParent("p1");
     var parent2 = persistParent("p2");
     persistChild("c1", parent1);
     persistChild("c2", parent2);
     var result =
         childRepository.findAll(
-            ChildSpecifications.matches(new ChildFilter(null, parent1.getId())),
-            Pageable.unpaged());
+            ChildSpecifications.matches(null, List.of(parent1.getId()), null), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(1);
     assertThat(result.getContent().getFirst().getValue()).isEqualTo("c1");
   }
 
   @Test
-  void parentIdEquals_noMatch_returnsEmpty() {
+  void parentIdIn_noMatch_returnsEmpty() {
     var parent = persistParent("p");
     persistChild("c1", parent);
     var result =
         childRepository.findAll(
-            ChildSpecifications.matches(new ChildFilter(null, UUID.randomUUID())),
+            ChildSpecifications.matches(null, List.of(UUID.randomUUID()), null),
             Pageable.unpaged());
     assertThat(result.getContent()).isEmpty();
+  }
+
+  @Test
+  void idIn_filtersById() {
+    var parent = persistParent("p");
+    var c1 = persistChild("c1", parent);
+    persistChild("c2", parent);
+    var result =
+        childRepository.findAll(
+            ChildSpecifications.matches(List.of(c1.getId()), null, null), Pageable.unpaged());
+    assertThat(result.getContent()).hasSize(1);
+    assertThat(result.getContent().getFirst().getValue()).isEqualTo("c1");
   }
 }

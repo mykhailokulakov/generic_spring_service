@@ -5,17 +5,20 @@ import static io.github.mykhailokulakov.genericspringservice.repository.specific
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity_;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ParentFilter;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
 public final class ParentSpecifications {
 
   private ParentSpecifications() {}
 
-  public static Specification<ParentEntity> matches(ParentFilter f) {
-    if (f == null) {
-      return Specification.unrestricted();
-    }
-    return allOfNonNull(containsIgnoreCase(ParentEntity_.label, f.label()));
+  public static Specification<ParentEntity> matches(List<UUID> ids, String label) {
+    return allOfNonNull(idIn(ids), containsIgnoreCase(ParentEntity_.label, label));
+  }
+
+  private static Specification<ParentEntity> idIn(List<UUID> ids) {
+    if (ids == null || ids.isEmpty()) return null;
+    return (root, q, cb) -> root.get(ParentEntity_.id).in(ids);
   }
 }

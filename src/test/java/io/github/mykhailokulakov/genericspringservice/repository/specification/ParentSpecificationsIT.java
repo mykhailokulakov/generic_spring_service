@@ -3,10 +3,10 @@ package io.github.mykhailokulakov.genericspringservice.repository.specification;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ParentFilter;
 import io.github.mykhailokulakov.genericspringservice.repository.ParentRepository;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,19 +30,10 @@ class ParentSpecificationsIT {
   }
 
   @Test
-  void nullFilter_returnsAll() {
+  void allNullParams_returnsAll() {
     persist("a");
     persist("b");
-    var result = repository.findAll(ParentSpecifications.matches(null), Pageable.unpaged());
-    assertThat(result.getContent()).hasSize(2);
-  }
-
-  @Test
-  void emptyFilter_returnsAll() {
-    persist("a");
-    persist("b");
-    var result =
-        repository.findAll(ParentSpecifications.matches(ParentFilter.empty()), Pageable.unpaged());
+    var result = repository.findAll(ParentSpecifications.matches(null, null), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(2);
   }
 
@@ -51,8 +42,7 @@ class ParentSpecificationsIT {
     persist("Alpha");
     persist("Beta");
     var result =
-        repository.findAll(
-            ParentSpecifications.matches(new ParentFilter("ALPHA")), Pageable.unpaged());
+        repository.findAll(ParentSpecifications.matches(null, "ALPHA"), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(1);
     assertThat(result.getContent().getFirst().getLabel()).isEqualTo("Alpha");
   }
@@ -61,8 +51,18 @@ class ParentSpecificationsIT {
   void labelContains_noMatch_returnsEmpty() {
     persist("Alpha");
     var result =
-        repository.findAll(
-            ParentSpecifications.matches(new ParentFilter("Gamma")), Pageable.unpaged());
+        repository.findAll(ParentSpecifications.matches(null, "Gamma"), Pageable.unpaged());
     assertThat(result.getContent()).isEmpty();
+  }
+
+  @Test
+  void idIn_filtersById() {
+    var a = persist("a");
+    persist("b");
+    var result =
+        repository.findAll(
+            ParentSpecifications.matches(List.of(a.getId()), null), Pageable.unpaged());
+    assertThat(result.getContent()).hasSize(1);
+    assertThat(result.getContent().getFirst().getLabel()).isEqualTo("a");
   }
 }

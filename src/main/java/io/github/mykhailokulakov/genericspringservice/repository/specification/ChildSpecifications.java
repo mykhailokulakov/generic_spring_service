@@ -6,7 +6,7 @@ import static io.github.mykhailokulakov.genericspringservice.repository.specific
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity_;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity_;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ChildFilter;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -14,16 +14,19 @@ public final class ChildSpecifications {
 
   private ChildSpecifications() {}
 
-  public static Specification<ChildEntity> matches(ChildFilter f) {
-    if (f == null) {
-      return Specification.unrestricted();
-    }
+  public static Specification<ChildEntity> matches(
+      List<UUID> ids, List<UUID> parentIds, String value) {
     return allOfNonNull(
-        containsIgnoreCase(ChildEntity_.value, f.value()), parentIdEquals(f.parentId()));
+        idIn(ids), parentIdIn(parentIds), containsIgnoreCase(ChildEntity_.value, value));
   }
 
-  private static Specification<ChildEntity> parentIdEquals(UUID parentId) {
-    if (parentId == null) return null;
-    return (root, q, cb) -> cb.equal(root.get(ChildEntity_.parent).get(ParentEntity_.id), parentId);
+  private static Specification<ChildEntity> idIn(List<UUID> ids) {
+    if (ids == null || ids.isEmpty()) return null;
+    return (root, q, cb) -> root.get(ChildEntity_.id).in(ids);
+  }
+
+  private static Specification<ChildEntity> parentIdIn(List<UUID> parentIds) {
+    if (parentIds == null || parentIds.isEmpty()) return null;
+    return (root, q, cb) -> root.get(ChildEntity_.parent).get(ParentEntity_.id).in(parentIds);
   }
 }

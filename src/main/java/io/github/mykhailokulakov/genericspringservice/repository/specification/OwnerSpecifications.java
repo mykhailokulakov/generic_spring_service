@@ -6,7 +6,7 @@ import static io.github.mykhailokulakov.genericspringservice.repository.specific
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity_;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity_;
-import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerFilter;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -14,17 +14,19 @@ public final class OwnerSpecifications {
 
   private OwnerSpecifications() {}
 
-  public static Specification<OwnerEntity> matches(OwnerFilter f) {
-    if (f == null) {
-      return Specification.unrestricted();
-    }
+  public static Specification<OwnerEntity> matches(
+      List<UUID> ids, List<UUID> exampleIds, String handle) {
     return allOfNonNull(
-        containsIgnoreCase(OwnerEntity_.handle, f.handle()), exampleIdEquals(f.exampleId()));
+        idIn(ids), exampleIdIn(exampleIds), containsIgnoreCase(OwnerEntity_.handle, handle));
   }
 
-  private static Specification<OwnerEntity> exampleIdEquals(UUID exampleId) {
-    if (exampleId == null) return null;
-    return (root, q, cb) ->
-        cb.equal(root.get(OwnerEntity_.example).get(ExampleEntity_.id), exampleId);
+  private static Specification<OwnerEntity> idIn(List<UUID> ids) {
+    if (ids == null || ids.isEmpty()) return null;
+    return (root, q, cb) -> root.get(OwnerEntity_.id).in(ids);
+  }
+
+  private static Specification<OwnerEntity> exampleIdIn(List<UUID> exampleIds) {
+    if (exampleIds == null || exampleIds.isEmpty()) return null;
+    return (root, q, cb) -> root.get(OwnerEntity_.example).get(ExampleEntity_.id).in(exampleIds);
   }
 }

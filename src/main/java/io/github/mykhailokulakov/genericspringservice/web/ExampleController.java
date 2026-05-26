@@ -1,6 +1,6 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
-import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresAdmin;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresUser;
 import io.github.mykhailokulakov.genericspringservice.service.ExampleService;
@@ -16,12 +16,16 @@ import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleReques
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.web.mapper.ExampleApiMapper;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -34,6 +38,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -52,9 +57,34 @@ public class ExampleController {
   @ApiResponse(responseCode = "200", description = "Page of matching examples.")
   @StandardApiResponses
   public PageResponse<ExampleResponse> search(
-      @Valid @ParameterObject ExampleFilter filter,
-      @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-    return PageResponse.of(service.search(filter, pageable).map(apiMapper::toResponse));
+      @RequestParam(value = "id", required = false) List<UUID> ids,
+      @RequestParam(value = "name", required = false) String name,
+      @RequestParam(value = "description", required = false) String description,
+      @RequestParam(value = "minQuantity", required = false) Integer minQuantity,
+      @RequestParam(value = "maxQuantity", required = false) Integer maxQuantity,
+      @RequestParam(value = "minPrice", required = false) BigDecimal minPrice,
+      @RequestParam(value = "maxPrice", required = false) BigDecimal maxPrice,
+      @RequestParam(value = "occurredFrom", required = false) Instant occurredFrom,
+      @RequestParam(value = "occurredTo", required = false) Instant occurredTo,
+      @RequestParam(value = "status", required = false) Set<ExampleStatus> statuses,
+      @RequestParam(value = "tag", required = false) Set<String> tags,
+      @Parameter(hidden = true) @PageableDefault(size = 20) Pageable pageable) {
+    return PageResponse.of(
+        service
+            .search(
+                ids,
+                name,
+                description,
+                minQuantity,
+                maxQuantity,
+                minPrice,
+                maxPrice,
+                occurredFrom,
+                occurredTo,
+                statuses,
+                tags,
+                pageable)
+            .map(apiMapper::toResponse));
   }
 
   @GetMapping("/{id}")

@@ -403,7 +403,7 @@ class ExampleControllerIT {
     void userFilteringByStatusInDraftActive_returnsMatchingSubset() {
       var response =
           asUser()
-              .queryParam("statuses", "DRAFT", "ACTIVE")
+              .queryParam("status", "DRAFT", "ACTIVE")
               .get(PATH)
               .then()
               .statusCode(200)
@@ -433,7 +433,7 @@ class ExampleControllerIT {
       // entity carries this tag, so the filter has a deterministic target.
       var response =
           asUser()
-              .queryParam("tags", "searchable")
+              .queryParam("tag", "searchable")
               .get(PATH)
               .then()
               .statusCode(200)
@@ -484,7 +484,7 @@ class ExampleControllerIT {
 
     @Test
     void userWithInvalidStatusValueInQuery_returns400() {
-      var response = asUser().queryParam("statuses", "NOPE").get(PATH).then().extract().response();
+      var response = asUser().queryParam("status", "NOPE").get(PATH).then().extract().response();
       assertThat(response).hasStatus(400);
     }
 

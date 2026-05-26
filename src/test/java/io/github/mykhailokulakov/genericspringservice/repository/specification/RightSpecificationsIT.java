@@ -3,10 +3,10 @@ package io.github.mykhailokulakov.genericspringservice.repository.specification;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.RightEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.RightFilter;
 import io.github.mykhailokulakov.genericspringservice.repository.RightRepository;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,19 +30,10 @@ class RightSpecificationsIT {
   }
 
   @Test
-  void nullFilter_returnsAll() {
+  void allNullParams_returnsAll() {
     persist("a");
     persist("b");
-    var result = repository.findAll(RightSpecifications.matches(null), Pageable.unpaged());
-    assertThat(result.getContent()).hasSize(2);
-  }
-
-  @Test
-  void emptyFilter_returnsAll() {
-    persist("a");
-    persist("b");
-    var result =
-        repository.findAll(RightSpecifications.matches(RightFilter.empty()), Pageable.unpaged());
+    var result = repository.findAll(RightSpecifications.matches(null, null), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(2);
   }
 
@@ -50,9 +41,7 @@ class RightSpecificationsIT {
   void nameContains_matchesCaseInsensitively() {
     persist("Alpha");
     persist("Beta");
-    var result =
-        repository.findAll(
-            RightSpecifications.matches(new RightFilter("ALPHA")), Pageable.unpaged());
+    var result = repository.findAll(RightSpecifications.matches(null, "ALPHA"), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(1);
     assertThat(result.getContent().getFirst().getName()).isEqualTo("Alpha");
   }
@@ -60,9 +49,18 @@ class RightSpecificationsIT {
   @Test
   void nameContains_noMatch_returnsEmpty() {
     persist("Alpha");
+    var result = repository.findAll(RightSpecifications.matches(null, "Gamma"), Pageable.unpaged());
+    assertThat(result.getContent()).isEmpty();
+  }
+
+  @Test
+  void idIn_filtersById() {
+    var a = persist("a");
+    persist("b");
     var result =
         repository.findAll(
-            RightSpecifications.matches(new RightFilter("Gamma")), Pageable.unpaged());
-    assertThat(result.getContent()).isEmpty();
+            RightSpecifications.matches(List.of(a.getId()), null), Pageable.unpaged());
+    assertThat(result.getContent()).hasSize(1);
+    assertThat(result.getContent().getFirst().getName()).isEqualTo("a");
   }
 }

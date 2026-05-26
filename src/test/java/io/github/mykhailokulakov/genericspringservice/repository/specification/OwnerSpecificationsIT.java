@@ -5,12 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
-import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerFilter;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.OwnerRepository;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,22 +46,12 @@ class OwnerSpecificationsIT {
   }
 
   @Test
-  void nullFilter_returnsAll() {
-    var ex = persistExample("e");
-    persistOwner("a", ex);
-    persistOwner("b", null);
-    var result = ownerRepository.findAll(OwnerSpecifications.matches(null), Pageable.unpaged());
-    assertThat(result.getContent()).hasSize(2);
-  }
-
-  @Test
-  void emptyFilter_returnsAll() {
+  void allNullParams_returnsAll() {
     var ex = persistExample("e");
     persistOwner("a", ex);
     persistOwner("b", null);
     var result =
-        ownerRepository.findAll(
-            OwnerSpecifications.matches(OwnerFilter.empty()), Pageable.unpaged());
+        ownerRepository.findAll(OwnerSpecifications.matches(null, null, null), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(2);
   }
 
@@ -71,7 +61,7 @@ class OwnerSpecificationsIT {
     persistOwner("Beta", null);
     var result =
         ownerRepository.findAll(
-            OwnerSpecifications.matches(new OwnerFilter("ALPHA", null)), Pageable.unpaged());
+            OwnerSpecifications.matches(null, null, "ALPHA"), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(1);
     assertThat(result.getContent().getFirst().getHandle()).isEqualTo("Alpha");
   }
@@ -81,31 +71,42 @@ class OwnerSpecificationsIT {
     persistOwner("Alpha", null);
     var result =
         ownerRepository.findAll(
-            OwnerSpecifications.matches(new OwnerFilter("Gamma", null)), Pageable.unpaged());
+            OwnerSpecifications.matches(null, null, "Gamma"), Pageable.unpaged());
     assertThat(result.getContent()).isEmpty();
   }
 
   @Test
-  void exampleIdEquals_returnsOnlyMatchingOwners() {
+  void exampleIdIn_returnsOnlyMatchingOwners() {
     var ex1 = persistExample("e1");
     var ex2 = persistExample("e2");
     persistOwner("o1", ex1);
     persistOwner("o2", ex2);
     var result =
         ownerRepository.findAll(
-            OwnerSpecifications.matches(new OwnerFilter(null, ex1.getId())), Pageable.unpaged());
+            OwnerSpecifications.matches(null, List.of(ex1.getId()), null), Pageable.unpaged());
     assertThat(result.getContent()).hasSize(1);
     assertThat(result.getContent().getFirst().getHandle()).isEqualTo("o1");
   }
 
   @Test
-  void exampleIdEquals_noMatch_returnsEmpty() {
+  void exampleIdIn_noMatch_returnsEmpty() {
     var ex = persistExample("e");
     persistOwner("o1", ex);
     var result =
         ownerRepository.findAll(
-            OwnerSpecifications.matches(new OwnerFilter(null, UUID.randomUUID())),
+            OwnerSpecifications.matches(null, List.of(UUID.randomUUID()), null),
             Pageable.unpaged());
     assertThat(result.getContent()).isEmpty();
+  }
+
+  @Test
+  void idIn_filtersById() {
+    var o1 = persistOwner("o1", null);
+    persistOwner("o2", null);
+    var result =
+        ownerRepository.findAll(
+            OwnerSpecifications.matches(List.of(o1.getId()), null, null), Pageable.unpaged());
+    assertThat(result.getContent()).hasSize(1);
+    assertThat(result.getContent().getFirst().getHandle()).isEqualTo("o1");
   }
 }

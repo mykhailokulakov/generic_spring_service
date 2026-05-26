@@ -5,17 +5,20 @@ import static io.github.mykhailokulakov.genericspringservice.repository.specific
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.LeftEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.LeftEntity_;
-import io.github.mykhailokulakov.genericspringservice.domain.model.LeftFilter;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
 public final class LeftSpecifications {
 
   private LeftSpecifications() {}
 
-  public static Specification<LeftEntity> matches(LeftFilter f) {
-    if (f == null) {
-      return Specification.unrestricted();
-    }
-    return allOfNonNull(containsIgnoreCase(LeftEntity_.code, f.code()));
+  public static Specification<LeftEntity> matches(List<UUID> ids, String code) {
+    return allOfNonNull(idIn(ids), containsIgnoreCase(LeftEntity_.code, code));
+  }
+
+  private static Specification<LeftEntity> idIn(List<UUID> ids) {
+    if (ids == null || ids.isEmpty()) return null;
+    return (root, q, cb) -> root.get(LeftEntity_.id).in(ids);
   }
 }

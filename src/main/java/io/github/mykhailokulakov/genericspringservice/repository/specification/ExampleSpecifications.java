@@ -5,10 +5,13 @@ import static io.github.mykhailokulakov.genericspringservice.repository.specific
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity_;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import jakarta.persistence.metamodel.SingularAttribute;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
@@ -16,18 +19,32 @@ public final class ExampleSpecifications {
 
   private ExampleSpecifications() {}
 
-  public static Specification<ExampleEntity> matches(ExampleFilter f) {
-    if (f == null) {
-      return Specification.unrestricted();
-    }
+  public static Specification<ExampleEntity> matches(
+      List<UUID> ids,
+      String name,
+      String description,
+      Integer minQuantity,
+      Integer maxQuantity,
+      BigDecimal minPrice,
+      BigDecimal maxPrice,
+      Instant occurredFrom,
+      Instant occurredTo,
+      Set<ExampleStatus> statuses,
+      Set<String> tags) {
     return allOfNonNull(
-        containsIgnoreCase(ExampleEntity_.name, f.name()),
-        containsIgnoreCase(ExampleEntity_.description, f.description()),
-        rangeBetween(ExampleEntity_.quantity, f.minQuantity(), f.maxQuantity()),
-        rangeBetween(ExampleEntity_.price, f.minPrice(), f.maxPrice()),
-        rangeBetween(ExampleEntity_.occurredAt, f.occurredFrom(), f.occurredTo()),
-        statusIn(f.statuses()),
-        hasAnyTag(f.tags()));
+        idIn(ids),
+        containsIgnoreCase(ExampleEntity_.name, name),
+        containsIgnoreCase(ExampleEntity_.description, description),
+        rangeBetween(ExampleEntity_.quantity, minQuantity, maxQuantity),
+        rangeBetween(ExampleEntity_.price, minPrice, maxPrice),
+        rangeBetween(ExampleEntity_.occurredAt, occurredFrom, occurredTo),
+        statusIn(statuses),
+        hasAnyTag(tags));
+  }
+
+  private static Specification<ExampleEntity> idIn(List<UUID> ids) {
+    if (ids == null || ids.isEmpty()) return null;
+    return (root, q, cb) -> root.get(ExampleEntity_.id).in(ids);
   }
 
   private static <T extends Comparable<? super T>> Specification<ExampleEntity> rangeBetween(

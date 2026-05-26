@@ -10,21 +10,16 @@ import io.github.mykhailokulakov.genericspringservice.mapper.PatchableMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.FilterableRepository;
 import java.util.Objects;
 import java.util.UUID;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-public abstract class AbstractCrudService<E extends SoftDeletable, M extends DomainModel, P, F> {
+public abstract class AbstractCrudService<E extends SoftDeletable, M extends DomainModel, P> {
 
   protected abstract FilterableRepository<E> repository();
 
   protected abstract EntityMapper<E, M> mapper();
 
   protected abstract PatchableMapper<E, P> patchMapper();
-
-  protected abstract Specification<E> toSpecification(F filter);
 
   protected abstract ErrorCode notFoundCode();
 
@@ -35,11 +30,6 @@ public abstract class AbstractCrudService<E extends SoftDeletable, M extends Dom
   @Transactional(readOnly = true)
   public M getById(UUID id) {
     return mapper().toModel(findOrThrow(id));
-  }
-
-  @Transactional(readOnly = true)
-  public Page<M> search(F filter, Pageable pageable) {
-    return repository().findAll(toSpecification(filter), pageable).map(mapper()::toModel);
   }
 
   public M replace(UUID id, Long expectedVersion, M replacement) {

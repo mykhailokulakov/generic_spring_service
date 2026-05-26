@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Owner;
-import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerFilter;
 import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerPatch;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
@@ -10,13 +9,17 @@ import io.github.mykhailokulakov.genericspringservice.mapper.OwnerEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.OwnerRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.OwnerSpecifications;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class OwnerService extends AbstractCrudService<OwnerEntity, Owner, OwnerPatch, OwnerFilter> {
+public class OwnerService extends AbstractCrudService<OwnerEntity, Owner, OwnerPatch> {
 
   private final OwnerRepository repository;
   private final ExampleRepository exampleRepository;
@@ -38,13 +41,16 @@ public class OwnerService extends AbstractCrudService<OwnerEntity, Owner, OwnerP
   }
 
   @Override
-  protected Specification<OwnerEntity> toSpecification(OwnerFilter filter) {
-    return OwnerSpecifications.matches(filter);
-  }
-
-  @Override
   protected ErrorCode notFoundCode() {
     return ErrorCode.OWNER_NOT_FOUND;
+  }
+
+  @Transactional(readOnly = true)
+  public Page<Owner> search(
+      List<UUID> ids, List<UUID> exampleIds, String handle, Pageable pageable) {
+    return repository
+        .findAll(OwnerSpecifications.matches(ids, exampleIds, handle), pageable)
+        .map(mapper::toModel);
   }
 
   @Override

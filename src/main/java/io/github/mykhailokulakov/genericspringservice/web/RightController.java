@@ -1,6 +1,5 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
-import io.github.mykhailokulakov.genericspringservice.domain.model.RightFilter;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresAdmin;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresUser;
 import io.github.mykhailokulakov.genericspringservice.service.RightService;
@@ -16,12 +15,13 @@ import io.github.mykhailokulakov.genericspringservice.web.dto.RightResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateRightRequest;
 import io.github.mykhailokulakov.genericspringservice.web.mapper.RightApiMapper;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -52,9 +53,10 @@ public class RightController {
   @ApiResponse(responseCode = "200", description = "Page of matching rights.")
   @StandardApiResponses
   public PageResponse<RightResponse> search(
-      @Valid @ParameterObject RightFilter filter,
-      @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
-    return PageResponse.of(service.search(filter, pageable).map(apiMapper::toResponse));
+      @RequestParam(value = "id", required = false) List<UUID> ids,
+      @RequestParam(value = "name", required = false) String name,
+      @Parameter(hidden = true) @PageableDefault(size = 20) Pageable pageable) {
+    return PageResponse.of(service.search(ids, name, pageable).map(apiMapper::toResponse));
   }
 
   @GetMapping("/{id}")

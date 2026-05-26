@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Child;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ChildFilter;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ChildPatch;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
@@ -10,13 +9,17 @@ import io.github.mykhailokulakov.genericspringservice.mapper.ChildEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ChildRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.ParentRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ChildSpecifications;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class ChildService extends AbstractCrudService<ChildEntity, Child, ChildPatch, ChildFilter> {
+public class ChildService extends AbstractCrudService<ChildEntity, Child, ChildPatch> {
 
   private final ChildRepository repository;
   private final ParentRepository parentRepository;
@@ -38,13 +41,15 @@ public class ChildService extends AbstractCrudService<ChildEntity, Child, ChildP
   }
 
   @Override
-  protected Specification<ChildEntity> toSpecification(ChildFilter filter) {
-    return ChildSpecifications.matches(filter);
-  }
-
-  @Override
   protected ErrorCode notFoundCode() {
     return ErrorCode.CHILD_NOT_FOUND;
+  }
+
+  @Transactional(readOnly = true)
+  public Page<Child> search(List<UUID> ids, List<UUID> parentIds, String value, Pageable pageable) {
+    return repository
+        .findAll(ChildSpecifications.matches(ids, parentIds, value), pageable)
+        .map(mapper::toModel);
   }
 
   @Override
