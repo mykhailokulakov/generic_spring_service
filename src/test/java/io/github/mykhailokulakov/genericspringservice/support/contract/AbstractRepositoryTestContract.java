@@ -21,6 +21,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -66,7 +67,9 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   private static boolean isMutableValueField(Field field) {
-    return !field.isAnnotationPresent(ManyToOne.class)
+    return !field.isSynthetic()
+        && !Modifier.isStatic(field.getModifiers())
+        && !field.isAnnotationPresent(ManyToOne.class)
         && !field.isAnnotationPresent(OneToOne.class)
         && !field.isAnnotationPresent(OneToMany.class)
         && !field.isAnnotationPresent(ManyToMany.class)
