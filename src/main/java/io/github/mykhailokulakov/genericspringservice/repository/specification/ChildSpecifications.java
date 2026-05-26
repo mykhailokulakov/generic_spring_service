@@ -1,12 +1,12 @@
 package io.github.mykhailokulakov.genericspringservice.repository.specification;
 
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.allOfNonNull;
 import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.containsIgnoreCase;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity_;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity_;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ChildFilter;
-import java.util.ArrayList;
 import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -18,19 +18,8 @@ public final class ChildSpecifications {
     if (f == null) {
       return Specification.unrestricted();
     }
-    var parts = new ArrayList<Specification<ChildEntity>>();
-    var valueSpec = containsIgnoreCase(ChildEntity_.value, f.value());
-    if (valueSpec != null) {
-      parts.add(valueSpec);
-    }
-    var parentSpec = parentIdEquals(f.parentId());
-    if (parentSpec != null) {
-      parts.add(parentSpec);
-    }
-    if (parts.isEmpty()) {
-      return Specification.unrestricted();
-    }
-    return Specification.allOf(parts);
+    return allOfNonNull(
+        containsIgnoreCase(ChildEntity_.value, f.value()), parentIdEquals(f.parentId()));
   }
 
   private static Specification<ChildEntity> parentIdEquals(UUID parentId) {

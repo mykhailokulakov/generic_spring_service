@@ -1,5 +1,6 @@
 package io.github.mykhailokulakov.genericspringservice.repository.specification;
 
+import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.allOfNonNull;
 import static io.github.mykhailokulakov.genericspringservice.repository.specification.SpecificationUtils.containsIgnoreCase;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
@@ -7,8 +8,6 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleFilter;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import jakarta.persistence.metamodel.SingularAttribute;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
@@ -21,25 +20,14 @@ public final class ExampleSpecifications {
     if (f == null) {
       return Specification.unrestricted();
     }
-    var parts = new ArrayList<Specification<ExampleEntity>>();
-    addIfPresent(parts, containsIgnoreCase(ExampleEntity_.name, f.name()));
-    addIfPresent(parts, containsIgnoreCase(ExampleEntity_.description, f.description()));
-    addIfPresent(parts, rangeBetween(ExampleEntity_.quantity, f.minQuantity(), f.maxQuantity()));
-    addIfPresent(parts, rangeBetween(ExampleEntity_.price, f.minPrice(), f.maxPrice()));
-    addIfPresent(parts, rangeBetween(ExampleEntity_.occurredAt, f.occurredFrom(), f.occurredTo()));
-    addIfPresent(parts, statusIn(f.statuses()));
-    addIfPresent(parts, hasAnyTag(f.tags()));
-    if (parts.isEmpty()) {
-      return Specification.unrestricted();
-    }
-    return Specification.allOf(parts);
-  }
-
-  private static void addIfPresent(
-      List<Specification<ExampleEntity>> parts, Specification<ExampleEntity> spec) {
-    if (spec != null) {
-      parts.add(spec);
-    }
+    return allOfNonNull(
+        containsIgnoreCase(ExampleEntity_.name, f.name()),
+        containsIgnoreCase(ExampleEntity_.description, f.description()),
+        rangeBetween(ExampleEntity_.quantity, f.minQuantity(), f.maxQuantity()),
+        rangeBetween(ExampleEntity_.price, f.minPrice(), f.maxPrice()),
+        rangeBetween(ExampleEntity_.occurredAt, f.occurredFrom(), f.occurredTo()),
+        statusIn(f.statuses()),
+        hasAnyTag(f.tags()));
   }
 
   private static <T extends Comparable<? super T>> Specification<ExampleEntity> rangeBetween(
