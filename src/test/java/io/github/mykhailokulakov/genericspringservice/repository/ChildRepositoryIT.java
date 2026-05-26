@@ -17,9 +17,4 @@ class ChildRepositoryIT extends AbstractRepositoryTestContract<ChildEntity> {
     child.setParent(parent);
     return child;
   }
-
-  @Override
-  protected void mutate(ChildEntity entity) {
-    entity.setValue("mutated");
-  }
 }

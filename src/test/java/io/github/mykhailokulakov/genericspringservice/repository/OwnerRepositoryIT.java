@@ -17,9 +17,4 @@ class OwnerRepositoryIT extends AbstractRepositoryTestContract<OwnerEntity> {
     owner.setExample(example);
     return owner;
   }
-
-  @Override
-  protected void mutate(OwnerEntity entity) {
-    entity.setHandle("mutated");
-  }
 }
