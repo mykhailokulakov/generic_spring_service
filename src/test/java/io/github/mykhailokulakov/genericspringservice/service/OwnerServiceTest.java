@@ -7,7 +7,6 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Owner;
-import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerPatch;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.OwnerEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
@@ -22,7 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class OwnerServiceTest extends AbstractCrudServiceTestContract<OwnerEntity, Owner, OwnerPatch> {
+class OwnerServiceTest extends AbstractCrudServiceTestContract<OwnerEntity, Owner> {
 
   @Mock private OwnerRepository repository;
   @Mock private ExampleRepository exampleRepository;
@@ -61,8 +60,8 @@ class OwnerServiceTest extends AbstractCrudServiceTestContract<OwnerEntity, Owne
   }
 
   @Override
-  protected OwnerPatch newPatch() {
-    return Instancio.create(OwnerPatch.class);
+  protected Owner newPatch() {
+    return Instancio.create(Owner.class);
   }
 
   @Override

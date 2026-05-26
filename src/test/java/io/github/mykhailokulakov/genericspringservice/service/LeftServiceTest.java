@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.LeftEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Left;
-import io.github.mykhailokulakov.genericspringservice.domain.model.LeftPatch;
 import io.github.mykhailokulakov.genericspringservice.mapper.LeftEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.LeftRepository;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudServiceTestContract;
@@ -13,7 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class LeftServiceTest extends AbstractCrudServiceTestContract<LeftEntity, Left, LeftPatch> {
+class LeftServiceTest extends AbstractCrudServiceTestContract<LeftEntity, Left> {
 
   @Mock private LeftRepository repository;
   @Mock private LeftEntityMapper mapper;
@@ -51,7 +50,7 @@ class LeftServiceTest extends AbstractCrudServiceTestContract<LeftEntity, Left, 
   }
 
   @Override
-  protected LeftPatch newPatch() {
-    return Instancio.create(LeftPatch.class);
+  protected Left newPatch() {
+    return Instancio.create(Left.class);
   }
 }

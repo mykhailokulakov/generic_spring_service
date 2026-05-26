@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.mapper.ExampleEntityMapper;
@@ -21,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class ExampleService extends AbstractCrudService<ExampleEntity, Example, ExamplePatch> {
+public class ExampleService extends AbstractCrudService<ExampleEntity, Example> {
 
   private final ExampleRepository repository;
   private final ExampleEntityMapper mapper;

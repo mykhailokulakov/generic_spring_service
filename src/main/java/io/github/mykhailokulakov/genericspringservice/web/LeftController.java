@@ -1,5 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
+import io.github.mykhailokulakov.genericspringservice.common.validation.OnCreate;
+import io.github.mykhailokulakov.genericspringservice.domain.model.Left;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresAdmin;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresUser;
 import io.github.mykhailokulakov.genericspringservice.service.LeftService;
@@ -8,23 +10,20 @@ import io.github.mykhailokulakov.genericspringservice.web.annotation.MutatingApi
 import io.github.mykhailokulakov.genericspringservice.web.annotation.ReadApiResponses;
 import io.github.mykhailokulakov.genericspringservice.web.annotation.StandardApiResponses;
 import io.github.mykhailokulakov.genericspringservice.web.annotation.VersionedWriteApiResponses;
-import io.github.mykhailokulakov.genericspringservice.web.dto.CreateLeftRequest;
-import io.github.mykhailokulakov.genericspringservice.web.dto.LeftResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.PageResponse;
-import io.github.mykhailokulakov.genericspringservice.web.dto.PatchLeftRequest;
-import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateLeftRequest;
-import io.github.mykhailokulakov.genericspringservice.web.mapper.LeftApiMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -45,18 +44,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class LeftController {
 
   private final LeftService service;
-  private final LeftApiMapper apiMapper;
 
   @GetMapping
   @RequiresUser
-  @Operation(summary = "Search lefts", description = "Paginated search with optional filters.")
+  @Operation(summary = "Search lefts")
   @ApiResponse(responseCode = "200", description = "Page of matching lefts.")
   @StandardApiResponses
-  public PageResponse<LeftResponse> search(
+  public PageResponse<Left> search(
       @RequestParam(value = "id", required = false) List<UUID> ids,
       @RequestParam(value = "code", required = false) String code,
       @Parameter(hidden = true) @PageableDefault(size = 20) Pageable pageable) {
-    return PageResponse.of(service.search(ids, code, pageable).map(apiMapper::toResponse));
+    return PageResponse.of(service.search(ids, code, pageable));
   }
 
   @GetMapping("/{id}")
@@ -64,8 +62,8 @@ public class LeftController {
   @Operation(summary = "Get a left by id")
   @ApiResponse(responseCode = "200", description = "The left.")
   @ReadApiResponses
-  public LeftResponse get(@PathVariable UUID id) {
-    return apiMapper.toResponse(service.getById(id));
+  public Left get(@PathVariable UUID id) {
+    return service.getById(id);
   }
 
   @PostMapping
@@ -74,32 +72,32 @@ public class LeftController {
   @Operation(summary = "Create a left")
   @ApiResponse(responseCode = "201", description = "The newly-created left.")
   @MutatingApiResponses
-  public LeftResponse create(@Valid @RequestBody CreateLeftRequest request) {
-    return apiMapper.toResponse(service.create(apiMapper.toModel(request)));
+  public Left create(@Validated({Default.class, OnCreate.class}) @RequestBody Left request) {
+    return service.create(request);
   }
 
   @PutMapping("/{id}")
   @RequiresAdmin
-  @Operation(summary = "Replace a left", description = "Full replacement. Requires If-Match.")
+  @Operation(summary = "Replace a left")
   @ApiResponse(responseCode = "200", description = "The updated left.")
   @VersionedWriteApiResponses
-  public LeftResponse replace(
+  public Left replace(
       @PathVariable UUID id,
       @RequestHeader(value = "If-Match", required = false) Long expectedVersion,
-      @Valid @RequestBody UpdateLeftRequest request) {
-    return apiMapper.toResponse(service.replace(id, expectedVersion, apiMapper.toModel(request)));
+      @Valid @RequestBody Left request) {
+    return service.replace(id, expectedVersion, request);
   }
 
   @PatchMapping("/{id}")
   @RequiresAdmin
-  @Operation(summary = "Patch a left", description = "Partial update. Requires If-Match.")
+  @Operation(summary = "Patch a left")
   @ApiResponse(responseCode = "200", description = "The updated left.")
   @VersionedWriteApiResponses
-  public LeftResponse patch(
+  public Left patch(
       @PathVariable UUID id,
       @RequestHeader(value = "If-Match", required = false) Long expectedVersion,
-      @Valid @RequestBody PatchLeftRequest request) {
-    return apiMapper.toResponse(service.patch(id, expectedVersion, apiMapper.toModel(request)));
+      @RequestBody Left request) {
+    return service.patch(id, expectedVersion, request);
   }
 
   @DeleteMapping("/{id}")

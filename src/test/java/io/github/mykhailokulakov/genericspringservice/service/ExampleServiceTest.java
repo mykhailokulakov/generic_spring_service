@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.mapper.ExampleEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
@@ -14,8 +13,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class ExampleServiceTest
-    extends AbstractCrudServiceTestContract<ExampleEntity, Example, ExamplePatch> {
+class ExampleServiceTest extends AbstractCrudServiceTestContract<ExampleEntity, Example> {
 
   @Mock private ExampleRepository repository;
   @Mock private ExampleEntityMapper mapper;
@@ -53,7 +51,7 @@ class ExampleServiceTest
   }
 
   @Override
-  protected ExamplePatch newPatch() {
-    return Instancio.create(ExamplePatch.class);
+  protected Example newPatch() {
+    return Instancio.create(Example.class);
   }
 }

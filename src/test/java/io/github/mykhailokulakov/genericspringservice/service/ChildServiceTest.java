@@ -6,7 +6,6 @@ import static org.mockito.Mockito.when;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Child;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ChildPatch;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.ChildEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ChildRepository;
@@ -21,7 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class ChildServiceTest extends AbstractCrudServiceTestContract<ChildEntity, Child, ChildPatch> {
+class ChildServiceTest extends AbstractCrudServiceTestContract<ChildEntity, Child> {
 
   @Mock private ChildRepository repository;
   @Mock private ParentRepository parentRepository;
@@ -60,8 +59,8 @@ class ChildServiceTest extends AbstractCrudServiceTestContract<ChildEntity, Chil
   }
 
   @Override
-  protected ChildPatch newPatch() {
-    return Instancio.create(ChildPatch.class);
+  protected Child newPatch() {
+    return Instancio.create(Child.class);
   }
 
   @Override

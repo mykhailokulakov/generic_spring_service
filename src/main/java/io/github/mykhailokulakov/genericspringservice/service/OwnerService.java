@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Owner;
-import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerPatch;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.OwnerEntityMapper;
@@ -19,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class OwnerService extends AbstractCrudService<OwnerEntity, Owner, OwnerPatch> {
+public class OwnerService extends AbstractCrudService<OwnerEntity, Owner> {
 
   private final OwnerRepository repository;
   private final ExampleRepository exampleRepository;

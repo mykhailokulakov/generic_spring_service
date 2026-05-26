@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Child;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ChildPatch;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.exception.NotFoundException;
 import io.github.mykhailokulakov.genericspringservice.mapper.ChildEntityMapper;
@@ -19,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class ChildService extends AbstractCrudService<ChildEntity, Child, ChildPatch> {
+public class ChildService extends AbstractCrudService<ChildEntity, Child> {
 
   private final ChildRepository repository;
   private final ParentRepository parentRepository;

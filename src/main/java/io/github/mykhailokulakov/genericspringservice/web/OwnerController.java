@@ -1,5 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
+import io.github.mykhailokulakov.genericspringservice.common.validation.OnCreate;
+import io.github.mykhailokulakov.genericspringservice.domain.model.Owner;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresAdmin;
 import io.github.mykhailokulakov.genericspringservice.security.annotation.RequiresUser;
 import io.github.mykhailokulakov.genericspringservice.service.OwnerService;
@@ -8,23 +10,20 @@ import io.github.mykhailokulakov.genericspringservice.web.annotation.MutatingApi
 import io.github.mykhailokulakov.genericspringservice.web.annotation.ReadApiResponses;
 import io.github.mykhailokulakov.genericspringservice.web.annotation.StandardApiResponses;
 import io.github.mykhailokulakov.genericspringservice.web.annotation.VersionedWriteApiResponses;
-import io.github.mykhailokulakov.genericspringservice.web.dto.CreateOwnerRequest;
-import io.github.mykhailokulakov.genericspringservice.web.dto.OwnerResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.PageResponse;
-import io.github.mykhailokulakov.genericspringservice.web.dto.PatchOwnerRequest;
-import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateOwnerRequest;
-import io.github.mykhailokulakov.genericspringservice.web.mapper.OwnerApiMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -45,20 +44,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class OwnerController {
 
   private final OwnerService service;
-  private final OwnerApiMapper apiMapper;
 
   @GetMapping
   @RequiresUser
-  @Operation(summary = "Search owners", description = "Paginated search with optional filters.")
+  @Operation(summary = "Search owners")
   @ApiResponse(responseCode = "200", description = "Page of matching owners.")
   @StandardApiResponses
-  public PageResponse<OwnerResponse> search(
+  public PageResponse<Owner> search(
       @RequestParam(value = "id", required = false) List<UUID> ids,
       @RequestParam(value = "exampleId", required = false) List<UUID> exampleIds,
       @RequestParam(value = "handle", required = false) String handle,
       @Parameter(hidden = true) @PageableDefault(size = 20) Pageable pageable) {
-    return PageResponse.of(
-        service.search(ids, exampleIds, handle, pageable).map(apiMapper::toResponse));
+    return PageResponse.of(service.search(ids, exampleIds, handle, pageable));
   }
 
   @GetMapping("/{id}")
@@ -66,8 +63,8 @@ public class OwnerController {
   @Operation(summary = "Get an owner by id")
   @ApiResponse(responseCode = "200", description = "The owner.")
   @ReadApiResponses
-  public OwnerResponse get(@PathVariable UUID id) {
-    return apiMapper.toResponse(service.getById(id));
+  public Owner get(@PathVariable UUID id) {
+    return service.getById(id);
   }
 
   @PostMapping
@@ -76,32 +73,32 @@ public class OwnerController {
   @Operation(summary = "Create an owner")
   @ApiResponse(responseCode = "201", description = "The newly-created owner.")
   @MutatingApiResponses
-  public OwnerResponse create(@Valid @RequestBody CreateOwnerRequest request) {
-    return apiMapper.toResponse(service.create(apiMapper.toModel(request)));
+  public Owner create(@Validated({Default.class, OnCreate.class}) @RequestBody Owner request) {
+    return service.create(request);
   }
 
   @PutMapping("/{id}")
   @RequiresAdmin
-  @Operation(summary = "Replace an owner", description = "Full replacement. Requires If-Match.")
+  @Operation(summary = "Replace an owner")
   @ApiResponse(responseCode = "200", description = "The updated owner.")
   @VersionedWriteApiResponses
-  public OwnerResponse replace(
+  public Owner replace(
       @PathVariable UUID id,
       @RequestHeader(value = "If-Match", required = false) Long expectedVersion,
-      @Valid @RequestBody UpdateOwnerRequest request) {
-    return apiMapper.toResponse(service.replace(id, expectedVersion, apiMapper.toModel(request)));
+      @Valid @RequestBody Owner request) {
+    return service.replace(id, expectedVersion, request);
   }
 
   @PatchMapping("/{id}")
   @RequiresAdmin
-  @Operation(summary = "Patch an owner", description = "Partial update. Requires If-Match.")
+  @Operation(summary = "Patch an owner")
   @ApiResponse(responseCode = "200", description = "The updated owner.")
   @VersionedWriteApiResponses
-  public OwnerResponse patch(
+  public Owner patch(
       @PathVariable UUID id,
       @RequestHeader(value = "If-Match", required = false) Long expectedVersion,
-      @Valid @RequestBody PatchOwnerRequest request) {
-    return apiMapper.toResponse(service.patch(id, expectedVersion, apiMapper.toModel(request)));
+      @RequestBody Owner request) {
+    return service.patch(id, expectedVersion, request);
   }
 
   @DeleteMapping("/{id}")

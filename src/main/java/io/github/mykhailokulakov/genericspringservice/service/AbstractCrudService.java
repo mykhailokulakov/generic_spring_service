@@ -13,13 +13,13 @@ import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
-public abstract class AbstractCrudService<E extends SoftDeletable, M extends DomainModel, P> {
+public abstract class AbstractCrudService<E extends SoftDeletable, M extends DomainModel> {
 
   protected abstract FilterableRepository<E> repository();
 
   protected abstract EntityMapper<E, M> mapper();
 
-  protected abstract PatchableMapper<E, P> patchMapper();
+  protected abstract PatchableMapper<E, M> patchMapper();
 
   protected abstract ErrorCode notFoundCode();
 
@@ -38,7 +38,7 @@ public abstract class AbstractCrudService<E extends SoftDeletable, M extends Dom
     return mapper().toModel(repository().saveAndFlush(entity));
   }
 
-  public M patch(UUID id, Long expectedVersion, P patch) {
+  public M patch(UUID id, Long expectedVersion, M patch) {
     var entity = loadAndCheckVersion(id, expectedVersion);
     patchMapper().applyPatch(patch, entity);
     return mapper().toModel(repository().saveAndFlush(entity));

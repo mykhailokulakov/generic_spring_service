@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractPatchableMapperTestContract;
 import java.util.Set;
@@ -12,8 +11,7 @@ import org.instancio.Instancio;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class ExampleEntityMapperTest
-    extends AbstractPatchableMapperTestContract<ExampleEntity, Example, ExamplePatch> {
+class ExampleEntityMapperTest extends AbstractPatchableMapperTestContract<ExampleEntity, Example> {
 
   @Override
   protected ExampleEntityMapper mapper() {
@@ -65,7 +63,7 @@ class ExampleEntityMapperTest
   void applyPatchSetsTagsOnEntityWithoutTags() {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).tags(null).build();
 
-    var patch = Instancio.create(ExamplePatch.class).toBuilder().tags(Set.of("x", "y")).build();
+    var patch = Instancio.create(Example.class).toBuilder().tags(Set.of("x", "y")).build();
     mapper().applyPatch(patch, entity);
 
     assertThat(entity.getTags()).containsExactlyInAnyOrder("x", "y");

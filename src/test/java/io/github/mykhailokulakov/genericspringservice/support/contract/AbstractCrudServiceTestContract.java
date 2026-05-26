@@ -23,26 +23,26 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public abstract class AbstractCrudServiceTestContract<
-    E extends SoftDeletable, M extends DomainModel, P> {
+    E extends SoftDeletable, M extends DomainModel> {
 
   protected UUID id;
   protected E entity;
   protected M model;
-  protected P patch;
+  protected M patch;
 
-  protected abstract AbstractCrudService<E, M, P> service();
+  protected abstract AbstractCrudService<E, M> service();
 
   protected abstract FilterableRepository<E> repository();
 
   protected abstract EntityMapper<E, M> mapper();
 
-  protected abstract PatchableMapper<E, P> patchMapper();
+  protected abstract PatchableMapper<E, M> patchMapper();
 
   protected abstract E newEntity();
 
   protected abstract M newModel();
 
-  protected abstract P newPatch();
+  protected abstract M newPatch();
 
   protected void setUpAdditionalCreateMocks() {}
 

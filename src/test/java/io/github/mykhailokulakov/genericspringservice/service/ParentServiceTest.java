@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Parent;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ParentPatch;
 import io.github.mykhailokulakov.genericspringservice.mapper.ParentEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ParentRepository;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudServiceTestContract;
@@ -13,7 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class ParentServiceTest extends AbstractCrudServiceTestContract<ParentEntity, Parent, ParentPatch> {
+class ParentServiceTest extends AbstractCrudServiceTestContract<ParentEntity, Parent> {
 
   @Mock private ParentRepository repository;
   @Mock private ParentEntityMapper mapper;
@@ -51,7 +50,7 @@ class ParentServiceTest extends AbstractCrudServiceTestContract<ParentEntity, Pa
   }
 
   @Override
-  protected ParentPatch newPatch() {
-    return Instancio.create(ParentPatch.class);
+  protected Parent newPatch() {
+    return Instancio.create(Parent.class);
   }
 }

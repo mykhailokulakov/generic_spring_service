@@ -2,7 +2,6 @@ package io.github.mykhailokulakov.genericspringservice.service;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.RightEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Right;
-import io.github.mykhailokulakov.genericspringservice.domain.model.RightPatch;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.mapper.RightEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.RightRepository;
@@ -17,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class RightService extends AbstractCrudService<RightEntity, Right, RightPatch> {
+public class RightService extends AbstractCrudService<RightEntity, Right> {
 
   private final RightRepository repository;
   private final RightEntityMapper mapper;
