@@ -4,11 +4,8 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntit
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface ExampleRepository
-    extends JpaRepository<ExampleEntity, UUID>, JpaSpecificationExecutor<ExampleEntity> {
+public interface ExampleRepository extends FilterableRepository<ExampleEntity> {
 
   @EntityGraph(attributePaths = "tags")
   @Override
