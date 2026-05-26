@@ -3,24 +3,68 @@ package io.github.mykhailokulakov.genericspringservice.web.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.model.Owner;
+import io.github.mykhailokulakov.genericspringservice.domain.model.OwnerPatch;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractApiMapperTestContract;
 import io.github.mykhailokulakov.genericspringservice.web.dto.CreateOwnerRequest;
+import io.github.mykhailokulakov.genericspringservice.web.dto.OwnerResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.PatchOwnerRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateOwnerRequest;
-import java.util.UUID;
 import org.instancio.Instancio;
-import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class OwnerApiMapperTest {
+class OwnerApiMapperTest
+    extends AbstractApiMapperTestContract<
+        Owner,
+        OwnerResponse,
+        CreateOwnerRequest,
+        UpdateOwnerRequest,
+        PatchOwnerRequest,
+        OwnerPatch> {
 
   private final OwnerApiMapper mapper = Mappers.getMapper(OwnerApiMapper.class);
 
-  @Test
-  void toResponseCopiesEveryField() {
-    var model = Instancio.create(Owner.class);
+  @Override
+  protected Owner newModel() {
+    return Instancio.create(Owner.class);
+  }
 
-    var response = mapper.toResponse(model);
+  @Override
+  protected CreateOwnerRequest newCreateRequest() {
+    return Instancio.create(CreateOwnerRequest.class);
+  }
 
+  @Override
+  protected UpdateOwnerRequest newUpdateRequest() {
+    return Instancio.create(UpdateOwnerRequest.class);
+  }
+
+  @Override
+  protected PatchOwnerRequest newPatchRequest() {
+    return Instancio.create(PatchOwnerRequest.class);
+  }
+
+  @Override
+  protected OwnerResponse toResponse(Owner model) {
+    return mapper.toResponse(model);
+  }
+
+  @Override
+  protected Owner toModelFromCreate(CreateOwnerRequest request) {
+    return mapper.toModel(request);
+  }
+
+  @Override
+  protected Owner toModelFromUpdate(UpdateOwnerRequest request) {
+    return mapper.toModel(request);
+  }
+
+  @Override
+  protected OwnerPatch toModelFromPatch(PatchOwnerRequest request) {
+    return mapper.toModel(request);
+  }
+
+  @Override
+  protected void assertResponseFields(OwnerResponse response, Owner model) {
     assertThat(response.id()).isEqualTo(model.id());
     assertThat(response.handle()).isEqualTo(model.handle());
     assertThat(response.exampleId()).isEqualTo(model.exampleId());
@@ -29,61 +73,19 @@ class OwnerApiMapperTest {
     assertThat(response.version()).isEqualTo(model.version());
   }
 
-  @Test
-  void toResponseReturnsNullForNullModel() {
-    assertThat(mapper.toResponse(null)).isNull();
+  @Override
+  protected void assertCreateFields(Owner model, CreateOwnerRequest request) {
+    assertThat(model.handle()).isEqualTo(request.handle());
+    assertThat(model.exampleId()).isEqualTo(request.exampleId());
   }
 
-  @Test
-  void toModelFromCreateRequestLeavesManagedFieldsNull() {
-    var exampleId = UUID.randomUUID();
-    var request = new CreateOwnerRequest("owner-handle", exampleId);
-
-    var model = mapper.toModel(request);
-
-    assertThat(model.id()).isNull();
-    assertThat(model.createdAt()).isNull();
-    assertThat(model.updatedAt()).isNull();
-    assertThat(model.version()).isNull();
-    assertThat(model.handle()).isEqualTo("owner-handle");
-    assertThat(model.exampleId()).isEqualTo(exampleId);
+  @Override
+  protected void assertUpdateFields(Owner model, UpdateOwnerRequest request) {
+    assertThat(model.handle()).isEqualTo(request.handle());
   }
 
-  @Test
-  void toModelFromCreateRequestReturnsNullForNullRequest() {
-    assertThat(mapper.toModel((CreateOwnerRequest) null)).isNull();
-  }
-
-  @Test
-  void toModelFromUpdateRequestLeavesManagedFieldsNull() {
-    var request = new UpdateOwnerRequest("updated-handle");
-
-    var model = mapper.toModel(request);
-
-    assertThat(model.id()).isNull();
-    assertThat(model.exampleId()).isNull();
-    assertThat(model.createdAt()).isNull();
-    assertThat(model.updatedAt()).isNull();
-    assertThat(model.version()).isNull();
-    assertThat(model.handle()).isEqualTo("updated-handle");
-  }
-
-  @Test
-  void toModelFromUpdateRequestReturnsNullForNullRequest() {
-    assertThat(mapper.toModel((UpdateOwnerRequest) null)).isNull();
-  }
-
-  @Test
-  void toModelFromPatchRequestMapsFields() {
-    var request = new PatchOwnerRequest("patched-handle");
-
-    var patch = mapper.toModel(request);
-
-    assertThat(patch.handle()).isEqualTo("patched-handle");
-  }
-
-  @Test
-  void toModelFromPatchRequestReturnsNullForNullRequest() {
-    assertThat(mapper.toModel((PatchOwnerRequest) null)).isNull();
+  @Override
+  protected void assertPatchFields(OwnerPatch patch, PatchOwnerRequest request) {
+    assertThat(patch.handle()).isEqualTo(request.handle());
   }
 }

@@ -3,26 +3,68 @@ package io.github.mykhailokulakov.genericspringservice.web.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
+import io.github.mykhailokulakov.genericspringservice.domain.model.ExamplePatch;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractApiMapperTestContract;
 import io.github.mykhailokulakov.genericspringservice.web.dto.CreateExampleRequest;
+import io.github.mykhailokulakov.genericspringservice.web.dto.ExampleResponse;
+import io.github.mykhailokulakov.genericspringservice.web.dto.PatchExampleRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateExampleRequest;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.Set;
 import org.instancio.Instancio;
-import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class ExampleApiMapperTest {
+class ExampleApiMapperTest
+    extends AbstractApiMapperTestContract<
+        Example,
+        ExampleResponse,
+        CreateExampleRequest,
+        UpdateExampleRequest,
+        PatchExampleRequest,
+        ExamplePatch> {
 
   private final ExampleApiMapper mapper = Mappers.getMapper(ExampleApiMapper.class);
 
-  @Test
-  void toResponseCopiesEveryField() {
-    var model = Instancio.create(Example.class);
+  @Override
+  protected Example newModel() {
+    return Instancio.create(Example.class);
+  }
 
-    var response = mapper.toResponse(model);
+  @Override
+  protected CreateExampleRequest newCreateRequest() {
+    return Instancio.create(CreateExampleRequest.class);
+  }
 
+  @Override
+  protected UpdateExampleRequest newUpdateRequest() {
+    return Instancio.create(UpdateExampleRequest.class);
+  }
+
+  @Override
+  protected PatchExampleRequest newPatchRequest() {
+    return Instancio.create(PatchExampleRequest.class);
+  }
+
+  @Override
+  protected ExampleResponse toResponse(Example model) {
+    return mapper.toResponse(model);
+  }
+
+  @Override
+  protected Example toModelFromCreate(CreateExampleRequest request) {
+    return mapper.toModel(request);
+  }
+
+  @Override
+  protected Example toModelFromUpdate(UpdateExampleRequest request) {
+    return mapper.toModel(request);
+  }
+
+  @Override
+  protected ExamplePatch toModelFromPatch(PatchExampleRequest request) {
+    return mapper.toModel(request);
+  }
+
+  @Override
+  protected void assertResponseFields(ExampleResponse response, Example model) {
     assertThat(response.id()).isEqualTo(model.id());
     assertThat(response.name()).isEqualTo(model.name());
     assertThat(response.description()).isEqualTo(model.description());
@@ -36,72 +78,36 @@ class ExampleApiMapperTest {
     assertThat(response.version()).isEqualTo(model.version());
   }
 
-  @Test
-  void toResponseReturnsNullForNullModel() {
-    assertThat(mapper.toResponse(null)).isNull();
+  @Override
+  protected void assertCreateFields(Example model, CreateExampleRequest request) {
+    assertThat(model.name()).isEqualTo(request.name());
+    assertThat(model.description()).isEqualTo(request.description());
+    assertThat(model.quantity()).isEqualTo(request.quantity());
+    assertThat(model.price()).isEqualByComparingTo(request.price());
+    assertThat(model.occurredAt()).isEqualTo(request.occurredAt());
+    assertThat(model.status()).isEqualTo(request.status());
+    assertThat(model.tags()).containsExactlyInAnyOrderElementsOf(request.tags());
   }
 
-  @Test
-  void toModelFromCreateRequestLeavesManagedFieldsNull() {
-    var request =
-        new CreateExampleRequest(
-            "name",
-            "description",
-            10,
-            new BigDecimal("19.99"),
-            Instant.parse("2026-05-20T12:00:00Z"),
-            ExampleStatus.DRAFT,
-            Set.of("alpha"));
-
-    var model = mapper.toModel(request);
-
-    assertThat(model.id()).isNull();
-    assertThat(model.createdAt()).isNull();
-    assertThat(model.updatedAt()).isNull();
-    assertThat(model.version()).isNull();
-    assertThat(model.name()).isEqualTo("name");
-    assertThat(model.description()).isEqualTo("description");
-    assertThat(model.quantity()).isEqualTo(10);
-    assertThat(model.price()).isEqualByComparingTo("19.99");
-    assertThat(model.occurredAt()).isEqualTo(Instant.parse("2026-05-20T12:00:00Z"));
-    assertThat(model.status()).isEqualTo(ExampleStatus.DRAFT);
-    assertThat(model.tags()).containsExactly("alpha");
+  @Override
+  protected void assertUpdateFields(Example model, UpdateExampleRequest request) {
+    assertThat(model.name()).isEqualTo(request.name());
+    assertThat(model.description()).isEqualTo(request.description());
+    assertThat(model.quantity()).isEqualTo(request.quantity());
+    assertThat(model.price()).isEqualByComparingTo(request.price());
+    assertThat(model.occurredAt()).isEqualTo(request.occurredAt());
+    assertThat(model.status()).isEqualTo(request.status());
+    assertThat(model.tags()).containsExactlyInAnyOrderElementsOf(request.tags());
   }
 
-  @Test
-  void toModelFromCreateRequestReturnsNullForNullRequest() {
-    assertThat(mapper.toModel((CreateExampleRequest) null)).isNull();
-  }
-
-  @Test
-  void toModelFromUpdateRequestLeavesManagedFieldsNull() {
-    var request =
-        new UpdateExampleRequest(
-            "name",
-            "description",
-            10,
-            new BigDecimal("19.99"),
-            Instant.parse("2026-05-20T12:00:00Z"),
-            ExampleStatus.ACTIVE,
-            Set.of("alpha", "beta"));
-
-    var model = mapper.toModel(request);
-
-    assertThat(model.id()).isNull();
-    assertThat(model.createdAt()).isNull();
-    assertThat(model.updatedAt()).isNull();
-    assertThat(model.version()).isNull();
-    assertThat(model.name()).isEqualTo("name");
-    assertThat(model.description()).isEqualTo("description");
-    assertThat(model.quantity()).isEqualTo(10);
-    assertThat(model.price()).isEqualByComparingTo("19.99");
-    assertThat(model.occurredAt()).isEqualTo(Instant.parse("2026-05-20T12:00:00Z"));
-    assertThat(model.status()).isEqualTo(ExampleStatus.ACTIVE);
-    assertThat(model.tags()).containsExactlyInAnyOrder("alpha", "beta");
-  }
-
-  @Test
-  void toModelFromUpdateRequestReturnsNullForNullRequest() {
-    assertThat(mapper.toModel((UpdateExampleRequest) null)).isNull();
+  @Override
+  protected void assertPatchFields(ExamplePatch patch, PatchExampleRequest request) {
+    assertThat(patch.name()).isEqualTo(request.name());
+    assertThat(patch.description()).isEqualTo(request.description());
+    assertThat(patch.quantity()).isEqualTo(request.quantity());
+    assertThat(patch.price()).isEqualByComparingTo(request.price());
+    assertThat(patch.occurredAt()).isEqualTo(request.occurredAt());
+    assertThat(patch.status()).isEqualTo(request.status());
+    assertThat(patch.tags()).containsExactlyInAnyOrderElementsOf(request.tags());
   }
 }

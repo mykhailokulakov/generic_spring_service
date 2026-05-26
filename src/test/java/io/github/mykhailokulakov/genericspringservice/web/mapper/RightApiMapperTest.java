@@ -3,23 +3,68 @@ package io.github.mykhailokulakov.genericspringservice.web.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.domain.model.Right;
+import io.github.mykhailokulakov.genericspringservice.domain.model.RightPatch;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractApiMapperTestContract;
 import io.github.mykhailokulakov.genericspringservice.web.dto.CreateRightRequest;
 import io.github.mykhailokulakov.genericspringservice.web.dto.PatchRightRequest;
+import io.github.mykhailokulakov.genericspringservice.web.dto.RightResponse;
 import io.github.mykhailokulakov.genericspringservice.web.dto.UpdateRightRequest;
 import org.instancio.Instancio;
-import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class RightApiMapperTest {
+class RightApiMapperTest
+    extends AbstractApiMapperTestContract<
+        Right,
+        RightResponse,
+        CreateRightRequest,
+        UpdateRightRequest,
+        PatchRightRequest,
+        RightPatch> {
 
   private final RightApiMapper mapper = Mappers.getMapper(RightApiMapper.class);
 
-  @Test
-  void toResponseCopiesEveryField() {
-    var model = Instancio.create(Right.class);
+  @Override
+  protected Right newModel() {
+    return Instancio.create(Right.class);
+  }
 
-    var response = mapper.toResponse(model);
+  @Override
+  protected CreateRightRequest newCreateRequest() {
+    return Instancio.create(CreateRightRequest.class);
+  }
 
+  @Override
+  protected UpdateRightRequest newUpdateRequest() {
+    return Instancio.create(UpdateRightRequest.class);
+  }
+
+  @Override
+  protected PatchRightRequest newPatchRequest() {
+    return Instancio.create(PatchRightRequest.class);
+  }
+
+  @Override
+  protected RightResponse toResponse(Right model) {
+    return mapper.toResponse(model);
+  }
+
+  @Override
+  protected Right toModelFromCreate(CreateRightRequest request) {
+    return mapper.toModel(request);
+  }
+
+  @Override
+  protected Right toModelFromUpdate(UpdateRightRequest request) {
+    return mapper.toModel(request);
+  }
+
+  @Override
+  protected RightPatch toModelFromPatch(PatchRightRequest request) {
+    return mapper.toModel(request);
+  }
+
+  @Override
+  protected void assertResponseFields(RightResponse response, Right model) {
     assertThat(response.id()).isEqualTo(model.id());
     assertThat(response.name()).isEqualTo(model.name());
     assertThat(response.createdAt()).isEqualTo(model.createdAt());
@@ -27,58 +72,18 @@ class RightApiMapperTest {
     assertThat(response.version()).isEqualTo(model.version());
   }
 
-  @Test
-  void toResponseReturnsNullForNullModel() {
-    assertThat(mapper.toResponse(null)).isNull();
+  @Override
+  protected void assertCreateFields(Right model, CreateRightRequest request) {
+    assertThat(model.name()).isEqualTo(request.name());
   }
 
-  @Test
-  void toModelFromCreateRequestLeavesManagedFieldsNull() {
-    var request = new CreateRightRequest("READ_USERS");
-
-    var model = mapper.toModel(request);
-
-    assertThat(model.id()).isNull();
-    assertThat(model.createdAt()).isNull();
-    assertThat(model.updatedAt()).isNull();
-    assertThat(model.version()).isNull();
-    assertThat(model.name()).isEqualTo("READ_USERS");
+  @Override
+  protected void assertUpdateFields(Right model, UpdateRightRequest request) {
+    assertThat(model.name()).isEqualTo(request.name());
   }
 
-  @Test
-  void toModelFromCreateRequestReturnsNullForNullRequest() {
-    assertThat(mapper.toModel((CreateRightRequest) null)).isNull();
-  }
-
-  @Test
-  void toModelFromUpdateRequestLeavesManagedFieldsNull() {
-    var request = new UpdateRightRequest("WRITE_USERS");
-
-    var model = mapper.toModel(request);
-
-    assertThat(model.id()).isNull();
-    assertThat(model.createdAt()).isNull();
-    assertThat(model.updatedAt()).isNull();
-    assertThat(model.version()).isNull();
-    assertThat(model.name()).isEqualTo("WRITE_USERS");
-  }
-
-  @Test
-  void toModelFromUpdateRequestReturnsNullForNullRequest() {
-    assertThat(mapper.toModel((UpdateRightRequest) null)).isNull();
-  }
-
-  @Test
-  void toModelFromPatchRequestMapsFields() {
-    var request = new PatchRightRequest("PATCHED_NAME");
-
-    var patch = mapper.toModel(request);
-
-    assertThat(patch.name()).isEqualTo("PATCHED_NAME");
-  }
-
-  @Test
-  void toModelFromPatchRequestReturnsNullForNullRequest() {
-    assertThat(mapper.toModel((PatchRightRequest) null)).isNull();
+  @Override
+  protected void assertPatchFields(RightPatch patch, PatchRightRequest request) {
+    assertThat(patch.name()).isEqualTo(request.name());
   }
 }
