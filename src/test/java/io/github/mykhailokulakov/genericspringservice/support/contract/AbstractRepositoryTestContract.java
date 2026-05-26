@@ -29,12 +29,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.assertj.core.api.Assertions;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -147,6 +149,14 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
+  void findById_returnsEmptyForNonExistentId() {
+    @SuppressWarnings("unchecked")
+    var repo = (JpaRepository<E, Object>) repository();
+
+    assertThat(repo.findById(UUID.randomUUID())).isEmpty();
+  }
+
+  @Test
   void update_incrementsVersion() {
     var saved = persistAndFlush(newEntity());
     var initialVersion = saved.getVersion();
@@ -159,6 +169,53 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
 
     var updated = repo.findById(saved.getId()).orElseThrow();
     assertThat(updated.getVersion()).isGreaterThan(initialVersion);
+  }
+
+  @Test
+  void update_advancesUpdatedAt() {
+    var saved = persistAndFlush(newEntity());
+    var originalUpdatedAt = saved.getUpdatedAt();
+
+    @SuppressWarnings("unchecked")
+    var repo = (JpaRepository<E, Object>) repository();
+    var reloaded = repo.findById(saved.getId()).orElseThrow();
+    mutate(reloaded);
+    repo.saveAndFlush(reloaded);
+
+    var updated = repo.findById(saved.getId()).orElseThrow();
+    assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(originalUpdatedAt);
+  }
+
+  @Test
+  void update_doesNotChangeCreatedAt() {
+    var saved = persistAndFlush(newEntity());
+    var originalCreatedAt = saved.getCreatedAt();
+
+    @SuppressWarnings("unchecked")
+    var repo = (JpaRepository<E, Object>) repository();
+    var reloaded = repo.findById(saved.getId()).orElseThrow();
+    mutate(reloaded);
+    repo.saveAndFlush(reloaded);
+
+    var updated = repo.findById(saved.getId()).orElseThrow();
+    assertThat(updated.getCreatedAt())
+        .isCloseTo(originalCreatedAt, within(Duration.ofNanos(1000)));
+  }
+
+  @Test
+  void update_rejectsStaleVersion() {
+    var saved = persistAndFlush(newEntity());
+
+    tx().executeWithoutResult(
+            status -> {
+              var current = em.find(entityType(), saved.getId());
+              mutate(current);
+              em.flush();
+            });
+
+    mutate(saved);
+    Assertions.assertThatThrownBy(() -> repository().saveAndFlush(saved))
+        .isInstanceOf(OptimisticLockingFailureException.class);
   }
 
   @Test
