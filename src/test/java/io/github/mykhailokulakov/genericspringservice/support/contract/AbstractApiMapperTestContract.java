@@ -5,31 +5,37 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mykhailokulakov.genericspringservice.domain.model.DomainModel;
 import org.junit.jupiter.api.Test;
 
-public abstract class AbstractApiMapperTestContract<M extends DomainModel, R, C, U, PR, P> {
+public abstract class AbstractApiMapperTestContract<
+    Model extends DomainModel,
+    Response,
+    CreateRequest,
+    UpdateRequest,
+    PatchRequest,
+    Patch> {
 
-  protected abstract M newModel();
+  protected abstract Model newModel();
 
-  protected abstract C newCreateRequest();
+  protected abstract CreateRequest newCreateRequest();
 
-  protected abstract U newUpdateRequest();
+  protected abstract UpdateRequest newUpdateRequest();
 
-  protected abstract PR newPatchRequest();
+  protected abstract PatchRequest newPatchRequest();
 
-  protected abstract R toResponse(M model);
+  protected abstract Response toResponse(Model model);
 
-  protected abstract M toModelFromCreate(C request);
+  protected abstract Model toModelFromCreate(CreateRequest request);
 
-  protected abstract M toModelFromUpdate(U request);
+  protected abstract Model toModelFromUpdate(UpdateRequest request);
 
-  protected abstract P toModelFromPatch(PR request);
+  protected abstract Patch toModelFromPatch(PatchRequest request);
 
-  protected abstract void assertResponseFields(R response, M model);
+  protected abstract void assertResponseFields(Response response, Model model);
 
-  protected abstract void assertCreateFields(M model, C request);
+  protected abstract void assertCreateFields(Model model, CreateRequest request);
 
-  protected abstract void assertUpdateFields(M model, U request);
+  protected abstract void assertUpdateFields(Model model, UpdateRequest request);
 
-  protected abstract void assertPatchFields(P patch, PR request);
+  protected abstract void assertPatchFields(Patch patch, PatchRequest request);
 
   @Test
   void toResponseCopiesEveryField() {
