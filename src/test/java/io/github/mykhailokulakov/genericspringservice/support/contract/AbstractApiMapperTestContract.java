@@ -6,12 +6,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.DomainModel;
 import org.junit.jupiter.api.Test;
 
 public abstract class AbstractApiMapperTestContract<
-    Model extends DomainModel,
-    Response,
-    CreateRequest,
-    UpdateRequest,
-    PatchRequest,
-    Patch> {
+    Model extends DomainModel, Response, CreateRequest, UpdateRequest, PatchRequest, Patch> {
 
   protected abstract Model newModel();
 
