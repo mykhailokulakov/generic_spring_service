@@ -1,6 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.support.contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
@@ -29,7 +30,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.assertj.core.api.Assertions;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -198,8 +198,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     repo.saveAndFlush(reloaded);
 
     var updated = repo.findById(saved.getId()).orElseThrow();
-    assertThat(updated.getCreatedAt())
-        .isCloseTo(originalCreatedAt, within(Duration.ofNanos(1000)));
+    assertThat(updated.getCreatedAt()).isCloseTo(originalCreatedAt, within(Duration.ofNanos(1000)));
   }
 
   @Test
@@ -214,7 +213,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
             });
 
     mutate(saved);
-    Assertions.assertThatThrownBy(() -> repository().saveAndFlush(saved))
+    assertThatThrownBy(() -> repository().saveAndFlush(saved))
         .isInstanceOf(OptimisticLockingFailureException.class);
   }
 
