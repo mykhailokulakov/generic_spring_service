@@ -35,6 +35,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -183,6 +185,23 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
 
     assertThat(dbHelper.countIncludingDeleted(entityType())).isOne();
     assertThat(dbHelper.countWhereDeleted(entityType())).isOne();
+  }
+
+  @Test
+  void findAll_paginatesAndSorts() {
+    for (int i = 0; i < 5; i++) {
+      persistAndFlush(newEntity());
+    }
+
+    var page = repository().findAll(PageRequest.of(0, 3, Sort.by("createdAt")));
+
+    assertThat(page.getTotalElements()).isEqualTo(5);
+    assertThat(page.getContent()).hasSize(3);
+    assertThat(page.getTotalPages()).isEqualTo(2);
+
+    var secondPage = repository().findAll(PageRequest.of(1, 3, Sort.by("createdAt")));
+
+    assertThat(secondPage.getContent()).hasSize(2);
   }
 
   @Test
