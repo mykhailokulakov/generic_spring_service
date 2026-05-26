@@ -57,7 +57,7 @@ class ArchitectureTest {
           .whereLayer("Entity")
           .mayOnlyBeAccessedByLayers("Repository", "Service")
           .whereLayer("Persistence")
-          .mayOnlyBeAccessedByLayers("Entity");
+          .mayOnlyBeAccessedByLayers("Entity", "Repository");
 
   @ArchTest
   static final ArchRule noFieldInjection =

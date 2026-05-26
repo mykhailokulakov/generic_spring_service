@@ -38,8 +38,11 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -55,6 +58,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
 
   private Class<E> resolvedEntityType;
   private JpaRepository<E, ?> cachedRepository;
+  private JpaSpecificationExecutor<E> cachedSpecExecutor;
 
   private void mutate(E entity) {
     var field =
@@ -97,6 +101,14 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
               new Repositories(applicationContext).getRepositoryFor(entityType()).orElseThrow();
     }
     return cachedRepository;
+  }
+
+  @SuppressWarnings("unchecked")
+  private JpaSpecificationExecutor<E> specExecutor() {
+    if (cachedSpecExecutor == null) {
+      cachedSpecExecutor = (JpaSpecificationExecutor<E>) repository();
+    }
+    return cachedSpecExecutor;
   }
 
   private TransactionTemplate tx() {
@@ -258,6 +270,47 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     var secondPage = repository().findAll(PageRequest.of(1, 3, Sort.by("createdAt")));
 
     assertThat(secondPage.getContent()).hasSize(2);
+  }
+
+  @Test
+  void specification_emptyReturnsAll() {
+    persistAndFlush(newEntity());
+    persistAndFlush(newEntity());
+    persistAndFlush(newEntity());
+
+    var page = specExecutor().findAll(Specification.unrestricted(), Pageable.unpaged());
+
+    assertThat(page.getContent()).hasSize(3);
+  }
+
+  @Test
+  void specification_paginatesAndSorts() {
+    for (int i = 0; i < 5; i++) {
+      persistAndFlush(newEntity());
+    }
+
+    var page =
+        specExecutor()
+            .findAll(Specification.unrestricted(), PageRequest.of(0, 3, Sort.by("createdAt")));
+
+    assertThat(page.getTotalElements()).isEqualTo(5);
+    assertThat(page.getContent()).hasSize(3);
+    assertThat(page.getTotalPages()).isEqualTo(2);
+  }
+
+  @Test
+  void specification_excludesSoftDeleted() {
+    persistAndFlush(newEntity());
+    var toDelete = persistAndFlush(newEntity());
+
+    @SuppressWarnings("unchecked")
+    var repo = (JpaRepository<E, Object>) repository();
+    repo.deleteById(toDelete.getId());
+    repo.flush();
+
+    var page = specExecutor().findAll(Specification.unrestricted(), Pageable.unpaged());
+
+    assertThat(page.getTotalElements()).isOne();
   }
 
   @Test
