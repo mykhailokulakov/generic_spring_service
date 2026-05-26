@@ -3,13 +3,20 @@ package io.github.mykhailokulakov.genericspringservice.mapper;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.Parent;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ParentPatch;
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring")
 public interface ParentEntityMapper
     extends EntityMapper<ParentEntity, Parent>, PatchableMapper<ParentEntity, ParentPatch> {
+
+  @Override
+  @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+  @Mapping(target = "children", ignore = true)
+  void applyPatch(ParentPatch patch, @MappingTarget ParentEntity entity);
 
   @Override
   @Mapping(target = "children", ignore = true)
