@@ -4,6 +4,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractRepositoryTestContract;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 
 class ChildRepositoryIT extends AbstractRepositoryTestContract<ChildEntity> {
@@ -20,6 +21,6 @@ class ChildRepositoryIT extends AbstractRepositoryTestContract<ChildEntity> {
 
   @Override
   protected void mutate(ChildEntity entity) {
-    entity.setValue("mutated");
+    entity.setValue(UUID.randomUUID().toString());
   }
 }
