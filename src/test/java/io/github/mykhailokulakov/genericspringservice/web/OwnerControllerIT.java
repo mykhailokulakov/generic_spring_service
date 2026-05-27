@@ -2,6 +2,8 @@ package io.github.mykhailokulakov.genericspringservice.web;
 
 import static io.github.mykhailokulakov.genericspringservice.support.assertions.Assertions.assertThat;
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asAdmin;
+import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.NO_CONTENT;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
@@ -37,7 +39,7 @@ class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity> 
             .body(Map.of("name", "Test Example", "status", "ACTIVE"))
             .post("/api/v1/examples")
             .then()
-            .statusCode(201)
+            .statusCode(CREATED.value())
             .extract()
             .response()
             .jsonPath()
@@ -105,7 +107,7 @@ class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity> 
       body.put("exampleId", exampleId.toString());
 
       UUID first = createAsAdmin(body);
-      asAdmin().delete(path() + "/" + first).then().statusCode(204);
+      asAdmin().delete(path() + "/" + first).then().statusCode(NO_CONTENT.value());
 
       UUID second = createAsAdmin(body);
       assertThat(second).isNotEqualTo(first);

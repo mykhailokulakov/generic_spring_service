@@ -1,6 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asAdmin;
+import static org.springframework.http.HttpStatus.CREATED;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
@@ -37,7 +38,7 @@ class ChildControllerIT extends AbstractCrudControllerTestContract<ChildEntity> 
                 .body(Map.of("label", "Test Parent"))
                 .post("/api/v1/parents")
                 .then()
-                .statusCode(201)
+                .statusCode(CREATED.value())
                 .extract()
                 .response()
                 .jsonPath()

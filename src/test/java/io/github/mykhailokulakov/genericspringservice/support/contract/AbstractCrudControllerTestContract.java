@@ -4,6 +4,15 @@ import static io.github.mykhailokulakov.genericspringservice.support.assertions.
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asAdmin;
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asUnauthenticated;
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asUser;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.NO_CONTENT;
+import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.PRECONDITION_FAILED;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import io.github.mykhailokulakov.genericspringservice.support.IntegrationTest;
@@ -55,7 +64,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
             .body(body)
             .post(path())
             .then()
-            .statusCode(201)
+            .statusCode(CREATED.value())
             .extract()
             .response();
     return UUID.fromString(response.jsonPath().getString("id"));
@@ -82,7 +91,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .body(body)
               .post(path())
               .then()
-              .statusCode(201)
+              .statusCode(CREATED.value())
               .extract()
               .response();
 
@@ -90,7 +99,8 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
           .isEqualTo(body.get(requiredFieldName()));
 
       var id = UUID.fromString(created.jsonPath().getString("id"));
-      var fetched = asUser().get(path() + "/" + id).then().statusCode(200).extract().response();
+      var fetched =
+          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
       assertThat(fetched.jsonPath().getString("id")).isEqualTo(id.toString());
       assertThat(fetched.jsonPath().getString(requiredFieldName()))
           .isEqualTo(body.get(requiredFieldName()));
@@ -104,7 +114,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .body(fullCreateBody())
               .post(path())
               .then()
-              .statusCode(201)
+              .statusCode(CREATED.value())
               .extract()
               .response();
 
@@ -132,7 +142,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(401);
+      assertThat(response).hasStatus(UNAUTHORIZED.value());
     }
 
     @Test
@@ -145,7 +155,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(403).hasCode("error.forbidden");
+      assertThat(response).hasStatus(FORBIDDEN.value()).hasCode("error.forbidden");
     }
 
     @Test
@@ -162,7 +172,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .extract()
               .response();
       assertThat(response)
-          .hasStatus(400)
+          .hasStatus(BAD_REQUEST.value())
           .hasCode("error.validation.failed")
           .hasViolation(requiredFieldName(), "NotBlank");
     }
@@ -181,7 +191,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .extract()
               .response();
       assertThat(response)
-          .hasStatus(400)
+          .hasStatus(BAD_REQUEST.value())
           .hasCode("error.validation.failed")
           .hasViolation(requiredFieldName(), "Size");
     }
@@ -200,7 +210,8 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     void userReadsCreatedEntity_returns200() {
       UUID id = createAsAdmin(fullCreateBody());
 
-      var response = asUser().get(path() + "/" + id).then().statusCode(200).extract().response();
+      var response =
+          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getString("id")).isEqualTo(id.toString());
       assertThat(response.jsonPath().getString(requiredFieldName()))
           .isEqualTo(fullCreateBody().get(requiredFieldName()));
@@ -210,7 +221,8 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     void userReadsImmediatelyAfterCreate_version0() {
       UUID id = createAsAdmin(fullCreateBody());
 
-      var response = asUser().get(path() + "/" + id).then().statusCode(200).extract().response();
+      var response =
+          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getLong("version")).isEqualTo(0L);
     }
 
@@ -224,9 +236,10 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
           .body(fullUpdateBody())
           .put(path() + "/" + id)
           .then()
-          .statusCode(200);
+          .statusCode(OK.value());
 
-      var response = asUser().get(path() + "/" + id).then().statusCode(200).extract().response();
+      var response =
+          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getString(requiredFieldName()))
           .isEqualTo(fullUpdateBody().get(requiredFieldName()));
       assertThat(response.jsonPath().getLong("version")).isEqualTo(1L);
@@ -236,28 +249,28 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     void noToken_returns401() {
       var response =
           asUnauthenticated().get(path() + "/" + UUID.randomUUID()).then().extract().response();
-      assertThat(response).hasStatus(401);
+      assertThat(response).hasStatus(UNAUTHORIZED.value());
     }
 
     @Test
     void nonExistentId_returns404() {
       var response = asUser().get(path() + "/" + UUID.randomUUID()).then().extract().response();
-      assertThat(response).hasStatus(404).hasCode(notFoundCode());
+      assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
     @Test
     void invalidUuid_returns400() {
       var response = asUser().get(path() + "/not-a-uuid").then().extract().response();
-      assertThat(response).hasStatus(400);
+      assertThat(response).hasStatus(BAD_REQUEST.value());
     }
 
     @Test
     void softDeletedEntity_returns404() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(204);
+      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
 
       var response = asUser().get(path() + "/" + id).then().extract().response();
-      assertThat(response).hasStatus(404).hasCode(notFoundCode());
+      assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
     @Test
@@ -269,7 +282,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(404).hasCode(notFoundCode());
+      assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
       assertThat(response.jsonPath().getString("detail")).startsWith(ukrainianNotFoundPrefix());
     }
   }
@@ -288,7 +301,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       createAsAdmin(fullCreateBody());
       createAsAdmin(fullCreateBody());
 
-      var response = asUser().get(path()).then().statusCode(200).extract().response();
+      var response = asUser().get(path()).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(2L);
       assertThat(response.jsonPath().getList("content")).hasSize(2);
     }
@@ -305,7 +318,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .queryParam("size", 2)
               .get(path())
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getInt("page")).isEqualTo(1);
@@ -327,7 +340,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .queryParam("size", "10")
               .get(path())
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       var createdAts = response.jsonPath().getList("content.createdAt", String.class);
@@ -337,15 +350,15 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     @Test
     void noToken_returns401() {
       var response = asUnauthenticated().get(path()).then().extract().response();
-      assertThat(response).hasStatus(401);
+      assertThat(response).hasStatus(UNAUTHORIZED.value());
     }
 
     @Test
     void deletedExcludedFromSearch() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(204);
+      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
 
-      var response = asUser().get(path()).then().statusCode(200).extract().response();
+      var response = asUser().get(path()).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(0L);
     }
   }
@@ -370,7 +383,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .body(fullUpdateBody())
               .put(path() + "/" + id)
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getString(requiredFieldName()))
@@ -388,7 +401,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
           .body(fullUpdateBody())
           .put(path() + "/" + id)
           .then()
-          .statusCode(200);
+          .statusCode(OK.value());
 
       Map<String, Object> secondBody = new LinkedHashMap<>(fullUpdateBody());
       secondBody.put(requiredFieldName(), patchFieldValue());
@@ -400,7 +413,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .body(secondBody)
               .put(path() + "/" + id)
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(second.jsonPath().getLong("version")).isEqualTo(2L);
@@ -409,7 +422,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     @Test
     void replacingSoftDeleted_returns404() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(204);
+      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
 
       var response =
           asAdmin()
@@ -420,7 +433,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(404).hasCode(notFoundCode());
+      assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
     @Test
@@ -434,7 +447,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(401);
+      assertThat(response).hasStatus(UNAUTHORIZED.value());
     }
 
     @Test
@@ -449,7 +462,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(403).hasCode("error.forbidden");
+      assertThat(response).hasStatus(FORBIDDEN.value()).hasCode("error.forbidden");
     }
 
     @Test
@@ -463,7 +476,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(412).hasCode("error.if-match.required");
+      assertThat(response)
+          .hasStatus(PRECONDITION_FAILED.value())
+          .hasCode("error.if-match.required");
     }
 
     @Test
@@ -478,7 +493,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(409).hasCode("error.optimistic-lock");
+      assertThat(response).hasStatus(CONFLICT.value()).hasCode("error.optimistic-lock");
     }
 
     @Test
@@ -497,7 +512,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .extract()
               .response();
       assertThat(response)
-          .hasStatus(400)
+          .hasStatus(BAD_REQUEST.value())
           .hasCode("error.validation.failed")
           .hasViolation(requiredFieldName(), "NotBlank");
     }
@@ -523,7 +538,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .body(Map.of(patchFieldName(), patchFieldValue()))
               .patch(path() + "/" + id)
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getString(patchFieldName()))
@@ -543,7 +558,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .body(patch)
               .patch(path() + "/" + id)
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getString(patchFieldName()))
@@ -561,7 +576,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .body(Map.of(patchFieldName(), patchFieldValue()))
               .patch(path() + "/" + id)
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getLong("version")).isEqualTo(1L);
@@ -578,7 +593,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(401);
+      assertThat(response).hasStatus(UNAUTHORIZED.value());
     }
 
     @Test
@@ -593,7 +608,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(403).hasCode("error.forbidden");
+      assertThat(response).hasStatus(FORBIDDEN.value()).hasCode("error.forbidden");
     }
 
     @Test
@@ -607,7 +622,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(412).hasCode("error.if-match.required");
+      assertThat(response)
+          .hasStatus(PRECONDITION_FAILED.value())
+          .hasCode("error.if-match.required");
     }
 
     @Test
@@ -622,7 +639,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(409).hasCode("error.optimistic-lock");
+      assertThat(response).hasStatus(CONFLICT.value()).hasCode("error.optimistic-lock");
     }
 
     @Test
@@ -636,7 +653,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(404).hasCode(notFoundCode());
+      assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
   }
 
@@ -653,16 +670,16 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     void adminDeletes_returns204_thenGetReturns404() {
       UUID id = createAsAdmin(fullCreateBody());
 
-      asAdmin().delete(path() + "/" + id).then().statusCode(204);
+      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
 
       var response = asUser().get(path() + "/" + id).then().extract().response();
-      assertThat(response).hasStatus(404).hasCode(notFoundCode());
+      assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
     @Test
     void deletedRowRemainsInDb() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(204);
+      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
 
       assertThat(db.countIncludingDeleted(entityClass())).isEqualTo(1L);
       assertThat(db.countWhereDeleted(entityClass())).isEqualTo(1L);
@@ -671,16 +688,16 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     @Test
     void secondDeleteOnSameId_returns404() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(204);
+      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
 
       var response = asAdmin().delete(path() + "/" + id).then().extract().response();
-      assertThat(response).hasStatus(404).hasCode(notFoundCode());
+      assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
     @Test
     void deleteThenRecreateSameData_returns201() {
       UUID first = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + first).then().statusCode(204);
+      asAdmin().delete(path() + "/" + first).then().statusCode(NO_CONTENT.value());
 
       UUID second = createAsAdmin(fullCreateBody());
       assertThat(second).isNotEqualTo(first);
@@ -690,26 +707,26 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     void noToken_returns401() {
       var response =
           asUnauthenticated().delete(path() + "/" + UUID.randomUUID()).then().extract().response();
-      assertThat(response).hasStatus(401);
+      assertThat(response).hasStatus(UNAUTHORIZED.value());
     }
 
     @Test
     void userRole_returns403() {
       UUID id = createAsAdmin(fullCreateBody());
       var response = asUser().delete(path() + "/" + id).then().extract().response();
-      assertThat(response).hasStatus(403).hasCode("error.forbidden");
+      assertThat(response).hasStatus(FORBIDDEN.value()).hasCode("error.forbidden");
     }
 
     @Test
     void nonExistentId_returns404() {
       var response = asAdmin().delete(path() + "/" + UUID.randomUUID()).then().extract().response();
-      assertThat(response).hasStatus(404).hasCode(notFoundCode());
+      assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
     @Test
     void invalidUuid_returns400() {
       var response = asAdmin().delete(path() + "/not-a-uuid").then().extract().response();
-      assertThat(response).hasStatus(400);
+      assertThat(response).hasStatus(BAD_REQUEST.value());
     }
   }
 }

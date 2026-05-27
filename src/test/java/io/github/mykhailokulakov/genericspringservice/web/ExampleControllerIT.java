@@ -3,6 +3,9 @@ package io.github.mykhailokulakov.genericspringservice.web;
 import static io.github.mykhailokulakov.genericspringservice.support.assertions.Assertions.assertThat;
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asAdmin;
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asUser;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CREATED;
+import static org.springframework.http.HttpStatus.OK;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
@@ -108,7 +111,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .body(body)
               .post(path())
               .then()
-              .statusCode(201)
+              .statusCode(CREATED.value())
               .extract()
               .response();
 
@@ -135,7 +138,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .body(body)
               .post(path())
               .then()
-              .statusCode(201)
+              .statusCode(CREATED.value())
               .extract()
               .response();
 
@@ -155,7 +158,8 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
 
       UUID id = createAsAdmin(body);
 
-      var fetched = asUser().get(path() + "/" + id).then().statusCode(200).extract().response();
+      var fetched =
+          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
       assertThat(fetched.jsonPath().getList("tags", String.class))
           .containsExactlyInAnyOrder("red", "green", "blue");
     }
@@ -173,7 +177,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .then()
               .extract()
               .response();
-      assertThat(response).hasStatus(400);
+      assertThat(response).hasStatus(BAD_REQUEST.value());
     }
   }
 
@@ -191,7 +195,8 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
       body.put("tags", List.of());
       UUID id = createAsAdmin(body);
 
-      var response = asUser().get(path() + "/" + id).then().statusCode(200).extract().response();
+      var response =
+          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getList("tags", String.class)).isEmpty();
     }
   }
@@ -217,7 +222,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .queryParam("name", "Widget")
               .get(path())
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(19L);
@@ -232,7 +237,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .queryParam("status", "DRAFT", "ACTIVE")
               .get(path())
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       var statuses = response.jsonPath().getList("content.status", String.class);
@@ -247,7 +252,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .queryParam("maxPrice", "10000.00")
               .get(path())
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(20L);
@@ -260,7 +265,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .queryParam("tag", "alpha")
               .get(path())
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(20L);
@@ -271,7 +276,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     @Test
     void userWithInvalidStatusValueInQuery_returns400() {
       var response = asUser().queryParam("status", "NOPE").get(path()).then().extract().response();
-      assertThat(response).hasStatus(400);
+      assertThat(response).hasStatus(BAD_REQUEST.value());
     }
 
     @Test
@@ -282,7 +287,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .queryParam("maxPrice", "1.00")
               .get(path())
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(0L);
@@ -293,14 +298,14 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     void userMalformedDateInOccurredFrom_returns400() {
       var response =
           asUser().queryParam("occurredFrom", "not-a-date").get(path()).then().extract().response();
-      assertThat(response).hasStatus(400);
+      assertThat(response).hasStatus(BAD_REQUEST.value());
     }
 
     @Test
     void userMalformedIntegerInMinQuantity_returns400() {
       var response =
           asUser().queryParam("minQuantity", "abc").get(path()).then().extract().response();
-      assertThat(response).hasStatus(400);
+      assertThat(response).hasStatus(BAD_REQUEST.value());
     }
   }
 
@@ -325,7 +330,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .body(body)
               .put(path() + "/" + id)
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getList("tags", String.class)).isEmpty();
@@ -342,7 +347,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .body(fullUpdateBody())
               .put(path() + "/" + id)
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getString("status")).isEqualTo("ARCHIVED");
@@ -372,7 +377,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .body(patch)
               .patch(path() + "/" + id)
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getString("name")).isEqualTo("multi");
@@ -392,7 +397,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .body(Map.of("tags", List.of("only")))
               .patch(path() + "/" + id)
               .then()
-              .statusCode(200)
+              .statusCode(OK.value())
               .extract()
               .response();
       assertThat(response.jsonPath().getList("tags", String.class)).containsExactly("only");
