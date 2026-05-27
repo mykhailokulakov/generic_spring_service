@@ -3,18 +3,14 @@ package io.github.mykhailokulakov.genericspringservice.support.contract;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import io.github.mykhailokulakov.genericspringservice.common.persistence.Identifiable;
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.LeftEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.entity.RightEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ManyToMany;
@@ -24,10 +20,13 @@ import jakarta.persistence.OneToOne;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
-import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.instancio.Instancio;
@@ -126,6 +125,78 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
 
   protected E newEntity() {
     return RandomEntities.create(entityType());
+  }
+
+  private static Optional<Field> findField(
+      Class<?> type, java.util.function.Predicate<Field> predicate) {
+    var current = type;
+    while (current != null && current != Object.class) {
+      for (var f : current.getDeclaredFields()) {
+        if (predicate.test(f)) {
+          return Optional.of(f);
+        }
+      }
+      current = current.getSuperclass();
+    }
+    return Optional.empty();
+  }
+
+  private static Optional<Field> findFirstField(
+      Class<?> type, Class<? extends java.lang.annotation.Annotation> annotation) {
+    return findField(type, f -> f.isAnnotationPresent(annotation));
+  }
+
+  private static Optional<Field> findOwningSide(
+      Class<?> type, Class<? extends java.lang.annotation.Annotation> annotation) {
+    return findField(type, f -> f.isAnnotationPresent(annotation) && !hasMappedBy(f, annotation));
+  }
+
+  private static boolean hasMappedBy(
+      Field field, Class<? extends java.lang.annotation.Annotation> annotation) {
+    if (annotation == OneToOne.class) {
+      return !field.getAnnotation(OneToOne.class).mappedBy().isEmpty();
+    }
+    if (annotation == ManyToMany.class) {
+      return !field.getAnnotation(ManyToMany.class).mappedBy().isEmpty();
+    }
+    return false;
+  }
+
+  private static Class<?> collectionElementType(Field field) {
+    var generic = (ParameterizedType) field.getGenericType();
+    return (Class<?>) generic.getActualTypeArguments()[0];
+  }
+
+  private static void setField(Object target, Field field, Object value) {
+    field.setAccessible(true);
+    try {
+      field.set(target, value);
+    } catch (IllegalAccessException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private static Object getField(Object target, Field field) {
+    field.setAccessible(true);
+    try {
+      return field.get(target);
+    } catch (IllegalAccessException e) {
+      throw new AssertionError(e);
+    }
+  }
+
+  private static Optional<Field> findBackReference(Class<?> childType, Class<?> parentType) {
+    return findField(
+        childType, f -> f.isAnnotationPresent(ManyToOne.class) && f.getType().equals(parentType));
+  }
+
+  private static boolean hasCascadeRemove(OneToMany annotation) {
+    for (var ct : annotation.cascade()) {
+      if (ct == CascadeType.REMOVE || ct == CascadeType.ALL) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Test
@@ -328,121 +399,169 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void softDeleteParent_cascadesToChildren() {
-    var parentRef =
-        new Object() {
-          UUID parentId;
-          UUID childId;
-        };
-
-    tx().executeWithoutResult(
-            status -> {
-              var parent = ParentEntity.builder().label("parent").build();
-              var child = ChildEntity.builder().value("child").parent(parent).build();
-              parent.setChildren(List.of(child));
-              em.persist(parent);
-              em.flush();
-              parentRef.parentId = parent.getId();
-              parentRef.childId = child.getId();
-            });
-
-    tx().executeWithoutResult(
-            status -> {
-              var loadedParent = em.find(ParentEntity.class, parentRef.parentId);
-              em.remove(loadedParent);
-              em.flush();
-            });
-
-    assertThat(dbHelper.countIncludingDeleted(ParentEntity.class)).isOne();
-    assertThat(dbHelper.countWhereDeleted(ParentEntity.class)).isOne();
-    assertThat(dbHelper.countIncludingDeleted(ChildEntity.class)).isOne();
-    assertThat(dbHelper.countWhereDeleted(ChildEntity.class))
-        .as("cascade soft-delete: child is also soft-deleted when parent is")
-        .isOne();
-  }
-
-  @Test
   void manyToOne_foreignKeySurvivesReload() {
+    var field = findFirstField(entityType(), ManyToOne.class);
+    assumeTrue(field.isPresent(), "entity has no @ManyToOne field");
+
+    var manyToOneField = field.get();
+    var targetType = manyToOneField.getType();
+
     var ids =
         new Object() {
-          UUID parentId;
-          UUID childId;
+          UUID entityId;
+          UUID targetId;
         };
 
     tx().executeWithoutResult(
             status -> {
-              var parent = ParentEntity.builder().label("p").build();
-              em.persist(parent);
-              var child = ChildEntity.builder().value("c").parent(parent).build();
-              em.persist(child);
+              var target = RandomEntities.create(targetType);
+              em.persist(target);
+              var entity = newEntity();
+              setField(entity, manyToOneField, target);
+              em.persist(entity);
               em.flush();
-              ids.parentId = parent.getId();
-              ids.childId = child.getId();
+              ids.entityId = entity.getId();
+              ids.targetId = ((Identifiable) target).getId();
             });
 
     tx().executeWithoutResult(
             status -> {
-              var reloaded = em.find(ChildEntity.class, ids.childId);
-              assertThat(reloaded.getParent().getId()).isEqualTo(ids.parentId);
+              var reloaded = em.find(entityType(), ids.entityId);
+              var target = (Identifiable) getField(reloaded, manyToOneField);
+              assertThat(target.getId()).isEqualTo(ids.targetId);
             });
   }
 
   @Test
   void oneToOne_foreignKeySurvivesReload() {
+    var field = findOwningSide(entityType(), OneToOne.class);
+    assumeTrue(field.isPresent(), "entity has no owning @OneToOne field");
+
+    var oneToOneField = field.get();
+    var targetType = oneToOneField.getType();
+
     var ids =
         new Object() {
-          UUID ownerId;
-          UUID exampleId;
+          UUID entityId;
+          UUID targetId;
         };
 
     tx().executeWithoutResult(
             status -> {
-              var example =
-                  ExampleEntity.builder()
-                      .name("test")
-                      .status(ExampleStatus.ACTIVE)
-                      .price(BigDecimal.ONE)
-                      .build();
-              em.persist(example);
-              var owner = OwnerEntity.builder().handle("owner").example(example).build();
-              em.persist(owner);
+              var target = RandomEntities.create(targetType);
+              em.persist(target);
+              var entity = newEntity();
+              setField(entity, oneToOneField, target);
+              em.persist(entity);
               em.flush();
-              ids.ownerId = owner.getId();
-              ids.exampleId = example.getId();
+              ids.entityId = entity.getId();
+              ids.targetId = ((Identifiable) target).getId();
             });
 
     tx().executeWithoutResult(
             status -> {
-              var reloaded = em.find(OwnerEntity.class, ids.ownerId);
-              assertThat(reloaded.getExample()).isNotNull();
-              assertThat(reloaded.getExample().getId()).isEqualTo(ids.exampleId);
+              var reloaded = em.find(entityType(), ids.entityId);
+              var target = (Identifiable) getField(reloaded, oneToOneField);
+              assertThat(target).isNotNull();
+              assertThat(target.getId()).isEqualTo(ids.targetId);
             });
   }
 
   @Test
   void manyToMany_associationSurvivesReload() {
+    var field = findOwningSide(entityType(), ManyToMany.class);
+    assumeTrue(field.isPresent(), "entity has no owning @ManyToMany field");
+
+    var manyToManyField = field.get();
+    var targetType = collectionElementType(manyToManyField);
+
     var ids =
         new Object() {
-          UUID leftId;
-          UUID rightId;
+          UUID entityId;
+          UUID targetId;
         };
 
     tx().executeWithoutResult(
             status -> {
-              var right = RightEntity.builder().name("right").build();
-              em.persist(right);
-              var left = LeftEntity.builder().code("left").rights(Set.of(right)).build();
-              em.persist(left);
+              var target = RandomEntities.create(targetType);
+              em.persist(target);
+              var entity = newEntity();
+              var targets =
+                  Set.class.isAssignableFrom(manyToManyField.getType())
+                      ? Set.of(target)
+                      : List.of(target);
+              setField(entity, manyToManyField, targets);
+              em.persist(entity);
               em.flush();
-              ids.leftId = left.getId();
-              ids.rightId = right.getId();
+              ids.entityId = entity.getId();
+              ids.targetId = ((Identifiable) target).getId();
             });
 
     tx().executeWithoutResult(
             status -> {
-              var reloaded = em.find(LeftEntity.class, ids.leftId);
-              assertThat(reloaded.getRights()).hasSize(1);
-              assertThat(reloaded.getRights().iterator().next().getId()).isEqualTo(ids.rightId);
+              var reloaded = em.find(entityType(), ids.entityId);
+              var targets = (Collection<?>) getField(reloaded, manyToManyField);
+              assertThat(targets).hasSize(1);
+              assertThat(((Identifiable) targets.iterator().next()).getId())
+                  .isEqualTo(ids.targetId);
             });
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  void softDeleteParent_cascadesToChildren() {
+    var oneToManyField =
+        findField(
+            entityType(),
+            f ->
+                f.isAnnotationPresent(OneToMany.class)
+                    && hasCascadeRemove(f.getAnnotation(OneToMany.class)));
+    assumeTrue(oneToManyField.isPresent(), "entity has no @OneToMany with cascade REMOVE");
+
+    var collectionField = oneToManyField.get();
+    var childType = (Class<? extends Identifiable>) collectionElementType(collectionField);
+    var backRef = findBackReference(childType, entityType());
+    assumeTrue(backRef.isPresent(), "child has no @ManyToOne back-reference to parent");
+
+    var backRefField = backRef.get();
+
+    var parentId =
+        new Object() {
+          UUID value;
+        };
+
+    tx().executeWithoutResult(
+            status -> {
+              var parent = newEntity();
+              em.persist(parent);
+              em.flush();
+
+              var child = RandomEntities.create(childType);
+              setField(child, backRefField, parent);
+              em.persist(child);
+
+              Collection<Object> children =
+                  Set.class.isAssignableFrom(collectionField.getType())
+                      ? new HashSet<>(Set.of(child))
+                      : new ArrayList<>(List.of(child));
+              setField(parent, collectionField, children);
+              em.flush();
+
+              parentId.value = parent.getId();
+            });
+
+    tx().executeWithoutResult(
+            status -> {
+              var loaded = em.find(entityType(), parentId.value);
+              em.remove(loaded);
+              em.flush();
+            });
+
+    assertThat(dbHelper.countIncludingDeleted(entityType())).isOne();
+    assertThat(dbHelper.countWhereDeleted(entityType())).isOne();
+    assertThat(dbHelper.countIncludingDeleted(childType)).isOne();
+    assertThat(dbHelper.countWhereDeleted(childType))
+        .as("cascade soft-delete: child is also soft-deleted when parent is")
+        .isOne();
   }
 }
