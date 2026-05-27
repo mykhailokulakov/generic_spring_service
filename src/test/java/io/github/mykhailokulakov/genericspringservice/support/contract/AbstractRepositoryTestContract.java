@@ -21,9 +21,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -125,19 +127,28 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     return RandomEntities.create(entityType());
   }
 
+  private static Optional<Field> findField(
+      Class<?> type, java.util.function.Predicate<Field> predicate) {
+    var current = type;
+    while (current != null && current != Object.class) {
+      for (var f : current.getDeclaredFields()) {
+        if (predicate.test(f)) {
+          return Optional.of(f);
+        }
+      }
+      current = current.getSuperclass();
+    }
+    return Optional.empty();
+  }
+
   private static Optional<Field> findFirstField(
       Class<?> type, Class<? extends java.lang.annotation.Annotation> annotation) {
-    return Arrays.stream(type.getDeclaredFields())
-        .filter(f -> f.isAnnotationPresent(annotation))
-        .findFirst();
+    return findField(type, f -> f.isAnnotationPresent(annotation));
   }
 
   private static Optional<Field> findOwningSide(
       Class<?> type, Class<? extends java.lang.annotation.Annotation> annotation) {
-    return Arrays.stream(type.getDeclaredFields())
-        .filter(f -> f.isAnnotationPresent(annotation))
-        .filter(f -> !hasMappedBy(f, annotation))
-        .findFirst();
+    return findField(type, f -> f.isAnnotationPresent(annotation) && !hasMappedBy(f, annotation));
   }
 
   private static boolean hasMappedBy(
@@ -175,10 +186,8 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   private static Optional<Field> findBackReference(Class<?> childType, Class<?> parentType) {
-    return Arrays.stream(childType.getDeclaredFields())
-        .filter(f -> f.isAnnotationPresent(ManyToOne.class))
-        .filter(f -> f.getType().equals(parentType))
-        .findFirst();
+    return findField(
+        childType, f -> f.isAnnotationPresent(ManyToOne.class) && f.getType().equals(parentType));
   }
 
   private static boolean hasCascadeRemove(OneToMany annotation) {
@@ -477,7 +486,11 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
               var target = RandomEntities.create(targetType);
               em.persist(target);
               var entity = newEntity();
-              setField(entity, manyToManyField, Set.of(target));
+              var targets =
+                  Set.class.isAssignableFrom(manyToManyField.getType())
+                      ? Set.of(target)
+                      : List.of(target);
+              setField(entity, manyToManyField, targets);
               em.persist(entity);
               em.flush();
               ids.entityId = entity.getId();
@@ -498,10 +511,11 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   @Test
   void softDeleteParent_cascadesToChildren() {
     var oneToManyField =
-        Arrays.stream(entityType().getDeclaredFields())
-            .filter(f -> f.isAnnotationPresent(OneToMany.class))
-            .filter(f -> hasCascadeRemove(f.getAnnotation(OneToMany.class)))
-            .findFirst();
+        findField(
+            entityType(),
+            f ->
+                f.isAnnotationPresent(OneToMany.class)
+                    && hasCascadeRemove(f.getAnnotation(OneToMany.class)));
     assumeTrue(oneToManyField.isPresent(), "entity has no @OneToMany with cascade REMOVE");
 
     var collectionField = oneToManyField.get();
@@ -526,8 +540,10 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
               setField(child, backRefField, parent);
               em.persist(child);
 
-              var children = new HashSet<>();
-              children.add(child);
+              Collection<Object> children =
+                  Set.class.isAssignableFrom(collectionField.getType())
+                      ? new HashSet<>(Set.of(child))
+                      : new ArrayList<>(List.of(child));
               setField(parent, collectionField, children);
               em.flush();
 
