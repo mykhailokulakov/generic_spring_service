@@ -35,7 +35,7 @@ the operator's guide.
   with MDC `traceId`/`spanId` propagated by Logback.
 - **Testcontainers, composable** — Postgres and Keycloak each behind a
   meta-annotation (`@WithPostgres`, `@WithKeycloak`); `@IntegrationTest`
-  composes both; `@WithSeededExamples` seeds data per-test.
+  composes both.
 - **80% line + branch coverage gate** enforced by JaCoCo in `verify`.
 - **Layered ArchUnit rules** — package access, no field injection, no
   `System.out`, no cycles, `@PreAuthorize` confined to the annotation
@@ -195,8 +195,7 @@ mechanical checklist for the rename:
    `ExampleController` + the DTOs in `web/dto` + the Flyway migrations
    (`V2__example.sql`) + every test under `..web.ExampleControllerIT`,
    `..service.ExampleServiceTest`, `..mapper.Example*MapperTest`,
-   `..repository.ExampleRepositoryIT`, the fixtures package and the
-   `WithSeededExamples` annotation. Keep the test count discipline: ≥ 5
+   `..repository.ExampleRepositoryIT`. Keep the test count discipline: ≥ 5
    positive + 5 negative per endpoint.
 7. **README** — replace the description, swap the GHCR badge, prune this
    forking checklist (it has done its job once the rename is complete).
