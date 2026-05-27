@@ -1,6 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ParentEntity;
+import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,8 +19,8 @@ class ParentControllerIT extends AbstractCrudControllerTestContract<ParentEntity
   }
 
   @Override
-  protected String notFoundCode() {
-    return "error.parent.not-found";
+  protected ErrorCode notFoundCode() {
+    return ErrorCode.PARENT_NOT_FOUND;
   }
 
   @Override

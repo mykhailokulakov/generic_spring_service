@@ -4,6 +4,7 @@ import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAs
 import static org.springframework.http.HttpStatus.CREATED;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
+import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
 import io.restassured.http.ContentType;
 import java.util.LinkedHashMap;
@@ -25,8 +26,8 @@ class ChildControllerIT extends AbstractCrudControllerTestContract<ChildEntity> 
   }
 
   @Override
-  protected String notFoundCode() {
-    return "error.child.not-found";
+  protected ErrorCode notFoundCode() {
+    return ErrorCode.CHILD_NOT_FOUND;
   }
 
   @Override

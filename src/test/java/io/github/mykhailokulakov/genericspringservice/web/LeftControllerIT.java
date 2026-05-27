@@ -1,6 +1,7 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.LeftEntity;
+import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -18,8 +19,8 @@ class LeftControllerIT extends AbstractCrudControllerTestContract<LeftEntity> {
   }
 
   @Override
-  protected String notFoundCode() {
-    return "error.left.not-found";
+  protected ErrorCode notFoundCode() {
+    return ErrorCode.LEFT_NOT_FOUND;
   }
 
   @Override

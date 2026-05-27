@@ -8,6 +8,7 @@ import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.OK;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
+import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
 import io.restassured.http.ContentType;
 import java.math.BigDecimal;
@@ -34,8 +35,8 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
   }
 
   @Override
-  protected String notFoundCode() {
-    return "error.example.not-found";
+  protected ErrorCode notFoundCode() {
+    return ErrorCode.EXAMPLE_NOT_FOUND;
   }
 
   @Override

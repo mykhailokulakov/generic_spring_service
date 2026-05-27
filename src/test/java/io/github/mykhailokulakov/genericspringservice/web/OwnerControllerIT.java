@@ -6,6 +6,7 @@ import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
+import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
 import io.restassured.http.ContentType;
 import java.util.LinkedHashMap;
@@ -28,8 +29,8 @@ class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity> 
   }
 
   @Override
-  protected String notFoundCode() {
-    return "error.owner.not-found";
+  protected ErrorCode notFoundCode() {
+    return ErrorCode.OWNER_NOT_FOUND;
   }
 
   private UUID createExample() {
