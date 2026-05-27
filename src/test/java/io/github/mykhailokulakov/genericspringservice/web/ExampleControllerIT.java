@@ -5,7 +5,6 @@ import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAs
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asUser;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.Example;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
 import io.restassured.http.ContentType;
 import java.math.BigDecimal;
@@ -18,7 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEntity, Example> {
+class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEntity> {
 
   @Override
   protected String path() {

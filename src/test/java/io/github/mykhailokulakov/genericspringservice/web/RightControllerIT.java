@@ -1,12 +1,11 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.RightEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.Right;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-class RightControllerIT extends AbstractCrudControllerTestContract<RightEntity, Right> {
+class RightControllerIT extends AbstractCrudControllerTestContract<RightEntity> {
 
   @Override
   protected String path() {

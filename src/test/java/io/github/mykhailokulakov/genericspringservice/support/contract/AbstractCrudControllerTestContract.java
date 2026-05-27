@@ -6,7 +6,6 @@ import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAs
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asUser;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
-import io.github.mykhailokulakov.genericspringservice.domain.model.DomainModel;
 import io.github.mykhailokulakov.genericspringservice.support.IntegrationTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import io.restassured.http.ContentType;
@@ -22,10 +21,9 @@ import org.springframework.context.annotation.Import;
 
 @IntegrationTest
 @Import(DatabaseStateHelper.class)
-public abstract class AbstractCrudControllerTestContract<
-    E extends SoftDeletable, M extends DomainModel> {
+public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable> {
 
-  @LocalServerPort protected int port;
+  @LocalServerPort private int port;
   @Autowired protected DatabaseStateHelper db;
 
   protected abstract String path();
@@ -393,7 +391,7 @@ public abstract class AbstractCrudControllerTestContract<
           .statusCode(200);
 
       Map<String, Object> secondBody = new LinkedHashMap<>(fullUpdateBody());
-      secondBody.put(requiredFieldName(), "second-replace-value");
+      secondBody.put(requiredFieldName(), patchFieldValue());
 
       var second =
           asAdmin()

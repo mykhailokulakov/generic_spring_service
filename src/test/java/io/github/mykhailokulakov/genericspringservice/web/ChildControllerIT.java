@@ -3,14 +3,13 @@ package io.github.mykhailokulakov.genericspringservice.web;
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asAdmin;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.Child;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
 import io.restassured.http.ContentType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-class ChildControllerIT extends AbstractCrudControllerTestContract<ChildEntity, Child> {
+class ChildControllerIT extends AbstractCrudControllerTestContract<ChildEntity> {
 
   private UUID parentId;
 

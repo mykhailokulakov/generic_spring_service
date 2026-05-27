@@ -3,14 +3,13 @@ package io.github.mykhailokulakov.genericspringservice.web;
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asAdmin;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
-import io.github.mykhailokulakov.genericspringservice.domain.model.Owner;
 import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
 import io.restassured.http.ContentType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity, Owner> {
+class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity> {
 
   @Override
   protected String path() {
