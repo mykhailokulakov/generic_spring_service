@@ -107,7 +107,7 @@ class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity> 
       body.put("exampleId", exampleId.toString());
 
       UUID first = createAsAdmin(body);
-      asAdmin().delete(path() + "/" + first).then().statusCode(NO_CONTENT.value());
+      asAdmin().delete(resourcePath(), first).then().statusCode(NO_CONTENT.value());
 
       UUID second = createAsAdmin(body);
       assertThat(second).isNotEqualTo(first);

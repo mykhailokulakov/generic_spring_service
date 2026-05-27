@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 
 @IntegrationTest
 @Import(DatabaseStateHelper.class)
@@ -56,6 +57,10 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
   protected abstract Object patchFieldOriginalValue();
 
   protected abstract String ukrainianNotFoundPrefix();
+
+  protected String resourcePath() {
+    return path() + "/{id}";
+  }
 
   protected UUID createAsAdmin(Map<String, Object> body) {
     var response =
@@ -100,7 +105,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
 
       var id = UUID.fromString(created.jsonPath().getString("id"));
       var fetched =
-          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
+          asUser().get(resourcePath(), id).then().statusCode(OK.value()).extract().response();
       assertThat(fetched.jsonPath().getString("id")).isEqualTo(id.toString());
       assertThat(fetched.jsonPath().getString(requiredFieldName()))
           .isEqualTo(body.get(requiredFieldName()));
@@ -211,7 +216,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       UUID id = createAsAdmin(fullCreateBody());
 
       var response =
-          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
+          asUser().get(resourcePath(), id).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getString("id")).isEqualTo(id.toString());
       assertThat(response.jsonPath().getString(requiredFieldName()))
           .isEqualTo(fullCreateBody().get(requiredFieldName()));
@@ -222,7 +227,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       UUID id = createAsAdmin(fullCreateBody());
 
       var response =
-          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
+          asUser().get(resourcePath(), id).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getLong("version")).isEqualTo(0L);
     }
 
@@ -232,14 +237,14 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
 
       asAdmin()
           .contentType(ContentType.JSON)
-          .header("If-Match", "0")
+          .header(HttpHeaders.IF_MATCH, "0")
           .body(fullUpdateBody())
-          .put(path() + "/" + id)
+          .put(resourcePath(), id)
           .then()
           .statusCode(OK.value());
 
       var response =
-          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
+          asUser().get(resourcePath(), id).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getString(requiredFieldName()))
           .isEqualTo(fullUpdateBody().get(requiredFieldName()));
       assertThat(response.jsonPath().getLong("version")).isEqualTo(1L);
@@ -248,13 +253,13 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     @Test
     void noToken_returns401() {
       var response =
-          asUnauthenticated().get(path() + "/" + UUID.randomUUID()).then().extract().response();
+          asUnauthenticated().get(resourcePath(), UUID.randomUUID()).then().extract().response();
       assertThat(response).hasStatus(UNAUTHORIZED.value());
     }
 
     @Test
     void nonExistentId_returns404() {
-      var response = asUser().get(path() + "/" + UUID.randomUUID()).then().extract().response();
+      var response = asUser().get(resourcePath(), UUID.randomUUID()).then().extract().response();
       assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
@@ -267,9 +272,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     @Test
     void softDeletedEntity_returns404() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
+      asAdmin().delete(resourcePath(), id).then().statusCode(NO_CONTENT.value());
 
-      var response = asUser().get(path() + "/" + id).then().extract().response();
+      var response = asUser().get(resourcePath(), id).then().extract().response();
       assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
@@ -277,8 +282,8 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     void acceptLanguageUkOn404_returnsLocalizedDetail() {
       var response =
           asUser()
-              .header("Accept-Language", "uk")
-              .get(path() + "/" + UUID.randomUUID())
+              .header(HttpHeaders.ACCEPT_LANGUAGE, "uk")
+              .get(resourcePath(), UUID.randomUUID())
               .then()
               .extract()
               .response();
@@ -356,7 +361,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     @Test
     void deletedExcludedFromSearch() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
+      asAdmin().delete(resourcePath(), id).then().statusCode(NO_CONTENT.value());
 
       var response = asUser().get(path()).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(0L);
@@ -379,9 +384,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(fullUpdateBody())
-              .put(path() + "/" + id)
+              .put(resourcePath(), id)
               .then()
               .statusCode(OK.value())
               .extract()
@@ -397,9 +402,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
 
       asAdmin()
           .contentType(ContentType.JSON)
-          .header("If-Match", "0")
+          .header(HttpHeaders.IF_MATCH, "0")
           .body(fullUpdateBody())
-          .put(path() + "/" + id)
+          .put(resourcePath(), id)
           .then()
           .statusCode(OK.value());
 
@@ -409,9 +414,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var second =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "1")
+              .header(HttpHeaders.IF_MATCH, "1")
               .body(secondBody)
-              .put(path() + "/" + id)
+              .put(resourcePath(), id)
               .then()
               .statusCode(OK.value())
               .extract()
@@ -422,14 +427,14 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     @Test
     void replacingSoftDeleted_returns404() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
+      asAdmin().delete(resourcePath(), id).then().statusCode(NO_CONTENT.value());
 
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(fullUpdateBody())
-              .put(path() + "/" + id)
+              .put(resourcePath(), id)
               .then()
               .extract()
               .response();
@@ -441,9 +446,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asUnauthenticated()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(fullUpdateBody())
-              .put(path() + "/" + UUID.randomUUID())
+              .put(resourcePath(), UUID.randomUUID())
               .then()
               .extract()
               .response();
@@ -456,9 +461,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asUser()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(fullUpdateBody())
-              .put(path() + "/" + id)
+              .put(resourcePath(), id)
               .then()
               .extract()
               .response();
@@ -472,7 +477,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
           asAdmin()
               .contentType(ContentType.JSON)
               .body(fullUpdateBody())
-              .put(path() + "/" + id)
+              .put(resourcePath(), id)
               .then()
               .extract()
               .response();
@@ -487,9 +492,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "999")
+              .header(HttpHeaders.IF_MATCH, "999")
               .body(fullUpdateBody())
-              .put(path() + "/" + id)
+              .put(resourcePath(), id)
               .then()
               .extract()
               .response();
@@ -505,9 +510,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(body)
-              .put(path() + "/" + id)
+              .put(resourcePath(), id)
               .then()
               .extract()
               .response();
@@ -534,9 +539,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(Map.of(patchFieldName(), patchFieldValue()))
-              .patch(path() + "/" + id)
+              .patch(resourcePath(), id)
               .then()
               .statusCode(OK.value())
               .extract()
@@ -554,9 +559,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(patch)
-              .patch(path() + "/" + id)
+              .patch(resourcePath(), id)
               .then()
               .statusCode(OK.value())
               .extract()
@@ -572,9 +577,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(Map.of(patchFieldName(), patchFieldValue()))
-              .patch(path() + "/" + id)
+              .patch(resourcePath(), id)
               .then()
               .statusCode(OK.value())
               .extract()
@@ -587,9 +592,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asUnauthenticated()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(Map.of(patchFieldName(), patchFieldValue()))
-              .patch(path() + "/" + UUID.randomUUID())
+              .patch(resourcePath(), UUID.randomUUID())
               .then()
               .extract()
               .response();
@@ -602,9 +607,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asUser()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(Map.of(patchFieldName(), patchFieldValue()))
-              .patch(path() + "/" + id)
+              .patch(resourcePath(), id)
               .then()
               .extract()
               .response();
@@ -618,7 +623,7 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
           asAdmin()
               .contentType(ContentType.JSON)
               .body(Map.of(patchFieldName(), patchFieldValue()))
-              .patch(path() + "/" + id)
+              .patch(resourcePath(), id)
               .then()
               .extract()
               .response();
@@ -633,9 +638,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "999")
+              .header(HttpHeaders.IF_MATCH, "999")
               .body(Map.of(patchFieldName(), patchFieldValue()))
-              .patch(path() + "/" + id)
+              .patch(resourcePath(), id)
               .then()
               .extract()
               .response();
@@ -647,9 +652,9 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(Map.of(patchFieldName(), patchFieldValue()))
-              .patch(path() + "/" + UUID.randomUUID())
+              .patch(resourcePath(), UUID.randomUUID())
               .then()
               .extract()
               .response();
@@ -670,16 +675,16 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     void adminDeletes_returns204_thenGetReturns404() {
       UUID id = createAsAdmin(fullCreateBody());
 
-      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
+      asAdmin().delete(resourcePath(), id).then().statusCode(NO_CONTENT.value());
 
-      var response = asUser().get(path() + "/" + id).then().extract().response();
+      var response = asUser().get(resourcePath(), id).then().extract().response();
       assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
     @Test
     void deletedRowRemainsInDb() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
+      asAdmin().delete(resourcePath(), id).then().statusCode(NO_CONTENT.value());
 
       assertThat(db.countIncludingDeleted(entityClass())).isEqualTo(1L);
       assertThat(db.countWhereDeleted(entityClass())).isEqualTo(1L);
@@ -688,16 +693,16 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     @Test
     void secondDeleteOnSameId_returns404() {
       UUID id = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + id).then().statusCode(NO_CONTENT.value());
+      asAdmin().delete(resourcePath(), id).then().statusCode(NO_CONTENT.value());
 
-      var response = asAdmin().delete(path() + "/" + id).then().extract().response();
+      var response = asAdmin().delete(resourcePath(), id).then().extract().response();
       assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 
     @Test
     void deleteThenRecreateSameData_returns201() {
       UUID first = createAsAdmin(fullCreateBody());
-      asAdmin().delete(path() + "/" + first).then().statusCode(NO_CONTENT.value());
+      asAdmin().delete(resourcePath(), first).then().statusCode(NO_CONTENT.value());
 
       UUID second = createAsAdmin(fullCreateBody());
       assertThat(second).isNotEqualTo(first);
@@ -706,20 +711,21 @@ public abstract class AbstractCrudControllerTestContract<E extends SoftDeletable
     @Test
     void noToken_returns401() {
       var response =
-          asUnauthenticated().delete(path() + "/" + UUID.randomUUID()).then().extract().response();
+          asUnauthenticated().delete(resourcePath(), UUID.randomUUID()).then().extract().response();
       assertThat(response).hasStatus(UNAUTHORIZED.value());
     }
 
     @Test
     void userRole_returns403() {
       UUID id = createAsAdmin(fullCreateBody());
-      var response = asUser().delete(path() + "/" + id).then().extract().response();
+      var response = asUser().delete(resourcePath(), id).then().extract().response();
       assertThat(response).hasStatus(FORBIDDEN.value()).hasCode("error.forbidden");
     }
 
     @Test
     void nonExistentId_returns404() {
-      var response = asAdmin().delete(path() + "/" + UUID.randomUUID()).then().extract().response();
+      var response =
+          asAdmin().delete(resourcePath(), UUID.randomUUID()).then().extract().response();
       assertThat(response).hasStatus(NOT_FOUND.value()).hasCode(notFoundCode());
     }
 

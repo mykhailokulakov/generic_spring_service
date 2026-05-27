@@ -19,6 +19,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 
 class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEntity> {
 
@@ -159,7 +160,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
       UUID id = createAsAdmin(body);
 
       var fetched =
-          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
+          asUser().get(resourcePath(), id).then().statusCode(OK.value()).extract().response();
       assertThat(fetched.jsonPath().getList("tags", String.class))
           .containsExactlyInAnyOrder("red", "green", "blue");
     }
@@ -196,7 +197,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
       UUID id = createAsAdmin(body);
 
       var response =
-          asUser().get(path() + "/" + id).then().statusCode(OK.value()).extract().response();
+          asUser().get(resourcePath(), id).then().statusCode(OK.value()).extract().response();
       assertThat(response.jsonPath().getList("tags", String.class)).isEmpty();
     }
   }
@@ -326,9 +327,9 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(body)
-              .put(path() + "/" + id)
+              .put(resourcePath(), id)
               .then()
               .statusCode(OK.value())
               .extract()
@@ -343,9 +344,9 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(fullUpdateBody())
-              .put(path() + "/" + id)
+              .put(resourcePath(), id)
               .then()
               .statusCode(OK.value())
               .extract()
@@ -373,9 +374,9 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(patch)
-              .patch(path() + "/" + id)
+              .patch(resourcePath(), id)
               .then()
               .statusCode(OK.value())
               .extract()
@@ -393,9 +394,9 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
       var response =
           asAdmin()
               .contentType(ContentType.JSON)
-              .header("If-Match", "0")
+              .header(HttpHeaders.IF_MATCH, "0")
               .body(Map.of("tags", List.of("only")))
-              .patch(path() + "/" + id)
+              .patch(resourcePath(), id)
               .then()
               .statusCode(OK.value())
               .extract()
