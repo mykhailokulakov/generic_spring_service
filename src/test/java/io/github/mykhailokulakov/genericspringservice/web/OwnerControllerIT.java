@@ -12,8 +12,6 @@ import java.util.UUID;
 
 class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity, Owner> {
 
-  private UUID exampleId;
-
   @Override
   protected String path() {
     return "/api/v1/owners";
@@ -29,27 +27,25 @@ class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity, 
     return "error.owner.not-found";
   }
 
-  @Override
-  protected void setUpDependencies() {
-    exampleId =
-        UUID.fromString(
-            asAdmin()
-                .contentType(ContentType.JSON)
-                .body(Map.of("name", "Test Example", "status", "ACTIVE"))
-                .post("/api/v1/examples")
-                .then()
-                .statusCode(201)
-                .extract()
-                .response()
-                .jsonPath()
-                .getString("id"));
+  private UUID createExample() {
+    return UUID.fromString(
+        asAdmin()
+            .contentType(ContentType.JSON)
+            .body(Map.of("name", "Test Example", "status", "ACTIVE"))
+            .post("/api/v1/examples")
+            .then()
+            .statusCode(201)
+            .extract()
+            .response()
+            .jsonPath()
+            .getString("id"));
   }
 
   @Override
   protected Map<String, Object> fullCreateBody() {
     var body = new LinkedHashMap<String, Object>();
     body.put("handle", "Owner A");
-    body.put("exampleId", exampleId.toString());
+    body.put("exampleId", createExample().toString());
     return body;
   }
 
