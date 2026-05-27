@@ -61,4 +61,9 @@ class LeftControllerIT extends AbstractCrudControllerTestContract<LeftEntity, Le
   protected Object patchFieldOriginalValue() {
     return "LEFT-001";
   }
+
+  @Override
+  protected String ukrainianNotFoundPrefix() {
+    return "Лівий";
+  }
 }

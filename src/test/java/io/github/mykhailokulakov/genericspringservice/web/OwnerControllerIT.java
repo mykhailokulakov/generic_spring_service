@@ -84,4 +84,9 @@ class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity, 
   protected Object patchFieldOriginalValue() {
     return "Owner A";
   }
+
+  @Override
+  protected String ukrainianNotFoundPrefix() {
+    return "Власник";
+  }
 }

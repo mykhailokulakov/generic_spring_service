@@ -48,6 +48,8 @@ public abstract class AbstractCrudControllerTestContract<
 
   protected abstract Object patchFieldOriginalValue();
 
+  protected abstract String ukrainianNotFoundPrefix();
+
   protected UUID createAsAdmin(Map<String, Object> body) {
     var response =
         asAdmin()
@@ -259,6 +261,19 @@ public abstract class AbstractCrudControllerTestContract<
 
       var response = asUser().get(path() + "/" + id).then().extract().response();
       assertThat(response).hasStatus(404).hasCode(notFoundCode());
+    }
+
+    @Test
+    void acceptLanguageUkOn404_returnsLocalizedDetail() {
+      var response =
+          asUser()
+              .header("Accept-Language", "uk")
+              .get(path() + "/" + UUID.randomUUID())
+              .then()
+              .extract()
+              .response();
+      assertThat(response).hasStatus(404).hasCode(notFoundCode());
+      assertThat(response.jsonPath().getString("detail")).startsWith(ukrainianNotFoundPrefix());
     }
   }
 
@@ -660,6 +675,15 @@ public abstract class AbstractCrudControllerTestContract<
 
       var response = asAdmin().delete(path() + "/" + id).then().extract().response();
       assertThat(response).hasStatus(404).hasCode(notFoundCode());
+    }
+
+    @Test
+    void deleteThenRecreateSameData_returns201() {
+      UUID first = createAsAdmin(fullCreateBody());
+      asAdmin().delete(path() + "/" + first).then().statusCode(204);
+
+      UUID second = createAsAdmin(fullCreateBody());
+      assertThat(second).isNotEqualTo(first);
     }
 
     @Test

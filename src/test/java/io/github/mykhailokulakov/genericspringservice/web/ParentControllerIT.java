@@ -61,4 +61,9 @@ class ParentControllerIT extends AbstractCrudControllerTestContract<ParentEntity
   protected Object patchFieldOriginalValue() {
     return "Parent A";
   }
+
+  @Override
+  protected String ukrainianNotFoundPrefix() {
+    return "Батьківський";
+  }
 }

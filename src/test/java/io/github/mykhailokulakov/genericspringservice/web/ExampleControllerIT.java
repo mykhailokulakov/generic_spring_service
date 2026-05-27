@@ -86,6 +86,11 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     return "Widget A";
   }
 
+  @Override
+  protected String ukrainianNotFoundPrefix() {
+    return "Приклад";
+  }
+
   @Nested
   class ExampleCreateEndpoint {
 
@@ -189,19 +194,6 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
 
       var response = asUser().get(path() + "/" + id).then().statusCode(200).extract().response();
       assertThat(response.jsonPath().getList("tags", String.class)).isEmpty();
-    }
-
-    @Test
-    void acceptLanguageUkOn404_returnsUkrainianDetail() {
-      var response =
-          asUser()
-              .header("Accept-Language", "uk")
-              .get(path() + "/" + UUID.randomUUID())
-              .then()
-              .extract()
-              .response();
-      assertThat(response).hasStatus(404).hasCode("error.example.not-found");
-      assertThat(response.jsonPath().getString("detail")).startsWith("Приклад");
     }
   }
 
@@ -412,28 +404,6 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .extract()
               .response();
       assertThat(response.jsonPath().getList("tags", String.class)).containsExactly("only");
-    }
-  }
-
-  @Nested
-  class ExampleDeleteEndpoint {
-
-    @BeforeEach
-    void clean() {
-      db.truncateAll();
-    }
-
-    @Test
-    void acceptLanguageUkOn404_returnsUkrainianDetail() {
-      var response =
-          asAdmin()
-              .header("Accept-Language", "uk")
-              .delete(path() + "/" + UUID.randomUUID())
-              .then()
-              .extract()
-              .response();
-      assertThat(response).hasStatus(404).hasCode("error.example.not-found");
-      assertThat(response.jsonPath().getString("detail")).startsWith("Приклад");
     }
   }
 }

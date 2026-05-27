@@ -61,4 +61,9 @@ class RightControllerIT extends AbstractCrudControllerTestContract<RightEntity, 
   protected Object patchFieldOriginalValue() {
     return "Right A";
   }
+
+  @Override
+  protected String ukrainianNotFoundPrefix() {
+    return "Правий";
+  }
 }
