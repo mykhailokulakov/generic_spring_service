@@ -1,5 +1,6 @@
 package io.github.mykhailokulakov.genericspringservice.web;
 
+import static io.github.mykhailokulakov.genericspringservice.support.assertions.Assertions.assertThat;
 import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asAdmin;
 
 import io.github.mykhailokulakov.genericspringservice.domain.entity.OwnerEntity;
@@ -8,6 +9,9 @@ import io.restassured.http.ContentType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 
 class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity> {
 
@@ -83,5 +87,28 @@ class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity> 
   @Override
   protected String ukrainianNotFoundPrefix() {
     return "Власник";
+  }
+
+  @Nested
+  class OwnerDeleteEndpoint {
+
+    @BeforeEach
+    void clean() {
+      db.truncateAll();
+    }
+
+    @Test
+    void softDeleteReleasesUniqueConstraint_recreateWithSameExampleSucceeds() {
+      UUID exampleId = createExample();
+      var body = new LinkedHashMap<String, Object>();
+      body.put("handle", "Owner A");
+      body.put("exampleId", exampleId.toString());
+
+      UUID first = createAsAdmin(body);
+      asAdmin().delete(path() + "/" + first).then().statusCode(204);
+
+      UUID second = createAsAdmin(body);
+      assertThat(second).isNotEqualTo(first);
+    }
   }
 }

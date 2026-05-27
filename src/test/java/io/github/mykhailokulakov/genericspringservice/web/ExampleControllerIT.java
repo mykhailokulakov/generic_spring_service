@@ -202,34 +202,27 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     @BeforeEach
     void clean() {
       db.truncateAll();
-      for (int i = 0; i < 20; i++) {
+      for (int i = 0; i < 19; i++) {
         createAsAdmin(fullCreateBody());
       }
+      var different = new LinkedHashMap<>(fullCreateBody());
+      different.put("name", "Gadget Z");
+      createAsAdmin(different);
     }
 
     @Test
     void userFilteringByNameContains_returnsMatchingSubset() {
-      var anyName =
-          asUser()
-              .get(path())
-              .then()
-              .statusCode(200)
-              .extract()
-              .response()
-              .jsonPath()
-              .getString("content[0].name");
-
       var response =
           asUser()
-              .queryParam("name", anyName)
+              .queryParam("name", "Widget")
               .get(path())
               .then()
               .statusCode(200)
               .extract()
               .response();
-      assertThat(response.jsonPath().getLong("totalElements")).isGreaterThanOrEqualTo(1L);
+      assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(19L);
       assertThat(response.jsonPath().getList("content.name", String.class))
-          .allMatch(name -> name.toLowerCase().contains(anyName.toLowerCase()));
+          .allMatch(name -> name.toLowerCase().contains("widget"));
     }
 
     @Test
