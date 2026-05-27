@@ -1,0 +1,93 @@
+package io.github.mykhailokulakov.genericspringservice.web;
+
+import static io.github.mykhailokulakov.genericspringservice.support.auth.RestAssuredAuth.asAdmin;
+import static org.springframework.http.HttpStatus.CREATED;
+
+import io.github.mykhailokulakov.genericspringservice.domain.entity.ChildEntity;
+import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
+import io.github.mykhailokulakov.genericspringservice.support.contract.AbstractCrudControllerTestContract;
+import io.restassured.http.ContentType;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
+
+class ChildControllerIT extends AbstractCrudControllerTestContract<ChildEntity> {
+
+  private UUID parentId;
+
+  @Override
+  protected String path() {
+    return "/api/v1/children";
+  }
+
+  @Override
+  protected Class<ChildEntity> entityClass() {
+    return ChildEntity.class;
+  }
+
+  @Override
+  protected ErrorCode notFoundCode() {
+    return ErrorCode.CHILD_NOT_FOUND;
+  }
+
+  @Override
+  protected void setUpDependencies() {
+    parentId =
+        UUID.fromString(
+            asAdmin()
+                .contentType(ContentType.JSON)
+                .body(Map.of("label", "Test Parent"))
+                .post("/api/v1/parents")
+                .then()
+                .statusCode(CREATED.value())
+                .extract()
+                .response()
+                .jsonPath()
+                .getString("id"));
+  }
+
+  @Override
+  protected Map<String, Object> fullCreateBody() {
+    var body = new LinkedHashMap<String, Object>();
+    body.put("value", "Child A");
+    body.put("parentId", parentId.toString());
+    return body;
+  }
+
+  @Override
+  protected Map<String, Object> fullUpdateBody() {
+    var body = new LinkedHashMap<String, Object>();
+    body.put("value", "Child B");
+    return body;
+  }
+
+  @Override
+  protected String requiredFieldName() {
+    return "value";
+  }
+
+  @Override
+  protected int requiredFieldMaxLength() {
+    return 200;
+  }
+
+  @Override
+  protected String patchFieldName() {
+    return "value";
+  }
+
+  @Override
+  protected Object patchFieldValue() {
+    return "patched";
+  }
+
+  @Override
+  protected Object patchFieldOriginalValue() {
+    return "Child A";
+  }
+
+  @Override
+  protected String ukrainianNotFoundPrefix() {
+    return "Дочірній";
+  }
+}

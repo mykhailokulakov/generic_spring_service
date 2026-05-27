@@ -247,9 +247,9 @@ Three abstract test bases (`support/contract/`) capture the cross-entity invaria
 
 - **`AbstractRepositoryContractIT<E extends SoftDeletable>`** — asserts `save_assignsIdAndAuditTimestamps`, `findById_returnsPersistedEntity`, `update_incrementsVersion`, `delete_softDeletesAndExcludesFromQueries`, `delete_keepsRowInTable`, `count_excludesSoftDeleted`. Additionally exercises three `SoftDeletable` association test entities (`ParentEntity`/`ChildEntity`, `OwnerEntity`/`ProfileEntity`, `LeftEntity`/`RightEntity`) under `support/testentities/` to verify that soft-deleting a `@OneToMany` parent does not hard-delete or orphan children (since `@SoftDelete` issues an UPDATE, any `ON DELETE CASCADE` never fires), that owning `@ManyToOne`/`@OneToOne` foreign keys survive reload, and that `@ManyToMany` join-table associations survive reload.
 - **`AbstractMapperContractIT<E extends SoftDeletable, M>`** — asserts `toModel_copiesAuditFieldsFromEntity`, `toEntity_leavesManagedFieldsUnset`, `toModelList_mapsEveryElement`, `toEntityList_mapsEveryElement`, `applyPatch_updatesMappedFieldsOnly`, `roundTrip_preservesMappedFields`. Round-trip comparisons use the declared mapped-field set only (never whole-object equality) via `assertMappedFields(E entity, M model)` — the single per-entity hook each subclass implements.
-- **`AbstractControllerContractIT`** — forward-referenced; will follow the same pattern for controller-layer cross-entity invariants.
+- **`AbstractCrudControllerTestContract<E extends SoftDeletable, M extends DomainModel>`** — asserts the full CRUD endpoint contract via HTTP: create (201, audit fields, auth, validation), get-by-id (200, 404, soft-delete exclusion, i18n), search (pagination, sorting, soft-delete exclusion), replace (200, version bump, If-Match/409/412, auth, validation), patch (200, null-ignoring, version bump, auth), delete (204, soft-delete row retention, idempotent 404, auth). Concrete subclasses provide only configuration: path, bodies, field names, error codes, and an optional `setUpDependencies()` hook for FK-dependent entities.
 
-**One fixture per entity.** `RepoFixture<E>` (provides `entityType()` and `newPersistable()`) and `ModelFixture<M>` (provides `modelType()` and `newModel()`) are tiny interfaces in `support/fixtures/`. An entity with a model implements both on a single fixture class (e.g. `ExampleFixtures implements RepoFixture<ExampleEntity>, ModelFixture<Example>`), so one fixture feeds everything: the contract bases, `@WithSeededExamples`, and any hand-written tests.
+**One fixture per entity.** `RepoFixture<E>` (provides `entityType()` and `newPersistable()`) and `ModelFixture<M>` (provides `modelType()` and `newModel()`) are tiny interfaces in `support/fixtures/`. An entity with a model implements both on a single fixture class, so one fixture feeds the contract bases and any hand-written tests.
 
 **Generator scope.** `RandomEntities` and `RandomModels` are thin Instancio wrappers — a configured `Instancio.of(type).withSettings(SETTINGS).ignore(<chain fields>).create()`. The generator fills only what is needed to persist and round-trip: the concrete entity's own plain fields, its `@ElementCollection`s, and its embeddables (one level deep). It must NOT populate persistence-chain fields (`id`, `createdAt`, `updatedAt`, `version`); those are framework-managed, and asserting the framework sets them is the contract's job. The ignore-set is expressed structurally — `fields().declaredIn(Identifiable.class)`, etc. — so it applies to every entity without per-entity enumeration. Past ~20 lines of logic the wrappers would be drifting back into the hand-rolled generator; they stay thin.
 
@@ -419,9 +419,6 @@ generic_spring_service/
 │       │   │   │       ├── KeycloakExtension.java
 │       │   │   │       └── TestJwtFactory.java
 │       │   │   ├── fixtures/
-│       │   │   │   ├── WithSeededExamples.java
-│       │   │   │   ├── SeededExamplesExtension.java
-│       │   │   │   ├── ExampleFixtures.java
 │       │   │   │   ├── RepoFixture.java
 │       │   │   │   ├── ModelFixture.java
 │       │   │   │   ├── RandomEntities.java
@@ -973,7 +970,7 @@ public class PostgresExtension implements BeforeAllCallback {
 
 `@WithKeycloak` follows the identical pattern, with `name`, `image`, and `realmImport` parameters. `realmImport` defaults to `keycloak/test-realm.json` on the test classpath.
 
-### 6.12 `@IntegrationTest` composition + `@WithSeededExamples`
+### 6.12 `@IntegrationTest` composition
 
 ```java
 @Target(ElementType.TYPE)
@@ -984,18 +981,9 @@ public class PostgresExtension implements BeforeAllCallback {
 @WithKeycloak
 @ExtendWith(RestAssuredExtension.class)
 public @interface IntegrationTest {}
-
-@Target(ElementType.TYPE)
-@Retention(RetentionPolicy.RUNTIME)
-@ExtendWith(SeededExamplesExtension.class)
-public @interface WithSeededExamples {
-    int count() default 10;
-    String[] tags() default {};
-    boolean truncate() default true;
-}
 ```
 
-`SeededExamplesExtension` implements `BeforeEachCallback`, pulls `ExampleRepository` from the Spring context (`SpringExtension.getApplicationContext(ctx)`), optionally truncates the table, and inserts `count` example entities using `ExampleFixtures` builders. The fixtures package exposes a `ExampleFixtures.builder().withRandomDefaults()` so seeding produces realistic-but-varied data.
+Controller integration tests extend `AbstractCrudControllerTestContract` which carries `@IntegrationTest`. Each concrete IT provides entity-specific configuration (path, bodies, error codes) and inherits the full CRUD endpoint contract. Tests that need pre-seeded data use a `@BeforeEach` method with explicit entity creation via the REST API.
 
 ### 6.13 `ArchitectureTest`
 
