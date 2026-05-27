@@ -117,9 +117,8 @@ public abstract class AbstractCrudControllerTestContract<
 
     @Test
     void adminCreatesTwice_bothReturn201() {
-      Map<String, Object> body = fullCreateBody();
-      UUID first = createAsAdmin(body);
-      UUID second = createAsAdmin(body);
+      UUID first = createAsAdmin(fullCreateBody());
+      UUID second = createAsAdmin(fullCreateBody());
 
       assertThat(first).isNotEqualTo(second);
       assertThat(db.countIncludingDeleted(entityClass())).isEqualTo(2L);
@@ -393,11 +392,14 @@ public abstract class AbstractCrudControllerTestContract<
           .then()
           .statusCode(200);
 
+      Map<String, Object> secondBody = new LinkedHashMap<>(fullUpdateBody());
+      secondBody.put(requiredFieldName(), "second-replace-value");
+
       var second =
           asAdmin()
               .contentType(ContentType.JSON)
               .header("If-Match", "1")
-              .body(fullUpdateBody())
+              .body(secondBody)
               .put(path() + "/" + id)
               .then()
               .statusCode(200)
