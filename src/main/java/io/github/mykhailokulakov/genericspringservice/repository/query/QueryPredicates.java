@@ -74,13 +74,6 @@ public final class QueryPredicates {
             .filter(v -> v != null && (!(v instanceof String s) || StringUtils.hasText(s)))
             .map(path::contains)
             .toArray(Predicate[]::new);
-    if (matches.length == 0) {
-      return null;
-    }
-    Predicate combined = matches[0];
-    for (int i = 1; i < matches.length; i++) {
-      combined = ExpressionUtils.or(combined, matches[i]);
-    }
-    return combined;
+    return matches.length == 0 ? null : ExpressionUtils.anyOf(matches);
   }
 }
