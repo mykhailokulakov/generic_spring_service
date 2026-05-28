@@ -5,12 +5,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-import io.github.mykhailokulakov.genericspringservice.common.persistence.Identifiable;
+import com.querydsl.core.BooleanBuilder;
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
-import jakarta.persistence.CascadeType;
+import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepositoryTestFixtures;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ManyToMany;
@@ -21,13 +20,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.Objects;
 import java.util.UUID;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,35 +33,47 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @PersistenceTest
-@Import(DatabaseStateHelper.class)
-public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
+@Import({DatabaseStateHelper.class, RepositoryTestFixtures.class})
+public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
+    implements RepositoryContractAccess<E> {
 
   @Autowired private ApplicationContext applicationContext;
   @Autowired private EntityManager em;
   @Autowired private DatabaseStateHelper dbHelper;
   @Autowired private PlatformTransactionManager txManager;
+  @Autowired private RepositoryTestFixtures fixtures;
 
   private Class<E> resolvedEntityType;
   private JpaRepository<E, ?> cachedRepository;
-  private JpaSpecificationExecutor<E> cachedSpecExecutor;
+  private QuerydslPredicateExecutor<E> cachedPredicateExecutor;
 
   private void mutate(E entity) {
     var field =
         Arrays.stream(entityType().getDeclaredFields())
             .filter(AbstractRepositoryTestContract::isMutableValueField)
-            .findFirst()
-            .orElseThrow();
-    field.setAccessible(true);
+            .findFirst();
+    assumeTrue(field.isPresent(), "entity has no mutable scalar field declared on its type");
+    var f = field.get();
+    f.setAccessible(true);
     try {
-      field.set(entity, Instancio.create(field.getType()));
+      var current = f.get(entity);
+      Object next;
+      var attempts = 0;
+      do {
+        next = Instancio.create(f.getType());
+        attempts++;
+      } while (Objects.equals(current, next) && attempts < 20);
+      assumeTrue(
+          !Objects.equals(current, next),
+          "could not generate a value different from the current one for field " + f.getName());
+      f.set(entity, next);
     } catch (IllegalAccessException e) {
       throw new AssertionError(e);
     }
@@ -83,13 +89,39 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
         && !field.isAnnotationPresent(ElementCollection.class);
   }
 
+  @Override
   @SuppressWarnings("unchecked")
-  private Class<E> entityType() {
+  public Class<E> entityType() {
     if (resolvedEntityType == null) {
       var superclass = (ParameterizedType) getClass().getGenericSuperclass();
       resolvedEntityType = (Class<E>) superclass.getActualTypeArguments()[0];
     }
     return resolvedEntityType;
+  }
+
+  @Override
+  public EntityManager em() {
+    return em;
+  }
+
+  @Override
+  public TransactionTemplate tx() {
+    return new TransactionTemplate(txManager);
+  }
+
+  @Override
+  public E newEntity() {
+    return fixtures.newOf(entityType());
+  }
+
+  @Override
+  public <T> T newRelatedEntity(Class<T> relatedType) {
+    return fixtures.newOf(relatedType);
+  }
+
+  @Override
+  public DatabaseStateHelper dbHelper() {
+    return dbHelper;
   }
 
   @SuppressWarnings("unchecked")
@@ -103,15 +135,11 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @SuppressWarnings("unchecked")
-  private JpaSpecificationExecutor<E> specExecutor() {
-    if (cachedSpecExecutor == null) {
-      cachedSpecExecutor = (JpaSpecificationExecutor<E>) repository();
+  private QuerydslPredicateExecutor<E> predicateExecutor() {
+    if (cachedPredicateExecutor == null) {
+      cachedPredicateExecutor = (QuerydslPredicateExecutor<E>) repository();
     }
-    return cachedSpecExecutor;
-  }
-
-  private TransactionTemplate tx() {
-    return new TransactionTemplate(txManager);
+    return cachedPredicateExecutor;
   }
 
   @BeforeEach
@@ -123,84 +151,8 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     return repository().saveAndFlush(entity);
   }
 
-  protected E newEntity() {
-    return RandomEntities.create(entityType());
-  }
-
-  private static Optional<Field> findField(
-      Class<?> type, java.util.function.Predicate<Field> predicate) {
-    var current = type;
-    while (current != null && current != Object.class) {
-      for (var f : current.getDeclaredFields()) {
-        if (predicate.test(f)) {
-          return Optional.of(f);
-        }
-      }
-      current = current.getSuperclass();
-    }
-    return Optional.empty();
-  }
-
-  private static Optional<Field> findFirstField(
-      Class<?> type, Class<? extends java.lang.annotation.Annotation> annotation) {
-    return findField(type, f -> f.isAnnotationPresent(annotation));
-  }
-
-  private static Optional<Field> findOwningSide(
-      Class<?> type, Class<? extends java.lang.annotation.Annotation> annotation) {
-    return findField(type, f -> f.isAnnotationPresent(annotation) && !hasMappedBy(f, annotation));
-  }
-
-  private static boolean hasMappedBy(
-      Field field, Class<? extends java.lang.annotation.Annotation> annotation) {
-    if (annotation == OneToOne.class) {
-      return !field.getAnnotation(OneToOne.class).mappedBy().isEmpty();
-    }
-    if (annotation == ManyToMany.class) {
-      return !field.getAnnotation(ManyToMany.class).mappedBy().isEmpty();
-    }
-    return false;
-  }
-
-  private static Class<?> collectionElementType(Field field) {
-    var generic = (ParameterizedType) field.getGenericType();
-    return (Class<?>) generic.getActualTypeArguments()[0];
-  }
-
-  private static void setField(Object target, Field field, Object value) {
-    field.setAccessible(true);
-    try {
-      field.set(target, value);
-    } catch (IllegalAccessException e) {
-      throw new AssertionError(e);
-    }
-  }
-
-  private static Object getField(Object target, Field field) {
-    field.setAccessible(true);
-    try {
-      return field.get(target);
-    } catch (IllegalAccessException e) {
-      throw new AssertionError(e);
-    }
-  }
-
-  private static Optional<Field> findBackReference(Class<?> childType, Class<?> parentType) {
-    return findField(
-        childType, f -> f.isAnnotationPresent(ManyToOne.class) && f.getType().equals(parentType));
-  }
-
-  private static boolean hasCascadeRemove(OneToMany annotation) {
-    for (var ct : annotation.cascade()) {
-      if (ct == CascadeType.REMOVE || ct == CascadeType.ALL) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   @Test
-  void save_assignsIdAndAuditTimestamps() {
+  void givenTransientEntity_whenSaved_thenIdAndAuditFieldsAreAssigned() {
     var entity = newEntity();
 
     assertThat(entity.getId()).isNull();
@@ -218,7 +170,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void findById_returnsPersistedEntity() {
+  void givenPersistedEntity_whenFoundById_thenReturnsTheEntity() {
     var saved = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
@@ -232,7 +184,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void findById_returnsEmptyForNonExistentId() {
+  void givenUnknownId_whenFoundById_thenReturnsEmpty() {
     @SuppressWarnings("unchecked")
     var repo = (JpaRepository<E, Object>) repository();
 
@@ -240,7 +192,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void update_incrementsVersion() {
+  void givenPersistedEntity_whenUpdated_thenVersionIncrements() {
     var saved = persistAndFlush(newEntity());
     var initialVersion = saved.getVersion();
 
@@ -255,7 +207,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void update_advancesUpdatedAt() {
+  void givenPersistedEntity_whenUpdated_thenUpdatedAtAdvances() {
     var saved = persistAndFlush(newEntity());
     var originalUpdatedAt = saved.getUpdatedAt();
 
@@ -270,7 +222,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void update_doesNotChangeCreatedAt() {
+  void givenPersistedEntity_whenUpdated_thenCreatedAtIsUnchanged() {
     var saved = persistAndFlush(newEntity());
     var originalCreatedAt = saved.getCreatedAt();
 
@@ -285,7 +237,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void update_rejectsStaleVersion() {
+  void givenStaleVersion_whenSaved_thenOptimisticLockingFailureIsThrown() {
     var saved = persistAndFlush(newEntity());
 
     tx().executeWithoutResult(
@@ -301,7 +253,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void delete_softDeletesAndExcludesFromQueries() {
+  void givenPersistedEntity_whenDeleted_thenExcludedFromSubsequentQueries() {
     var saved = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
@@ -314,7 +266,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void delete_keepsRowInTable() {
+  void givenPersistedEntity_whenDeleted_thenRowRemainsWithDeletedAtSet() {
     var saved = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
@@ -327,7 +279,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void findAll_paginatesAndSorts() {
+  void givenMoreEntitiesThanPageSize_whenFindAllPaged_thenReturnsRequestedSliceAndCount() {
     for (int i = 0; i < 5; i++) {
       persistAndFlush(newEntity());
     }
@@ -344,25 +296,25 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void specification_emptyReturnsAll() {
+  void givenPersistedEntities_whenQueriedWithEmptyPredicate_thenReturnsAll() {
     persistAndFlush(newEntity());
     persistAndFlush(newEntity());
     persistAndFlush(newEntity());
 
-    var page = specExecutor().findAll(Specification.unrestricted(), Pageable.unpaged());
+    var page = predicateExecutor().findAll(new BooleanBuilder(), Pageable.unpaged());
 
     assertThat(page.getContent()).hasSize(3);
   }
 
   @Test
-  void specification_paginatesAndSorts() {
+  void givenMoreEntitiesThanPageSize_whenQueriedPaged_thenReturnsRequestedSliceAndCount() {
     for (int i = 0; i < 5; i++) {
       persistAndFlush(newEntity());
     }
 
     var page =
-        specExecutor()
-            .findAll(Specification.unrestricted(), PageRequest.of(0, 3, Sort.by("createdAt")));
+        predicateExecutor()
+            .findAll(new BooleanBuilder(), PageRequest.of(0, 3, Sort.by("createdAt")));
 
     assertThat(page.getTotalElements()).isEqualTo(5);
     assertThat(page.getContent()).hasSize(3);
@@ -370,7 +322,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
   }
 
   @Test
-  void specification_excludesSoftDeleted() {
+  void givenSoftDeletedEntity_whenQueried_thenIsExcluded() {
     persistAndFlush(newEntity());
     var toDelete = persistAndFlush(newEntity());
 
@@ -379,13 +331,13 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     repo.deleteById(toDelete.getId());
     repo.flush();
 
-    var page = specExecutor().findAll(Specification.unrestricted(), Pageable.unpaged());
+    var page = predicateExecutor().findAll(new BooleanBuilder(), Pageable.unpaged());
 
     assertThat(page.getTotalElements()).isOne();
   }
 
   @Test
-  void count_excludesSoftDeleted() {
+  void givenSoftDeletedEntity_whenCounted_thenIsExcluded() {
     persistAndFlush(newEntity());
     var toDelete = persistAndFlush(newEntity());
 
@@ -396,172 +348,5 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
 
     assertThat(repo.count()).isOne();
     assertThat(dbHelper.countIncludingDeleted(entityType())).isEqualTo(2);
-  }
-
-  @Test
-  void manyToOne_foreignKeySurvivesReload() {
-    var field = findFirstField(entityType(), ManyToOne.class);
-    assumeTrue(field.isPresent(), "entity has no @ManyToOne field");
-
-    var manyToOneField = field.get();
-    var targetType = manyToOneField.getType();
-
-    var ids =
-        new Object() {
-          UUID entityId;
-          UUID targetId;
-        };
-
-    tx().executeWithoutResult(
-            status -> {
-              var target = RandomEntities.create(targetType);
-              em.persist(target);
-              var entity = newEntity();
-              setField(entity, manyToOneField, target);
-              em.persist(entity);
-              em.flush();
-              ids.entityId = entity.getId();
-              ids.targetId = ((Identifiable) target).getId();
-            });
-
-    tx().executeWithoutResult(
-            status -> {
-              var reloaded = em.find(entityType(), ids.entityId);
-              var target = (Identifiable) getField(reloaded, manyToOneField);
-              assertThat(target.getId()).isEqualTo(ids.targetId);
-            });
-  }
-
-  @Test
-  void oneToOne_foreignKeySurvivesReload() {
-    var field = findOwningSide(entityType(), OneToOne.class);
-    assumeTrue(field.isPresent(), "entity has no owning @OneToOne field");
-
-    var oneToOneField = field.get();
-    var targetType = oneToOneField.getType();
-
-    var ids =
-        new Object() {
-          UUID entityId;
-          UUID targetId;
-        };
-
-    tx().executeWithoutResult(
-            status -> {
-              var target = RandomEntities.create(targetType);
-              em.persist(target);
-              var entity = newEntity();
-              setField(entity, oneToOneField, target);
-              em.persist(entity);
-              em.flush();
-              ids.entityId = entity.getId();
-              ids.targetId = ((Identifiable) target).getId();
-            });
-
-    tx().executeWithoutResult(
-            status -> {
-              var reloaded = em.find(entityType(), ids.entityId);
-              var target = (Identifiable) getField(reloaded, oneToOneField);
-              assertThat(target).isNotNull();
-              assertThat(target.getId()).isEqualTo(ids.targetId);
-            });
-  }
-
-  @Test
-  void manyToMany_associationSurvivesReload() {
-    var field = findOwningSide(entityType(), ManyToMany.class);
-    assumeTrue(field.isPresent(), "entity has no owning @ManyToMany field");
-
-    var manyToManyField = field.get();
-    var targetType = collectionElementType(manyToManyField);
-
-    var ids =
-        new Object() {
-          UUID entityId;
-          UUID targetId;
-        };
-
-    tx().executeWithoutResult(
-            status -> {
-              var target = RandomEntities.create(targetType);
-              em.persist(target);
-              var entity = newEntity();
-              var targets =
-                  Set.class.isAssignableFrom(manyToManyField.getType())
-                      ? Set.of(target)
-                      : List.of(target);
-              setField(entity, manyToManyField, targets);
-              em.persist(entity);
-              em.flush();
-              ids.entityId = entity.getId();
-              ids.targetId = ((Identifiable) target).getId();
-            });
-
-    tx().executeWithoutResult(
-            status -> {
-              var reloaded = em.find(entityType(), ids.entityId);
-              var targets = (Collection<?>) getField(reloaded, manyToManyField);
-              assertThat(targets).hasSize(1);
-              assertThat(((Identifiable) targets.iterator().next()).getId())
-                  .isEqualTo(ids.targetId);
-            });
-  }
-
-  @SuppressWarnings("unchecked")
-  @Test
-  void softDeleteParent_cascadesToChildren() {
-    var oneToManyField =
-        findField(
-            entityType(),
-            f ->
-                f.isAnnotationPresent(OneToMany.class)
-                    && hasCascadeRemove(f.getAnnotation(OneToMany.class)));
-    assumeTrue(oneToManyField.isPresent(), "entity has no @OneToMany with cascade REMOVE");
-
-    var collectionField = oneToManyField.get();
-    var childType = (Class<? extends Identifiable>) collectionElementType(collectionField);
-    var backRef = findBackReference(childType, entityType());
-    assumeTrue(backRef.isPresent(), "child has no @ManyToOne back-reference to parent");
-
-    var backRefField = backRef.get();
-
-    var parentId =
-        new Object() {
-          UUID value;
-        };
-
-    tx().executeWithoutResult(
-            status -> {
-              var parent = newEntity();
-              em.persist(parent);
-              em.flush();
-
-              var child = RandomEntities.create(childType);
-              setField(child, backRefField, parent);
-              em.persist(child);
-
-              Collection<Object> children =
-                  Set.class.isAssignableFrom(collectionField.getType())
-                      ? new HashSet<>(Set.of(child))
-                      : new ArrayList<>(List.of(child));
-              setField(parent, collectionField, children);
-              em.flush();
-
-              parentId.value = parent.getId();
-            });
-
-    tx().executeWithoutResult(
-            status -> {
-              var loaded = em.find(entityType(), parentId.value);
-              em.remove(loaded);
-              em.flush();
-            });
-
-    assertThat(dbHelper.countIncludingDeleted(entityType())).isOne();
-    assertThat(dbHelper.countWhereDeleted(entityType())).isOne();
-    assertThat(dbHelper.countIncludingDeleted(childType)).isOne();
-    assertThat(dbHelper.countWhereDeleted(childType))
-        .as("cascade soft-delete: child is also soft-deleted when parent is")
-        .isOne();
   }
 }

@@ -6,7 +6,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.mapper.ExampleEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
-import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
+import io.github.mykhailokulakov.genericspringservice.repository.query.ExampleQueries;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -61,7 +61,7 @@ public class ExampleService extends AbstractCrudService<ExampleEntity, Example> 
       Pageable pageable) {
     return repository
         .findAll(
-            ExampleSpecifications.matches(
+            ExampleQueries.matches(
                 ids,
                 name,
                 description,

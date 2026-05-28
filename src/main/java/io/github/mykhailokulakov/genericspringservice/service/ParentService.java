@@ -5,7 +5,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.Parent;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.mapper.ParentEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ParentRepository;
-import io.github.mykhailokulakov.genericspringservice.repository.specification.ParentSpecifications;
+import io.github.mykhailokulakov.genericspringservice.repository.query.ParentQueries;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -43,8 +43,6 @@ public class ParentService extends AbstractCrudService<ParentEntity, Parent> {
 
   @Transactional(readOnly = true)
   public Page<Parent> search(List<UUID> ids, String label, Pageable pageable) {
-    return repository
-        .findAll(ParentSpecifications.matches(ids, label), pageable)
-        .map(mapper::toModel);
+    return repository.findAll(ParentQueries.matches(ids, label), pageable).map(mapper::toModel);
   }
 }

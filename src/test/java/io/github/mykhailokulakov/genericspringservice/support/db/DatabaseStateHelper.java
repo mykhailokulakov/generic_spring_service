@@ -3,6 +3,7 @@ package io.github.mykhailokulakov.genericspringservice.support.db;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Table;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.boot.test.context.TestComponent;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +58,31 @@ public class DatabaseStateHelper {
                     "SELECT count(*) FROM \"" + table + "\" WHERE deleted_at IS NOT NULL")
                 .getSingleResult();
     return n.longValue();
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public boolean existsIncludingDeleted(Class<?> entityClass, UUID id) {
+    String table = tableName(entityClass);
+    var n =
+        (Number)
+            em.createNativeQuery("SELECT count(*) FROM \"" + table + "\" WHERE id = ?1")
+                .setParameter(1, id)
+                .getSingleResult();
+    return n.longValue() > 0;
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public boolean isSoftDeleted(Class<?> entityClass, UUID id) {
+    String table = tableName(entityClass);
+    var n =
+        (Number)
+            em.createNativeQuery(
+                    "SELECT count(*) FROM \""
+                        + table
+                        + "\" WHERE id = ?1 AND deleted_at IS NOT NULL")
+                .setParameter(1, id)
+                .getSingleResult();
+    return n.longValue() > 0;
   }
 
   private static String sanitizeIdentifier(String name) {

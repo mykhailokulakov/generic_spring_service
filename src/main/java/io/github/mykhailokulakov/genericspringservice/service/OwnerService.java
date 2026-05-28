@@ -7,7 +7,7 @@ import io.github.mykhailokulakov.genericspringservice.exception.NotFoundExceptio
 import io.github.mykhailokulakov.genericspringservice.mapper.OwnerEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.OwnerRepository;
-import io.github.mykhailokulakov.genericspringservice.repository.specification.OwnerSpecifications;
+import io.github.mykhailokulakov.genericspringservice.repository.query.OwnerQueries;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +48,7 @@ public class OwnerService extends AbstractCrudService<OwnerEntity, Owner> {
   public Page<Owner> search(
       List<UUID> ids, List<UUID> exampleIds, String handle, Pageable pageable) {
     return repository
-        .findAll(OwnerSpecifications.matches(ids, exampleIds, handle), pageable)
+        .findAll(OwnerQueries.matches(ids, exampleIds, handle), pageable)
         .map(mapper::toModel);
   }
 
