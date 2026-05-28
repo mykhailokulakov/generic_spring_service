@@ -381,6 +381,8 @@
                         <exclude>io/github/mykhailokulakov/genericspringservice/exception/**</exclude>
                         <exclude>io/github/mykhailokulakov/genericspringservice/web/**</exclude>
                         <exclude>io/github/mykhailokulakov/genericspringservice/security/**</exclude>
+                        <exclude>io/github/mykhailokulakov/genericspringservice/repository/query/**</exclude>
+                        <exclude>io/github/mykhailokulakov/genericspringservice/domain/entity/Q*.class</exclude>
                     </excludes>
                 </configuration>
                 <executions>
