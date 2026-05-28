@@ -62,7 +62,7 @@ class ExampleSearchNPlusOneIT {
   }
 
   @Test
-  void givenTwentyEntities_whenSearchedWithPageSizeTen_thenTagAccessStaysWithinBoundedStatementCountAndLoadsOnlyOnePage() {
+  void given20Entities_whenSearchedFirstPageOf10_thenStatementsAreBoundedAndOnlyPageIsLoaded() {
     var sessionFactory = em.getEntityManagerFactory().unwrap(SessionFactory.class);
     var stats = sessionFactory.getStatistics();
     stats.clear();

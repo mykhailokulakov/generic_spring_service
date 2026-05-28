@@ -63,7 +63,7 @@ class GlobalExceptionHandlerIT {
   }
 
   @Test
-  void givenUnknownId_whenFetchedWithAcceptLanguageUk_thenReturns404ProblemJsonWithLocalizedTitle() {
+  void givenUnknownIdAndUkLocale_whenFetched_thenReturns404WithLocalizedTitle() {
     var response =
         asUser()
             .header("Accept-Language", "uk")
@@ -80,7 +80,7 @@ class GlobalExceptionHandlerIT {
   }
 
   @Test
-  void givenMissingIfMatchHeader_whenPatchedWithAcceptLanguageUk_thenReturns412ProblemJsonWithLocalizedTitle() {
+  void givenMissingIfMatchAndUkLocale_whenPatched_thenReturns412WithLocalizedTitle() {
     var id = createExample();
 
     var response =
@@ -101,7 +101,7 @@ class GlobalExceptionHandlerIT {
   }
 
   @Test
-  void givenStaleIfMatch_whenPatchedWithAcceptLanguageUk_thenReturns409ProblemJsonWithLocalizedTitle() {
+  void givenStaleIfMatchAndUkLocale_whenPatched_thenReturns409WithLocalizedTitle() {
     var id = createExample();
 
     var response =
@@ -123,7 +123,7 @@ class GlobalExceptionHandlerIT {
   }
 
   @Test
-  void givenUserRole_whenCreatedWithAcceptLanguageUk_thenReturns403ProblemJsonWithLocalizedTitle() {
+  void givenUserRoleAndUkLocale_whenCreated_thenReturns403WithLocalizedTitle() {
     var response =
         asUser()
             .contentType(ContentType.JSON)
@@ -142,7 +142,7 @@ class GlobalExceptionHandlerIT {
   }
 
   @Test
-  void givenInvalidBody_whenCreatedWithAcceptLanguageUk_thenReturns400ProblemJsonWithLocalizedTitleAndViolation() {
+  void givenInvalidBodyAndUkLocale_whenCreated_thenReturns400WithLocalizedTitleAndViolation() {
     var body = validCreateBody();
     body.remove("name");
 
