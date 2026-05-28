@@ -7,7 +7,7 @@ import io.github.mykhailokulakov.genericspringservice.exception.NotFoundExceptio
 import io.github.mykhailokulakov.genericspringservice.mapper.ChildEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.ChildRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.ParentRepository;
-import io.github.mykhailokulakov.genericspringservice.repository.specification.ChildSpecifications;
+import io.github.mykhailokulakov.genericspringservice.repository.query.ChildQueries;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +47,7 @@ public class ChildService extends AbstractCrudService<ChildEntity, Child> {
   @Transactional(readOnly = true)
   public Page<Child> search(List<UUID> ids, List<UUID> parentIds, String value, Pageable pageable) {
     return repository
-        .findAll(ChildSpecifications.matches(ids, parentIds, value), pageable)
+        .findAll(ChildQueries.matches(ids, parentIds, value), pageable)
         .map(mapper::toModel);
   }
 

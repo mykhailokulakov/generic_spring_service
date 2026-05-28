@@ -16,7 +16,7 @@ public interface ManyToManyRepositoryTestContract<E extends SoftDeletable>
     extends RepositoryContractAccess<E> {
 
   @Test
-  default void manyToMany_associationSurvivesReload() {
+  default void givenEntityWithManyToManyTargets_whenReloaded_thenAssociationIsPreserved() {
     var manyToManyField =
         ContractReflection.findOwningSide(entityType(), ManyToMany.class)
             .orElseThrow(

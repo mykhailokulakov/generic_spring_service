@@ -13,7 +13,7 @@ public interface ManyToOneRepositoryTestContract<E extends SoftDeletable>
     extends RepositoryContractAccess<E> {
 
   @Test
-  default void manyToOne_foreignKeySurvivesReload() {
+  default void givenEntityWithManyToOneTarget_whenReloaded_thenForeignKeyIsPreserved() {
     var manyToOneField =
         ContractReflection.findFirstField(entityType(), ManyToOne.class)
             .orElseThrow(

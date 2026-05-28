@@ -5,7 +5,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.Right;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.mapper.RightEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.RightRepository;
-import io.github.mykhailokulakov.genericspringservice.repository.specification.RightSpecifications;
+import io.github.mykhailokulakov.genericspringservice.repository.query.RightQueries;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -43,8 +43,6 @@ public class RightService extends AbstractCrudService<RightEntity, Right> {
 
   @Transactional(readOnly = true)
   public Page<Right> search(List<UUID> ids, String name, Pageable pageable) {
-    return repository
-        .findAll(RightSpecifications.matches(ids, name), pageable)
-        .map(mapper::toModel);
+    return repository.findAll(RightQueries.matches(ids, name), pageable).map(mapper::toModel);
   }
 }

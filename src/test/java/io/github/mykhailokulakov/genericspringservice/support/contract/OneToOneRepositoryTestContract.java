@@ -13,7 +13,7 @@ public interface OneToOneRepositoryTestContract<E extends SoftDeletable>
     extends RepositoryContractAccess<E> {
 
   @Test
-  default void oneToOne_foreignKeySurvivesReload() {
+  default void givenEntityWithOneToOneTarget_whenReloaded_thenForeignKeyIsPreserved() {
     var oneToOneField =
         ContractReflection.findOwningSide(entityType(), OneToOne.class)
             .orElseThrow(

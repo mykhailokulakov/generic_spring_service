@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mykhailokulakov.genericspringservice.domain.entity.ExampleEntity;
 import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus;
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
-import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
+import io.github.mykhailokulakov.genericspringservice.repository.query.ExampleQueries;
 import io.github.mykhailokulakov.genericspringservice.support.containers.postgres.WithPostgres;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import jakarta.persistence.EntityManager;
@@ -68,7 +68,7 @@ class ExampleSearchNPlusOneIT {
     var pageable = PageRequest.of(0, 10);
     var page =
         repository.findAll(
-            ExampleSpecifications.matches(
+            ExampleQueries.matches(
                 null, null, null, null, null, null, null, null, null, null, null),
             pageable);
 

@@ -19,7 +19,7 @@ public interface OneToManyRepositoryTestContract<E extends SoftDeletable>
 
   @SuppressWarnings("unchecked")
   @Test
-  default void softDeleteParent_cascadesToChildren() {
+  default void givenParentWithChildren_whenSoftDeleted_thenChildrenAreAlsoSoftDeleted() {
     var collectionField =
         ContractReflection.findField(
                 entityType(),

@@ -5,7 +5,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.Left;
 import io.github.mykhailokulakov.genericspringservice.exception.ErrorCode;
 import io.github.mykhailokulakov.genericspringservice.mapper.LeftEntityMapper;
 import io.github.mykhailokulakov.genericspringservice.repository.LeftRepository;
-import io.github.mykhailokulakov.genericspringservice.repository.specification.LeftSpecifications;
+import io.github.mykhailokulakov.genericspringservice.repository.query.LeftQueries;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +43,6 @@ public class LeftService extends AbstractCrudService<LeftEntity, Left> {
 
   @Transactional(readOnly = true)
   public Page<Left> search(List<UUID> ids, String code, Pageable pageable) {
-    return repository.findAll(LeftSpecifications.matches(ids, code), pageable).map(mapper::toModel);
+    return repository.findAll(LeftQueries.matches(ids, code), pageable).map(mapper::toModel);
   }
 }

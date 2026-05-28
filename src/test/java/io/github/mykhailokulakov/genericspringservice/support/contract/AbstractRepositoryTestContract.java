@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
+import com.querydsl.core.BooleanBuilder;
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
@@ -30,9 +31,8 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -49,7 +49,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
 
   private Class<E> resolvedEntityType;
   private JpaRepository<E, ?> cachedRepository;
-  private JpaSpecificationExecutor<E> cachedSpecExecutor;
+  private QuerydslPredicateExecutor<E> cachedPredicateExecutor;
 
   private void mutate(E entity) {
     var field =
@@ -116,11 +116,11 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @SuppressWarnings("unchecked")
-  private JpaSpecificationExecutor<E> specExecutor() {
-    if (cachedSpecExecutor == null) {
-      cachedSpecExecutor = (JpaSpecificationExecutor<E>) repository();
+  private QuerydslPredicateExecutor<E> predicateExecutor() {
+    if (cachedPredicateExecutor == null) {
+      cachedPredicateExecutor = (QuerydslPredicateExecutor<E>) repository();
     }
-    return cachedSpecExecutor;
+    return cachedPredicateExecutor;
   }
 
   @BeforeEach
@@ -133,7 +133,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void save_assignsIdAndAuditTimestamps() {
+  void givenTransientEntity_whenSaved_thenIdAndAuditFieldsAreAssigned() {
     var entity = newEntity();
 
     assertThat(entity.getId()).isNull();
@@ -151,7 +151,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void findById_returnsPersistedEntity() {
+  void givenPersistedEntity_whenFoundById_thenReturnsTheEntity() {
     var saved = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
@@ -165,7 +165,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void findById_returnsEmptyForNonExistentId() {
+  void givenUnknownId_whenFoundById_thenReturnsEmpty() {
     @SuppressWarnings("unchecked")
     var repo = (JpaRepository<E, Object>) repository();
 
@@ -173,7 +173,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void update_incrementsVersion() {
+  void givenPersistedEntity_whenUpdated_thenVersionIncrements() {
     var saved = persistAndFlush(newEntity());
     var initialVersion = saved.getVersion();
 
@@ -188,7 +188,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void update_advancesUpdatedAt() {
+  void givenPersistedEntity_whenUpdated_thenUpdatedAtAdvances() {
     var saved = persistAndFlush(newEntity());
     var originalUpdatedAt = saved.getUpdatedAt();
 
@@ -203,7 +203,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void update_doesNotChangeCreatedAt() {
+  void givenPersistedEntity_whenUpdated_thenCreatedAtIsUnchanged() {
     var saved = persistAndFlush(newEntity());
     var originalCreatedAt = saved.getCreatedAt();
 
@@ -218,7 +218,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void update_rejectsStaleVersion() {
+  void givenStaleVersion_whenSaved_thenOptimisticLockingFailureIsThrown() {
     var saved = persistAndFlush(newEntity());
 
     tx().executeWithoutResult(
@@ -234,7 +234,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void delete_softDeletesAndExcludesFromQueries() {
+  void givenPersistedEntity_whenDeleted_thenExcludedFromSubsequentQueries() {
     var saved = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
@@ -247,7 +247,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void delete_keepsRowInTable() {
+  void givenPersistedEntity_whenDeleted_thenRowRemainsWithDeletedAtSet() {
     var saved = persistAndFlush(newEntity());
 
     @SuppressWarnings("unchecked")
@@ -260,7 +260,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void findAll_paginatesAndSorts() {
+  void givenMoreEntitiesThanPageSize_whenFindAllPaged_thenReturnsRequestedSliceAndCount() {
     for (int i = 0; i < 5; i++) {
       persistAndFlush(newEntity());
     }
@@ -277,25 +277,25 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void specification_emptyReturnsAll() {
+  void givenPersistedEntities_whenQueriedWithEmptyPredicate_thenReturnsAll() {
     persistAndFlush(newEntity());
     persistAndFlush(newEntity());
     persistAndFlush(newEntity());
 
-    var page = specExecutor().findAll(Specification.unrestricted(), Pageable.unpaged());
+    var page = predicateExecutor().findAll(new BooleanBuilder(), Pageable.unpaged());
 
     assertThat(page.getContent()).hasSize(3);
   }
 
   @Test
-  void specification_paginatesAndSorts() {
+  void givenMoreEntitiesThanPageSize_whenQueriedPaged_thenReturnsRequestedSliceAndCount() {
     for (int i = 0; i < 5; i++) {
       persistAndFlush(newEntity());
     }
 
     var page =
-        specExecutor()
-            .findAll(Specification.unrestricted(), PageRequest.of(0, 3, Sort.by("createdAt")));
+        predicateExecutor()
+            .findAll(new BooleanBuilder(), PageRequest.of(0, 3, Sort.by("createdAt")));
 
     assertThat(page.getTotalElements()).isEqualTo(5);
     assertThat(page.getContent()).hasSize(3);
@@ -303,7 +303,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   }
 
   @Test
-  void specification_excludesSoftDeleted() {
+  void givenSoftDeletedEntity_whenQueried_thenIsExcluded() {
     persistAndFlush(newEntity());
     var toDelete = persistAndFlush(newEntity());
 
@@ -312,13 +312,13 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
     repo.deleteById(toDelete.getId());
     repo.flush();
 
-    var page = specExecutor().findAll(Specification.unrestricted(), Pageable.unpaged());
+    var page = predicateExecutor().findAll(new BooleanBuilder(), Pageable.unpaged());
 
     assertThat(page.getTotalElements()).isOne();
   }
 
   @Test
-  void count_excludesSoftDeleted() {
+  void givenSoftDeletedEntity_whenCounted_thenIsExcluded() {
     persistAndFlush(newEntity());
     var toDelete = persistAndFlush(newEntity());
 
