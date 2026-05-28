@@ -7,6 +7,7 @@ import io.github.mykhailokulakov.genericspringservice.domain.model.ExampleStatus
 import io.github.mykhailokulakov.genericspringservice.repository.ExampleRepository;
 import io.github.mykhailokulakov.genericspringservice.repository.specification.ExampleSpecifications;
 import io.github.mykhailokulakov.genericspringservice.support.containers.postgres.WithPostgres;
+import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,15 +33,16 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 @Transactional
 @WithPostgres
+@Import(DatabaseStateHelper.class)
 class ExampleSearchNPlusOneIT {
 
   @Autowired ExampleRepository repository;
   @Autowired EntityManager em;
+  @Autowired DatabaseStateHelper dbHelper;
 
   @BeforeEach
   void seed() {
-    em.createNativeQuery("DELETE FROM example_tag").executeUpdate();
-    em.createNativeQuery("DELETE FROM example").executeUpdate();
+    dbHelper.truncateAll();
     for (int i = 0; i < 20; i++) {
       var e =
           ExampleEntity.builder()
