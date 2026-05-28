@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.Identifiable;
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
 import jakarta.persistence.OneToMany;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,9 +43,10 @@ public interface OneToManyRepositoryTestContract<E extends SoftDeletable>
                             + " has no @ManyToOne back-reference to "
                             + entityType().getSimpleName()));
 
-    var parentId =
+    var ids =
         new Object() {
-          UUID value;
+          UUID parentId;
+          UUID childId;
         };
 
     tx().executeWithoutResult(
@@ -55,7 +55,7 @@ public interface OneToManyRepositoryTestContract<E extends SoftDeletable>
               em().persist(parent);
               em().flush();
 
-              var child = RandomEntities.create(childType);
+              var child = newRelatedEntity(childType);
               ContractReflection.setField(child, backRefField, parent);
               em().persist(child);
 
@@ -66,21 +66,22 @@ public interface OneToManyRepositoryTestContract<E extends SoftDeletable>
               ContractReflection.setField(parent, collectionField, children);
               em().flush();
 
-              parentId.value = parent.getId();
+              ids.parentId = parent.getId();
+              ids.childId = child.getId();
             });
 
     tx().executeWithoutResult(
             status -> {
-              var loaded = em().find(entityType(), parentId.value);
+              var loaded = em().find(entityType(), ids.parentId);
               em().remove(loaded);
               em().flush();
             });
 
-    assertThat(dbHelper().countIncludingDeleted(entityType())).isOne();
-    assertThat(dbHelper().countWhereDeleted(entityType())).isOne();
-    assertThat(dbHelper().countIncludingDeleted(childType)).isOne();
-    assertThat(dbHelper().countWhereDeleted(childType))
+    assertThat(dbHelper().existsIncludingDeleted(entityType(), ids.parentId)).isTrue();
+    assertThat(dbHelper().isSoftDeleted(entityType(), ids.parentId)).isTrue();
+    assertThat(dbHelper().existsIncludingDeleted(childType, ids.childId)).isTrue();
+    assertThat(dbHelper().isSoftDeleted(childType, ids.childId))
         .as("cascade soft-delete: child is also soft-deleted when parent is")
-        .isOne();
+        .isTrue();
   }
 }

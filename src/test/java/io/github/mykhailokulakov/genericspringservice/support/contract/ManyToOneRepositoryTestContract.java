@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.Identifiable;
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
 import jakarta.persistence.ManyToOne;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -32,7 +31,7 @@ public interface ManyToOneRepositoryTestContract<E extends SoftDeletable>
 
     tx().executeWithoutResult(
             status -> {
-              var target = RandomEntities.create(targetType);
+              var target = newRelatedEntity(targetType);
               em().persist(target);
               var entity = newEntity();
               ContractReflection.setField(entity, manyToOneField, target);

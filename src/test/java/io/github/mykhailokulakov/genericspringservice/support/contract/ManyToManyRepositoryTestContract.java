@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mykhailokulakov.genericspringservice.common.persistence.Identifiable;
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
 import jakarta.persistence.ManyToMany;
 import java.util.Collection;
 import java.util.List;
@@ -35,7 +34,7 @@ public interface ManyToManyRepositoryTestContract<E extends SoftDeletable>
 
     tx().executeWithoutResult(
             status -> {
-              var target = RandomEntities.create(targetType);
+              var target = newRelatedEntity(targetType);
               em().persist(target);
               var entity = newEntity();
               var targets =

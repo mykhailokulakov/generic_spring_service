@@ -15,5 +15,7 @@ public interface RepositoryContractAccess<E extends SoftDeletable> {
 
   E newEntity();
 
+  <T> T newRelatedEntity(Class<T> relatedType);
+
   DatabaseStateHelper dbHelper();
 }

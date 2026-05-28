@@ -3,12 +3,13 @@ package io.github.mykhailokulakov.genericspringservice.support.contract;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.querydsl.core.BooleanBuilder;
 import io.github.mykhailokulakov.genericspringservice.common.persistence.SoftDeletable;
 import io.github.mykhailokulakov.genericspringservice.support.PersistenceTest;
 import io.github.mykhailokulakov.genericspringservice.support.db.DatabaseStateHelper;
-import io.github.mykhailokulakov.genericspringservice.support.fixtures.RandomEntities;
+import io.github.mykhailokulakov.genericspringservice.support.fixtures.RepositoryTestFixtures;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ManyToMany;
@@ -20,6 +21,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.UUID;
 import org.instancio.Instancio;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +40,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @PersistenceTest
-@Import(DatabaseStateHelper.class)
+@Import({DatabaseStateHelper.class, RepositoryTestFixtures.class})
 public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
     implements RepositoryContractAccess<E> {
 
@@ -46,6 +48,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
   @Autowired private EntityManager em;
   @Autowired private DatabaseStateHelper dbHelper;
   @Autowired private PlatformTransactionManager txManager;
+  @Autowired private RepositoryTestFixtures fixtures;
 
   private Class<E> resolvedEntityType;
   private JpaRepository<E, ?> cachedRepository;
@@ -55,11 +58,22 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
     var field =
         Arrays.stream(entityType().getDeclaredFields())
             .filter(AbstractRepositoryTestContract::isMutableValueField)
-            .findFirst()
-            .orElseThrow();
-    field.setAccessible(true);
+            .findFirst();
+    assumeTrue(field.isPresent(), "entity has no mutable scalar field declared on its type");
+    var f = field.get();
+    f.setAccessible(true);
     try {
-      field.set(entity, Instancio.create(field.getType()));
+      var current = f.get(entity);
+      Object next;
+      var attempts = 0;
+      do {
+        next = Instancio.create(f.getType());
+        attempts++;
+      } while (Objects.equals(current, next) && attempts < 20);
+      assumeTrue(
+          !Objects.equals(current, next),
+          "could not generate a value different from the current one for field " + f.getName());
+      f.set(entity, next);
     } catch (IllegalAccessException e) {
       throw new AssertionError(e);
     }
@@ -97,7 +111,12 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
 
   @Override
   public E newEntity() {
-    return RandomEntities.create(entityType());
+    return fixtures.newOf(entityType());
+  }
+
+  @Override
+  public <T> T newRelatedEntity(Class<T> relatedType) {
+    return fixtures.newOf(relatedType);
   }
 
   @Override
