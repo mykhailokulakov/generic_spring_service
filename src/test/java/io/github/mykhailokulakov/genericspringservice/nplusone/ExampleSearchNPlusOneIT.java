@@ -36,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Import(DatabaseStateHelper.class)
 class ExampleSearchNPlusOneIT {
 
+  private static final long MAX_EXPECTED_STATEMENTS = 3L;
+
   @Autowired ExampleRepository repository;
   @Autowired EntityManager em;
   @Autowired DatabaseStateHelper dbHelper;
@@ -60,35 +62,27 @@ class ExampleSearchNPlusOneIT {
   }
 
   @Test
-  void searchPageOfTen_doesNotIssueNPlusOneQueries() {
+  void givenTwentyEntities_whenSearchedWithPageSizeTen_thenTagAccessStaysWithinBoundedStatementCountAndLoadsOnlyOnePage() {
     var sessionFactory = em.getEntityManagerFactory().unwrap(SessionFactory.class);
     var stats = sessionFactory.getStatistics();
     stats.clear();
-
     var pageable = PageRequest.of(0, 10);
+
     var page =
         repository.findAll(
             ExampleQueries.matches(
                 null, null, null, null, null, null, null, null, null, null, null),
             pageable);
-
-    int totalTags = 0;
+    var totalTags = 0;
     for (ExampleEntity e : page.getContent()) {
       totalTags += e.getTags().size();
     }
 
     assertThat(page.getContent()).hasSize(10);
     assertThat(totalTags).isEqualTo(30);
-    // 1: SELECT count(*) ... (pagination total)
-    // 2: SELECT id, name, ... FROM example ... LIMIT 10 (page data)
-    // 3: SELECT ... FROM example_tag WHERE example_id IN (...) (@BatchSize batch)
-    long maxExpectedStatements = 3L;
     assertThat(stats.getPrepareStatementCount())
         .as("paging 10 of 20 with tag access must stay bounded")
-        .isLessThanOrEqualTo(maxExpectedStatements);
-    // Pins pagination to SQL level. If a fetch-join on `tags` ever sneaks back
-    // in, Hibernate would load all 20 entities and paginate in memory — this
-    // assertion fails at 20 instead of 10.
+        .isLessThanOrEqualTo(MAX_EXPECTED_STATEMENTS);
     assertThat(stats.getEntityLoadCount())
         .as("only the page's entities should be loaded; in-memory pagination would load all 20")
         .isEqualTo(10L);

@@ -104,8 +104,8 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     }
 
     @Test
-    void adminCreatesWithAllFields_returnsFullPayload() {
-      Map<String, Object> body = fullCreateBody();
+    void givenAdminAndFullBody_whenCreated_thenResponseContainsAllScalarFieldsAndTags() {
+      var body = fullCreateBody();
 
       var created =
           asAdmin()
@@ -129,7 +129,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     }
 
     @Test
-    void adminCreatesWithOnlyRequiredFields_optionalFieldsAreNull() {
+    void givenAdminAndOnlyRequiredFields_whenCreated_thenOptionalFieldsAreNullAndTagsAreEmpty() {
       var body = new LinkedHashMap<String, Object>();
       body.put("name", "minimal");
       body.put("status", "DRAFT");
@@ -154,11 +154,11 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     }
 
     @Test
-    void adminCreatesWithTags_persistsTags() {
-      Map<String, Object> body = fullCreateBody();
+    void givenAdminAndBodyWithTags_whenCreated_thenTagsArePersistedAndReturnedOnFetch() {
+      var body = fullCreateBody();
       body.put("tags", List.of("red", "green", "blue"));
 
-      UUID id = createAsAdmin(body);
+      var id = createAsAdmin(body);
 
       var fetched =
           asUser().get(resourcePath(), id).then().statusCode(OK.value()).extract().response();
@@ -167,8 +167,8 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     }
 
     @Test
-    void invalidStatusEnumValue_returns400() {
-      Map<String, Object> body = fullCreateBody();
+    void givenInvalidStatusEnumValue_whenCreated_thenReturns400() {
+      var body = fullCreateBody();
       body.put("status", "NOT_A_STATUS");
 
       var response =
@@ -179,6 +179,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .then()
               .extract()
               .response();
+
       assertThat(response).hasStatus(BAD_REQUEST.value());
     }
   }
@@ -192,13 +193,14 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     }
 
     @Test
-    void userReadsEntityWithEmptyTags_tagsIsEmpty() {
-      Map<String, Object> body = fullCreateBody();
+    void givenEntityCreatedWithEmptyTags_whenFetched_thenTagsAreEmpty() {
+      var body = fullCreateBody();
       body.put("tags", List.of());
-      UUID id = createAsAdmin(body);
+      var id = createAsAdmin(body);
 
       var response =
           asUser().get(resourcePath(), id).then().statusCode(OK.value()).extract().response();
+
       assertThat(response.jsonPath().getList("tags", String.class)).isEmpty();
     }
   }
@@ -218,7 +220,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     }
 
     @Test
-    void userFilteringByNameContains_returnsMatchingSubset() {
+    void givenNameContainsFilter_whenSearched_thenReturnsOnlyMatchingEntities() {
       var response =
           asUser()
               .queryParam("name", "Widget")
@@ -227,13 +229,14 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .statusCode(OK.value())
               .extract()
               .response();
+
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(19L);
       assertThat(response.jsonPath().getList("content.name", String.class))
           .allMatch(name -> name.toLowerCase().contains("widget"));
     }
 
     @Test
-    void userFilteringByStatusInDraftActive_returnsMatchingSubset() {
+    void givenStatusInFilter_whenSearched_thenReturnsEntitiesMatchingAnyOfTheStatuses() {
       var response =
           asUser()
               .queryParam("status", "DRAFT", "ACTIVE")
@@ -242,12 +245,13 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .statusCode(OK.value())
               .extract()
               .response();
+
       var statuses = response.jsonPath().getList("content.status", String.class);
       assertThat(statuses).allMatch(s -> s.equals("DRAFT") || s.equals("ACTIVE"));
     }
 
     @Test
-    void userFilteringByPriceRange_returnsMatchingSubset() {
+    void givenWidePriceRangeFilter_whenSearched_thenReturnsAllEntities() {
       var response =
           asUser()
               .queryParam("minPrice", "0.00")
@@ -257,11 +261,12 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .statusCode(OK.value())
               .extract()
               .response();
+
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(20L);
     }
 
     @Test
-    void userFilteringByTags_returnsEntitiesWithAnyOfTheTags() {
+    void givenTagFilter_whenSearched_thenReturnsOnlyEntitiesContainingThatTag() {
       var response =
           asUser()
               .queryParam("tag", "alpha")
@@ -270,19 +275,21 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .statusCode(OK.value())
               .extract()
               .response();
+
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(20L);
       List<List<String>> matchedTags = response.jsonPath().getList("content.tags");
       assertThat(matchedTags).allMatch(t -> t != null && t.contains("alpha"));
     }
 
     @Test
-    void userWithInvalidStatusValueInQuery_returns400() {
+    void givenInvalidStatusValueInQuery_whenSearched_thenReturns400() {
       var response = asUser().queryParam("status", "NOPE").get(path()).then().extract().response();
+
       assertThat(response).hasStatus(BAD_REQUEST.value());
     }
 
     @Test
-    void userMinPriceGreaterThanMaxPrice_returnsEmptyResultNotError() {
+    void givenMinPriceGreaterThanMaxPrice_whenSearched_thenReturnsEmptyResultWithoutError() {
       var response =
           asUser()
               .queryParam("minPrice", "1000.00")
@@ -292,21 +299,24 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .statusCode(OK.value())
               .extract()
               .response();
+
       assertThat(response.jsonPath().getLong("totalElements")).isEqualTo(0L);
       assertThat(response.jsonPath().getList("content")).isEmpty();
     }
 
     @Test
-    void userMalformedDateInOccurredFrom_returns400() {
+    void givenMalformedDateInOccurredFrom_whenSearched_thenReturns400() {
       var response =
           asUser().queryParam("occurredFrom", "not-a-date").get(path()).then().extract().response();
+
       assertThat(response).hasStatus(BAD_REQUEST.value());
     }
 
     @Test
-    void userMalformedIntegerInMinQuantity_returns400() {
+    void givenMalformedIntegerInMinQuantity_whenSearched_thenReturns400() {
       var response =
           asUser().queryParam("minQuantity", "abc").get(path()).then().extract().response();
+
       assertThat(response).hasStatus(BAD_REQUEST.value());
     }
   }
@@ -320,9 +330,9 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     }
 
     @Test
-    void adminReplacesWithEmptyTags_returns200() {
-      UUID id = createAsAdmin(fullCreateBody());
-      Map<String, Object> body = fullUpdateBody();
+    void givenAdminAndUpdateBodyWithEmptyTags_whenReplaced_thenTagsBecomeEmpty() {
+      var id = createAsAdmin(fullCreateBody());
+      var body = fullUpdateBody();
       body.put("tags", List.of());
 
       var response =
@@ -335,12 +345,13 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .statusCode(OK.value())
               .extract()
               .response();
+
       assertThat(response.jsonPath().getList("tags", String.class)).isEmpty();
     }
 
     @Test
-    void adminReplacesAllFields_returnsUpdatedPayload() {
-      UUID id = createAsAdmin(fullCreateBody());
+    void givenAdminAndFullUpdateBody_whenReplaced_thenAllFieldsReflectNewValues() {
+      var id = createAsAdmin(fullCreateBody());
 
       var response =
           asAdmin()
@@ -352,6 +363,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .statusCode(OK.value())
               .extract()
               .response();
+
       assertThat(response.jsonPath().getString("status")).isEqualTo("ARCHIVED");
       assertThat(response.jsonPath().getInt("quantity")).isEqualTo(42);
     }
@@ -366,8 +378,8 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     }
 
     @Test
-    void adminPatchesMultipleFields_onlyThoseChanged() {
-      UUID id = createAsAdmin(fullCreateBody());
+    void givenPatchWithMultipleFields_whenPatched_thenOnlyTheProvidedFieldsChange() {
+      var id = createAsAdmin(fullCreateBody());
       var patch = new LinkedHashMap<String, Object>();
       patch.put("name", "multi");
       patch.put("quantity", 99);
@@ -382,6 +394,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .statusCode(OK.value())
               .extract()
               .response();
+
       assertThat(response.jsonPath().getString("name")).isEqualTo("multi");
       assertThat(response.jsonPath().getInt("quantity")).isEqualTo(99);
       assertThat(response.jsonPath().getString("description")).isEqualTo("A useful widget");
@@ -389,8 +402,8 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
     }
 
     @Test
-    void adminPatchingTagsReplacesTheTagSet() {
-      UUID id = createAsAdmin(fullCreateBody());
+    void givenPatchWithTagsField_whenPatched_thenTagSetIsFullyReplaced() {
+      var id = createAsAdmin(fullCreateBody());
 
       var response =
           asAdmin()
@@ -402,6 +415,7 @@ class ExampleControllerIT extends AbstractCrudControllerTestContract<ExampleEnti
               .statusCode(OK.value())
               .extract()
               .response();
+
       assertThat(response.jsonPath().getList("tags", String.class)).containsExactly("only");
     }
   }

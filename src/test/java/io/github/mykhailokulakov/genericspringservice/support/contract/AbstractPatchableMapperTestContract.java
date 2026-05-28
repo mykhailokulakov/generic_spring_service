@@ -17,7 +17,7 @@ public abstract class AbstractPatchableMapperTestContract<
   }
 
   @Test
-  void applyPatch_onNullIsNoOp() {
+  void givenNullPatch_whenApplied_thenEntityIsUnchanged() {
     var entity = mapper().toEntity(newModel());
     var originalId = entity.getId();
 
@@ -27,7 +27,7 @@ public abstract class AbstractPatchableMapperTestContract<
   }
 
   @Test
-  void applyPatch_updatesProvidedFields() {
+  void givenPatchWithFields_whenApplied_thenEntityIsUpdated() {
     var entity = mapper().toEntity(newModel());
     var patch = newModel();
 

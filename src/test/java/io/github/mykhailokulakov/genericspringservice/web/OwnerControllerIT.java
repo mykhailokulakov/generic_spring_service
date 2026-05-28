@@ -101,16 +101,16 @@ class OwnerControllerIT extends AbstractCrudControllerTestContract<OwnerEntity> 
     }
 
     @Test
-    void softDeleteReleasesUniqueConstraint_recreateWithSameExampleSucceeds() {
-      UUID exampleId = createExample();
+    void givenOwnerLinkedToExampleSoftDeleted_whenRecreatedWithSameExample_thenSucceedsWithNewId() {
+      var exampleId = createExample();
       var body = new LinkedHashMap<String, Object>();
       body.put("handle", "Owner A");
       body.put("exampleId", exampleId.toString());
-
-      UUID first = createAsAdmin(body);
+      var first = createAsAdmin(body);
       asAdmin().delete(resourcePath(), first).then().statusCode(NO_CONTENT.value());
 
-      UUID second = createAsAdmin(body);
+      var second = createAsAdmin(body);
+
       assertThat(second).isNotEqualTo(first);
     }
   }

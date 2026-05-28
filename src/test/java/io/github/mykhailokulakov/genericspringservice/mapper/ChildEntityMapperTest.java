@@ -23,7 +23,7 @@ class ChildEntityMapperTest extends AbstractPatchableMapperTestContract<ChildEnt
   }
 
   @Test
-  void toModel_mapsParentIdFromAssociation() {
+  void givenEntityWithLinkedParent_whenMappedToModel_thenParentIdIsCopiedFromAssociation() {
     var parentId = UUID.randomUUID();
     var parent = ParentEntity.builder().id(parentId).label("p").build();
     var entity = newEntity();
@@ -35,7 +35,7 @@ class ChildEntityMapperTest extends AbstractPatchableMapperTestContract<ChildEnt
   }
 
   @Test
-  void toModel_returnsNullParentIdWhenParentIsNull() {
+  void givenEntityWithoutLinkedParent_whenMappedToModel_thenParentIdIsNull() {
     var entity = newEntity();
     entity.setParent(null);
 

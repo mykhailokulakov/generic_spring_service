@@ -62,10 +62,8 @@ class GlobalExceptionHandlerIT {
             .getString("id"));
   }
 
-  // --- handleNotFound (NotFoundException) ----------------------------------
-
   @Test
-  void notFound_returns404_problemJson_codeAndLocalizedTitle() {
+  void givenUnknownId_whenFetchedWithAcceptLanguageUk_thenReturns404ProblemJsonWithLocalizedTitle() {
     var response =
         asUser()
             .header("Accept-Language", "uk")
@@ -81,11 +79,9 @@ class GlobalExceptionHandlerIT {
         .hasTitle(title("not-found", UKRAINIAN));
   }
 
-  // --- handleConflict (ConflictException → IF_MATCH_REQUIRED) --------------
-
   @Test
-  void ifMatchRequired_returns412_problemJson_codeAndLocalizedTitle() {
-    UUID id = createExample();
+  void givenMissingIfMatchHeader_whenPatchedWithAcceptLanguageUk_thenReturns412ProblemJsonWithLocalizedTitle() {
+    var id = createExample();
 
     var response =
         asAdmin()
@@ -104,11 +100,9 @@ class GlobalExceptionHandlerIT {
         .hasTitle(title("precondition-failed", UKRAINIAN));
   }
 
-  // --- handleConflict (ConflictException → OPTIMISTIC_LOCK) ----------------
-
   @Test
-  void optimisticLockConflict_returns409_problemJson_codeAndLocalizedTitle() {
-    UUID id = createExample();
+  void givenStaleIfMatch_whenPatchedWithAcceptLanguageUk_thenReturns409ProblemJsonWithLocalizedTitle() {
+    var id = createExample();
 
     var response =
         asAdmin()
@@ -128,10 +122,8 @@ class GlobalExceptionHandlerIT {
         .hasTitle(title("conflict", UKRAINIAN));
   }
 
-  // --- handleAccessDenied (AccessDeniedException) --------------------------
-
   @Test
-  void accessDenied_returns403_problemJson_codeAndLocalizedTitle() {
+  void givenUserRole_whenCreatedWithAcceptLanguageUk_thenReturns403ProblemJsonWithLocalizedTitle() {
     var response =
         asUser()
             .contentType(ContentType.JSON)
@@ -149,11 +141,9 @@ class GlobalExceptionHandlerIT {
         .hasTitle(title("forbidden", UKRAINIAN));
   }
 
-  // --- handleMethodArgumentNotValid (MethodArgumentNotValidException) ------
-
   @Test
-  void methodArgumentNotValid_returns400_problemJson_codeAndLocalizedTitle() {
-    Map<String, Object> body = validCreateBody();
+  void givenInvalidBody_whenCreatedWithAcceptLanguageUk_thenReturns400ProblemJsonWithLocalizedTitleAndViolation() {
+    var body = validCreateBody();
     body.remove("name");
 
     var response =
@@ -174,10 +164,8 @@ class GlobalExceptionHandlerIT {
         .hasViolation("name", "NotBlank");
   }
 
-  // --- Default-locale title sanity check -----------------------------------
-
   @Test
-  void noAcceptLanguage_returnsDefaultEnglishTitle() {
+  void givenNoAcceptLanguageHeader_whenNotFound_thenTitleFallsBackToDefaultEnglish() {
     var response = asUser().get(PATH + "/" + UUID.randomUUID()).then().extract().response();
 
     assertThat(response)

@@ -12,7 +12,7 @@ class PostgresExtensionIT {
   class DefaultContainer {
 
     @Test
-    void exportsStandardDatasourceProperties() {
+    void givenDefaultPostgresContainer_whenStarted_thenStandardDatasourcePropertiesAreExported() {
       assertThat(System.getProperty("spring.datasource.url"))
           .as("default name maps to standard spring.datasource.* paths")
           .isNotNull()
@@ -28,7 +28,7 @@ class PostgresExtensionIT {
   class MultipleContainers {
 
     @Test
-    void exportsPrefixedPropertiesForEachName() {
+    void givenTwoNamedContainers_whenStarted_thenEachExportsPrefixedPropertiesOnDistinctPorts() {
       var primaryUrl = System.getProperty("testcontainers.postgres.primary.url");
       var replicaUrl = System.getProperty("testcontainers.postgres.replica.url");
 
@@ -38,14 +38,12 @@ class PostgresExtensionIT {
       assertThat(System.getProperty("testcontainers.postgres.primary.password")).isNotNull();
       assertThat(System.getProperty("testcontainers.postgres.replica.username")).isNotNull();
       assertThat(System.getProperty("testcontainers.postgres.replica.password")).isNotNull();
-
       assertThat(portOf(primaryUrl))
           .as("primary and replica must be distinct containers on different ports")
           .isNotEqualTo(portOf(replicaUrl));
     }
 
     private int portOf(String jdbcUrl) {
-      // jdbc:postgresql://host:port/db
       var hostPort = jdbcUrl.substring("jdbc:postgresql://".length());
       var port = hostPort.substring(hostPort.indexOf(':') + 1, hostPort.indexOf('/'));
       return Integer.parseInt(port);
