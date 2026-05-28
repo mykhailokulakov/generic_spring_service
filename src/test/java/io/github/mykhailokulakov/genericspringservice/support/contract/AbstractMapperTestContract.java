@@ -69,17 +69,17 @@ public abstract class AbstractMapperTestContract<E extends SoftDeletable, M exte
   }
 
   @Test
-  void toModel_returnsNullForNullInput() {
+  void givenNullEntity_whenMappedToModel_thenReturnsNull() {
     assertThat(mapper().toModel(null)).isNull();
   }
 
   @Test
-  void toEntity_returnsNullForNullInput() {
+  void givenNullModel_whenMappedToEntity_thenReturnsNull() {
     assertThat(mapper().toEntity(null)).isNull();
   }
 
   @Test
-  void toModel_mapsAllFields() {
+  void givenFullyPopulatedEntity_whenMappedToModel_thenAllFieldsAreCopied() {
     var entity = fullyPopulatedEntity();
 
     var model = mapper().toModel(entity);
@@ -89,7 +89,7 @@ public abstract class AbstractMapperTestContract<E extends SoftDeletable, M exte
   }
 
   @Test
-  void toModelList_mapsEveryElement() {
+  void givenListOfEntities_whenEachMappedToModel_thenEveryElementIsMapped() {
     var entities = List.of(newEntity(), newEntity(), newEntity());
 
     var models = entities.stream().map(mapper()::toModel).toList();
@@ -101,7 +101,7 @@ public abstract class AbstractMapperTestContract<E extends SoftDeletable, M exte
   }
 
   @Test
-  void toEntityList_mapsEveryElement() {
+  void givenListOfModels_whenEachMappedToEntity_thenEveryElementIsMapped() {
     var models = List.of(newModel(), newModel(), newModel());
 
     var entities = models.stream().map(mapper()::toEntity).toList();
@@ -113,14 +113,14 @@ public abstract class AbstractMapperTestContract<E extends SoftDeletable, M exte
   }
 
   @Test
-  void applyReplacement_updatesMappedFieldsOnly() {
+  void givenExistingEntity_whenReplacementApplied_thenOnlyMappedFieldsChange() {
     var entity = fullyPopulatedEntity();
     var idBefore = entity.getId();
     var createdAtBefore = entity.getCreatedAt();
     var updatedAtBefore = entity.getUpdatedAt();
     var versionBefore = entity.getVersion();
-
     var source = newModel();
+
     mapper().applyReplacement(source, entity);
 
     assertDomainFields(entity, source);
@@ -131,14 +131,14 @@ public abstract class AbstractMapperTestContract<E extends SoftDeletable, M exte
   }
 
   @Test
-  void roundTrip_preservesAllFields() {
+  void givenEntity_whenRoundTrippedThroughModel_thenAllFieldsArePreserved() {
     var entity = fullyPopulatedEntity();
 
     var model = mapper().toModel(entity);
+    var backToEntity = mapper().toEntity(model);
+
     assertChainFields(entity, model);
     assertDomainFields(entity, model);
-
-    var backToEntity = mapper().toEntity(model);
     assertChainFields(backToEntity, model);
     assertDomainFields(backToEntity, model);
   }

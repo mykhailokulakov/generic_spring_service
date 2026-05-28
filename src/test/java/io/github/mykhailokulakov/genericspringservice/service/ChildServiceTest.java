@@ -70,7 +70,7 @@ class ChildServiceTest extends AbstractCrudServiceTestContract<ChildEntity, Chil
   }
 
   @Test
-  void create_throwsNotFoundWhenParentMissing() {
+  void givenMissingParent_whenCreated_thenThrowsNotFound() {
     var toCreate = Instancio.create(Child.class);
     when(mapper.toEntity(toCreate)).thenReturn(newEntity());
     when(parentRepository.findById(toCreate.parentId())).thenReturn(Optional.empty());

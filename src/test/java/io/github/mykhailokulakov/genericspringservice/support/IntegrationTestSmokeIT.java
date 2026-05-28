@@ -16,23 +16,23 @@ class IntegrationTestSmokeIT {
   @Autowired ApplicationContext context;
 
   @Test
-  void contextStarts() {
+  void givenIntegrationTestHarness_whenStarted_thenContextIsAvailableOnAPort() {
     assertThat(context).isNotNull();
     assertThat(port).isGreaterThan(0);
   }
 
   @Test
-  void actuatorHealthIsPublic() {
+  void givenUnauthenticated_whenActuatorHealthCalled_thenReturns200() {
     asUnauthenticated().get("/actuator/health").then().statusCode(200);
   }
 
   @Test
-  void apiRequiresAuthentication() {
+  void givenUnauthenticated_whenApiCalled_thenReturns401() {
     asUnauthenticated().get("/api/v1/examples").then().statusCode(401);
   }
 
   @Test
-  void apiAcceptsUserToken() {
+  void givenUserToken_whenApiCalled_thenReturns200() {
     asUser().get("/api/v1/examples").then().statusCode(200);
   }
 }

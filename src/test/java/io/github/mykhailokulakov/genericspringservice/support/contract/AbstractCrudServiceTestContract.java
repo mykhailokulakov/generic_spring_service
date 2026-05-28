@@ -55,7 +55,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void create_savesAndReturnsModel() {
+  void givenValidModel_whenCreated_thenSavesEntityAndReturnsModel() {
     when(mapper().toEntity(model)).thenReturn(entity);
     setUpAdditionalCreateMocks();
     when(repository().save(entity)).thenReturn(entity);
@@ -68,22 +68,24 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void getById_returnsModelWhenFound() {
+  void givenExistingId_whenFetchedById_thenReturnsModel() {
     when(repository().findById(id)).thenReturn(Optional.of(entity));
     when(mapper().toModel(entity)).thenReturn(model);
 
-    assertThat(service().getById(id)).isSameAs(model);
+    var result = service().getById(id);
+
+    assertThat(result).isSameAs(model);
   }
 
   @Test
-  void getById_throwsNotFoundWhenMissing() {
+  void givenMissingId_whenFetchedById_thenThrowsNotFound() {
     when(repository().findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service().getById(id)).isInstanceOf(NotFoundException.class);
   }
 
   @Test
-  void replace_appliesReplacementOnMatchingVersion() {
+  void givenMatchingVersion_whenReplaced_thenReplacementIsAppliedAndPersisted() {
     when(repository().findById(id)).thenReturn(Optional.of(entity));
     when(repository().saveAndFlush(entity)).thenReturn(entity);
     when(mapper().toModel(entity)).thenReturn(model);
@@ -96,7 +98,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void replace_throwsNotFoundWhenMissing() {
+  void givenMissingId_whenReplaced_thenThrowsNotFoundAndNothingIsSaved() {
     when(repository().findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service().replace(id, 3L, model))
@@ -105,7 +107,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void replace_throwsConflictOnVersionMismatch() {
+  void givenStaleVersion_whenReplaced_thenThrowsConflictAndNothingIsSaved() {
     when(repository().findById(id)).thenReturn(Optional.of(entity));
 
     assertThatThrownBy(() -> service().replace(id, 7L, model))
@@ -115,7 +117,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void replace_throwsIfMatchRequiredWhenVersionNull() {
+  void givenNullVersionOnExistingEntity_whenReplaced_thenThrowsIfMatchRequired() {
     when(repository().findById(id)).thenReturn(Optional.of(entity));
 
     assertThatThrownBy(() -> service().replace(id, null, model))
@@ -125,7 +127,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void replace_throwsNotFoundBeforeIfMatchWhenMissingAndVersionNull() {
+  void givenMissingIdAndNullVersion_whenReplaced_thenThrowsNotFoundBeforeIfMatchCheck() {
     when(repository().findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service().replace(id, null, model))
@@ -134,7 +136,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void patch_appliesPatchOnMatchingVersion() {
+  void givenMatchingVersion_whenPatched_thenPatchIsAppliedAndPersisted() {
     when(repository().findById(id)).thenReturn(Optional.of(entity));
     when(repository().saveAndFlush(entity)).thenReturn(entity);
     when(mapper().toModel(entity)).thenReturn(model);
@@ -147,7 +149,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void patch_throwsNotFoundWhenMissing() {
+  void givenMissingId_whenPatched_thenThrowsNotFoundAndNothingIsSaved() {
     when(repository().findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service().patch(id, 3L, patch)).isInstanceOf(NotFoundException.class);
@@ -155,7 +157,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void patch_throwsConflictOnVersionMismatch() {
+  void givenStaleVersion_whenPatched_thenThrowsConflictAndNothingIsSaved() {
     when(repository().findById(id)).thenReturn(Optional.of(entity));
 
     assertThatThrownBy(() -> service().patch(id, 2L, patch)).isInstanceOf(ConflictException.class);
@@ -164,7 +166,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void patch_throwsIfMatchRequiredWhenVersionNull() {
+  void givenNullVersionOnExistingEntity_whenPatched_thenThrowsIfMatchRequired() {
     when(repository().findById(id)).thenReturn(Optional.of(entity));
 
     assertThatThrownBy(() -> service().patch(id, null, patch))
@@ -174,7 +176,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void patch_throwsNotFoundBeforeIfMatchWhenMissingAndVersionNull() {
+  void givenMissingIdAndNullVersion_whenPatched_thenThrowsNotFoundBeforeIfMatchCheck() {
     when(repository().findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service().patch(id, null, patch))
@@ -183,7 +185,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void softDelete_deletesWhenFound() {
+  void givenExistingId_whenSoftDeleted_thenRepositoryDeleteIsInvoked() {
     when(repository().findById(id)).thenReturn(Optional.of(entity));
 
     service().softDelete(id);
@@ -192,7 +194,7 @@ public abstract class AbstractCrudServiceTestContract<
   }
 
   @Test
-  void softDelete_throwsNotFoundWhenMissing() {
+  void givenMissingId_whenSoftDeleted_thenThrowsNotFoundAndNothingIsDeleted() {
     when(repository().findById(id)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service().softDelete(id)).isInstanceOf(NotFoundException.class);

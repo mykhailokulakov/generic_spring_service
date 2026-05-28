@@ -36,34 +36,38 @@ class ExampleEntityMapperTest extends AbstractPatchableMapperTestContract<Exampl
   }
 
   @Test
-  void toModelPreservesNullTags() {
+  void givenEntityWithNullTags_whenMappedToModel_thenTagsRemainNull() {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).tags(null).build();
 
-    assertThat(mapper().toModel(entity).tags()).isNull();
+    var model = mapper().toModel(entity);
+
+    assertThat(model.tags()).isNull();
   }
 
   @Test
-  void toEntityWithNullTagsProducesEmptySet() {
+  void givenModelWithNullTags_whenMappedToEntity_thenTagsBecomeEmptySet() {
     var model = Instancio.create(Example.class).toBuilder().tags(null).build();
 
-    assertThat(mapper().toEntity(model).getTags()).isEmpty();
+    var entity = mapper().toEntity(model);
+
+    assertThat(entity.getTags()).isEmpty();
   }
 
   @Test
-  void applyReplacementSetsTagsOnEntityWithoutTags() {
+  void givenEntityWithoutTags_whenReplacementApplied_thenTagsAreSet() {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).tags(null).build();
-
     var replacement = Instancio.create(Example.class).toBuilder().tags(Set.of("only")).build();
+
     mapper().applyReplacement(replacement, entity);
 
     assertThat(entity.getTags()).containsExactly("only");
   }
 
   @Test
-  void applyPatchSetsTagsOnEntityWithoutTags() {
+  void givenEntityWithoutTags_whenPatchWithTagsApplied_thenTagsAreSet() {
     var entity = ExampleEntity.builder().name("e").status(ExampleStatus.DRAFT).tags(null).build();
-
     var patch = Instancio.create(Example.class).toBuilder().tags(Set.of("x", "y")).build();
+
     mapper().applyPatch(patch, entity);
 
     assertThat(entity.getTags()).containsExactlyInAnyOrder("x", "y");

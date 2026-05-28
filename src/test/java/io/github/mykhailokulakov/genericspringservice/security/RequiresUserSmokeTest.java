@@ -42,12 +42,12 @@ class RequiresUserSmokeTest {
 
   @Test
   @WithMockUser(roles = "USER")
-  void userTierUser_returns200() throws Exception {
+  void givenUserRole_whenRequiresUserEndpointCalled_thenReturns200() throws Exception {
     mvc.perform(get("/_smoke/requires-user")).andExpect(status().isOk());
   }
 
   @Test
-  void unauthenticated_returns403() throws Exception {
+  void givenUnauthenticated_whenRequiresUserEndpointCalled_thenReturns403() throws Exception {
     mvc.perform(get("/_smoke/requires-user")).andExpect(status().isForbidden());
   }
 

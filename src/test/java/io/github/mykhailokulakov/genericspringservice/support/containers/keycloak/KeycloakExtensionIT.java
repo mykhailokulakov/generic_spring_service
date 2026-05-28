@@ -13,8 +13,9 @@ class KeycloakExtensionIT {
   class DefaultContainer {
 
     @Test
-    void exportsStandardIssuerUriProperty() {
-      String issuer = System.getProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri");
+    void givenDefaultKeycloakContainer_whenStarted_thenStandardIssuerUriPropertyIsExported() {
+      var issuer = System.getProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri");
+
       assertThat(issuer)
           .as("default name maps to standard spring.security.oauth2.* path")
           .isNotNull()
@@ -23,11 +24,12 @@ class KeycloakExtensionIT {
     }
 
     @Test
-    void issuesValidJwtForSeededAdmin() {
+    void givenDefaultKeycloakContainer_whenSeededAdminTokenRequested_thenWellFormedJwtIsIssued() {
       var factory = TestJwtFactory.forDefaultContainer();
-      String token = factory.adminToken();
+
+      var token = factory.adminToken();
+
       assertThat(token).isNotBlank();
-      // JWT = header.payload.signature
       assertThat(token.split("\\.")).hasSize(3);
     }
   }
@@ -38,15 +40,14 @@ class KeycloakExtensionIT {
   class MultipleContainers {
 
     @Test
-    void exportsPrefixedPropertiesForEachName() {
-      String primary = System.getProperty("testcontainers.keycloak.primary.issuer-uri");
-      String replica = System.getProperty("testcontainers.keycloak.replica.issuer-uri");
+    void givenTwoNamedContainers_whenStarted_thenEachExportsPrefixedPropertiesOnDistinctPorts() {
+      var primary = System.getProperty("testcontainers.keycloak.primary.issuer-uri");
+      var replica = System.getProperty("testcontainers.keycloak.replica.issuer-uri");
 
       assertThat(primary).isNotNull().endsWith("/realms/generic");
       assertThat(replica).isNotNull().endsWith("/realms/generic");
       assertThat(System.getProperty("testcontainers.keycloak.primary.auth-server-url")).isNotNull();
       assertThat(System.getProperty("testcontainers.keycloak.replica.auth-server-url")).isNotNull();
-
       assertThat(portOf(primary))
           .as("primary and replica must be distinct containers on different ports")
           .isNotEqualTo(portOf(replica));

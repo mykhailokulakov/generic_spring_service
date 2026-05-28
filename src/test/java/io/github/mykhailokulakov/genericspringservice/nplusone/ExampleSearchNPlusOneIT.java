@@ -36,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Import(DatabaseStateHelper.class)
 class ExampleSearchNPlusOneIT {
 
+  private static final long MAX_EXPECTED_STATEMENTS = 3L;
+
   @Autowired ExampleRepository repository;
   @Autowired EntityManager em;
   @Autowired DatabaseStateHelper dbHelper;
@@ -60,19 +62,18 @@ class ExampleSearchNPlusOneIT {
   }
 
   @Test
-  void searchPageOfTen_doesNotIssueNPlusOneQueries() {
+  void given20Entities_whenSearchedFirstPageOf10_thenStatementsAreBoundedAndOnlyPageIsLoaded() {
     var sessionFactory = em.getEntityManagerFactory().unwrap(SessionFactory.class);
     var stats = sessionFactory.getStatistics();
     stats.clear();
-
     var pageable = PageRequest.of(0, 10);
+
     var page =
         repository.findAll(
             ExampleQueries.matches(
                 null, null, null, null, null, null, null, null, null, null, null),
             pageable);
-
-    int totalTags = 0;
+    var totalTags = 0;
     for (ExampleEntity e : page.getContent()) {
       totalTags += e.getTags().size();
     }
@@ -82,10 +83,9 @@ class ExampleSearchNPlusOneIT {
     // 1: SELECT count(*) ... (pagination total)
     // 2: SELECT id, name, ... FROM example ... LIMIT 10 (page data)
     // 3: SELECT ... FROM example_tag WHERE example_id IN (...) (@BatchSize batch)
-    long maxExpectedStatements = 3L;
     assertThat(stats.getPrepareStatementCount())
         .as("paging 10 of 20 with tag access must stay bounded")
-        .isLessThanOrEqualTo(maxExpectedStatements);
+        .isLessThanOrEqualTo(MAX_EXPECTED_STATEMENTS);
     // Pins pagination to SQL level. If a fetch-join on `tags` ever sneaks back
     // in, Hibernate would load all 20 entities and paginate in memory — this
     // assertion fails at 20 instead of 10.

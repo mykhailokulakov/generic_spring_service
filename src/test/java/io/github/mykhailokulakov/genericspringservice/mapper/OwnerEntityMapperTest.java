@@ -24,7 +24,7 @@ class OwnerEntityMapperTest extends AbstractPatchableMapperTestContract<OwnerEnt
   }
 
   @Test
-  void toModel_mapsExampleIdFromAssociation() {
+  void givenEntityWithLinkedExample_whenMappedToModel_thenExampleIdIsCopiedFromAssociation() {
     var exampleId = UUID.randomUUID();
     var example =
         ExampleEntity.builder().id(exampleId).name("e").status(ExampleStatus.ACTIVE).build();
@@ -37,7 +37,7 @@ class OwnerEntityMapperTest extends AbstractPatchableMapperTestContract<OwnerEnt
   }
 
   @Test
-  void toModel_returnsNullExampleIdWhenExampleIsNull() {
+  void givenEntityWithoutLinkedExample_whenMappedToModel_thenExampleIdIsNull() {
     var entity = newEntity();
     entity.setExample(null);
 

@@ -26,42 +26,47 @@ class MessageResolutionIT {
 
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
-  void everyErrorCodeResolvesInEnglish(ErrorCode code) {
+  void givenErrorCode_whenResolvedInEnglish_thenReturnsLocalizedNonKeyMessage(ErrorCode code) {
     var resolved = messages.getMessage(code.key(), null, Locale.ENGLISH);
+
     assertThat(resolved).isNotBlank().isNotEqualTo(code.key());
   }
 
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
-  void everyErrorCodeResolvesInUkrainian(ErrorCode code) {
+  void givenErrorCode_whenResolvedInUkrainian_thenReturnsLocalizedNonKeyMessage(ErrorCode code) {
     var resolved = messages.getMessage(code.key(), null, UKRAINIAN);
+
     assertThat(resolved).isNotBlank().isNotEqualTo(code.key());
   }
 
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
-  void ukrainianMessageDiffersFromEnglishMessage(ErrorCode code) {
+  void givenErrorCode_whenResolvedInBothLocales_thenUkrainianDiffersFromEnglish(ErrorCode code) {
     var english = messages.getMessage(code.key(), null, Locale.ENGLISH);
     var ukrainian = messages.getMessage(code.key(), null, UKRAINIAN);
+
     assertThat(ukrainian).isNotEqualTo(english);
   }
 
   @ParameterizedTest
   @EnumSource(ErrorCode.class)
-  void missingLocaleFallsBackToDefault(ErrorCode code) {
+  void givenUnsupportedLocale_whenResolved_thenFallsBackToEnglish(ErrorCode code) {
     var english = messages.getMessage(code.key(), null, Locale.ENGLISH);
+
     var fallback = messages.getMessage(code.key(), null, Locale.JAPANESE);
+
     assertThat(fallback).isEqualTo(english);
   }
 
   @Test
-  void unknownKeyThrows() {
+  void givenUnknownMessageKey_whenResolved_thenThrowsNoSuchMessageException() {
     assertThatThrownBy(() -> messages.getMessage("error.does-not-exist", null, Locale.ENGLISH))
         .isInstanceOf(NoSuchMessageException.class);
   }
 
   @Test
-  void nonsenseAcceptLanguageHeaderFallsBackToDefault() {
+  void givenNonsenseAcceptLanguageHeader_whenApiReturnsError_thenDetailFallsBackToEnglish() {
     var id = UUID.randomUUID();
 
     var response =
@@ -75,7 +80,6 @@ class MessageResolutionIT {
     var englishDetail =
         messages.getMessage(ErrorCode.EXAMPLE_NOT_FOUND.key(), new Object[] {id}, Locale.ENGLISH);
     var englishTitle = messages.getMessage("error.not-found.title", null, Locale.ENGLISH);
-
     assertThat(response)
         .hasStatus(404)
         .hasProblemJsonContentType()

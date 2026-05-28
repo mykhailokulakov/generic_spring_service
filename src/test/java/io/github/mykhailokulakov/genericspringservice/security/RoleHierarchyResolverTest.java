@@ -9,29 +9,39 @@ class RoleHierarchyResolverTest {
   private final RoleHierarchyResolver resolver = new RoleHierarchyResolver();
 
   @Test
-  void userTier_matchesEnumDefinition() {
+  void givenUserTier_whenResolved_thenMatchesEnumDefinition() {
     var expected = RoleTier.USER_TIER.roles().stream().map(Enum::name).toArray(String[]::new);
-    assertThat(resolver.userTier()).containsExactlyInAnyOrder(expected);
+
+    var resolved = resolver.userTier();
+
+    assertThat(resolved).containsExactlyInAnyOrder(expected);
   }
 
   @Test
-  void adminTier_matchesEnumDefinition() {
+  void givenAdminTier_whenResolved_thenMatchesEnumDefinition() {
     var expected = RoleTier.ADMIN_TIER.roles().stream().map(Enum::name).toArray(String[]::new);
-    assertThat(resolver.adminTier()).containsExactlyInAnyOrder(expected);
+
+    var resolved = resolver.adminTier();
+
+    assertThat(resolved).containsExactlyInAnyOrder(expected);
   }
 
   @Test
-  void userTier_admitsUserAndAdmin() {
-    assertThat(resolver.userTier()).containsExactlyInAnyOrder(Role.USER.name(), Role.ADMIN.name());
+  void givenUserTier_whenResolved_thenAdmitsBothUserAndAdmin() {
+    var resolved = resolver.userTier();
+
+    assertThat(resolved).containsExactlyInAnyOrder(Role.USER.name(), Role.ADMIN.name());
   }
 
   @Test
-  void adminTier_admitsAdminOnly() {
-    assertThat(resolver.adminTier()).containsExactly(Role.ADMIN.name());
+  void givenAdminTier_whenResolved_thenAdmitsAdminOnly() {
+    var resolved = resolver.adminTier();
+
+    assertThat(resolved).containsExactly(Role.ADMIN.name());
   }
 
   @Test
-  void authority_prefixesRoleName() {
+  void givenRole_whenAuthorityRequested_thenPrefixesNameWithRolePrefix() {
     assertThat(Role.USER.authority()).isEqualTo("ROLE_USER");
     assertThat(Role.ADMIN.authority()).isEqualTo("ROLE_ADMIN");
   }
