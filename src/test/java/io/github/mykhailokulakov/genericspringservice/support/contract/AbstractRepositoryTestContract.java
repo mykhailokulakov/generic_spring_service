@@ -136,8 +136,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
     return repository().saveAndFlush(entity);
   }
 
-  static Optional<Field> findField(
-      Class<?> type, java.util.function.Predicate<Field> predicate) {
+  static Optional<Field> findField(Class<?> type, java.util.function.Predicate<Field> predicate) {
     var current = type;
     while (current != null && current != Object.class) {
       for (var f : current.getDeclaredFields()) {
