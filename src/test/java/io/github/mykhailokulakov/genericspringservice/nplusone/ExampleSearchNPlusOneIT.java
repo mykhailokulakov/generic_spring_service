@@ -80,9 +80,15 @@ class ExampleSearchNPlusOneIT {
 
     assertThat(page.getContent()).hasSize(10);
     assertThat(totalTags).isEqualTo(30);
+    // 1: SELECT count(*) ... (pagination total)
+    // 2: SELECT id, name, ... FROM example ... LIMIT 10 (page data)
+    // 3: SELECT ... FROM example_tag WHERE example_id IN (...) (@BatchSize batch)
     assertThat(stats.getPrepareStatementCount())
         .as("paging 10 of 20 with tag access must stay bounded")
         .isLessThanOrEqualTo(MAX_EXPECTED_STATEMENTS);
+    // Pins pagination to SQL level. If a fetch-join on `tags` ever sneaks back
+    // in, Hibernate would load all 20 entities and paginate in memory — this
+    // assertion fails at 20 instead of 10.
     assertThat(stats.getEntityLoadCount())
         .as("only the page's entities should be loaded; in-memory pagination would load all 20")
         .isEqualTo(10L);
