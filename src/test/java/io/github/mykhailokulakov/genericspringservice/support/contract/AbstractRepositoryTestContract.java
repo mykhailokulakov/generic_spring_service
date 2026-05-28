@@ -48,7 +48,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @PersistenceTest
 @Import(DatabaseStateHelper.class)
-public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
+public abstract class AbstractRepositoryTestContract<E extends SoftDeletable>
+    implements RepositoryContractAccess<E> {
 
   @Autowired private ApplicationContext applicationContext;
   @Autowired private EntityManager em;
@@ -83,13 +84,29 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
         && !field.isAnnotationPresent(ElementCollection.class);
   }
 
+  @Override
   @SuppressWarnings("unchecked")
-  private Class<E> entityType() {
+  public Class<E> entityType() {
     if (resolvedEntityType == null) {
       var superclass = (ParameterizedType) getClass().getGenericSuperclass();
       resolvedEntityType = (Class<E>) superclass.getActualTypeArguments()[0];
     }
     return resolvedEntityType;
+  }
+
+  @Override
+  public EntityManager em() {
+    return em;
+  }
+
+  @Override
+  public TransactionTemplate tx() {
+    return new TransactionTemplate(txManager);
+  }
+
+  @Override
+  public E newEntity() {
+    return RandomEntities.create(entityType());
   }
 
   @SuppressWarnings("unchecked")
@@ -110,10 +127,6 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     return cachedSpecExecutor;
   }
 
-  private TransactionTemplate tx() {
-    return new TransactionTemplate(txManager);
-  }
-
   @BeforeEach
   void contractCleanDb() {
     dbHelper.truncateAll();
@@ -123,11 +136,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     return repository().saveAndFlush(entity);
   }
 
-  protected E newEntity() {
-    return RandomEntities.create(entityType());
-  }
-
-  private static Optional<Field> findField(
+  static Optional<Field> findField(
       Class<?> type, java.util.function.Predicate<Field> predicate) {
     var current = type;
     while (current != null && current != Object.class) {
@@ -146,7 +155,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     return findField(type, f -> f.isAnnotationPresent(annotation));
   }
 
-  private static Optional<Field> findOwningSide(
+  static Optional<Field> findOwningSide(
       Class<?> type, Class<? extends java.lang.annotation.Annotation> annotation) {
     return findField(type, f -> f.isAnnotationPresent(annotation) && !hasMappedBy(f, annotation));
   }
@@ -167,7 +176,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     return (Class<?>) generic.getActualTypeArguments()[0];
   }
 
-  private static void setField(Object target, Field field, Object value) {
+  static void setField(Object target, Field field, Object value) {
     field.setAccessible(true);
     try {
       field.set(target, value);
@@ -176,7 +185,7 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
     }
   }
 
-  private static Object getField(Object target, Field field) {
+  static Object getField(Object target, Field field) {
     field.setAccessible(true);
     try {
       return field.get(target);
@@ -428,41 +437,6 @@ public abstract class AbstractRepositoryTestContract<E extends SoftDeletable> {
             status -> {
               var reloaded = em.find(entityType(), ids.entityId);
               var target = (Identifiable) getField(reloaded, manyToOneField);
-              assertThat(target.getId()).isEqualTo(ids.targetId);
-            });
-  }
-
-  @Test
-  void oneToOne_foreignKeySurvivesReload() {
-    var field = findOwningSide(entityType(), OneToOne.class);
-    assumeTrue(field.isPresent(), "entity has no owning @OneToOne field");
-
-    var oneToOneField = field.get();
-    var targetType = oneToOneField.getType();
-
-    var ids =
-        new Object() {
-          UUID entityId;
-          UUID targetId;
-        };
-
-    tx().executeWithoutResult(
-            status -> {
-              var target = RandomEntities.create(targetType);
-              em.persist(target);
-              var entity = newEntity();
-              setField(entity, oneToOneField, target);
-              em.persist(entity);
-              em.flush();
-              ids.entityId = entity.getId();
-              ids.targetId = ((Identifiable) target).getId();
-            });
-
-    tx().executeWithoutResult(
-            status -> {
-              var reloaded = em.find(entityType(), ids.entityId);
-              var target = (Identifiable) getField(reloaded, oneToOneField);
-              assertThat(target).isNotNull();
               assertThat(target.getId()).isEqualTo(ids.targetId);
             });
   }

@@ -11,7 +11,7 @@ class ChildRepositoryIT extends AbstractRepositoryTestContract<ChildEntity> {
   @Autowired private ParentRepository parentRepository;
 
   @Override
-  protected ChildEntity newEntity() {
+  public ChildEntity newEntity() {
     var parent = parentRepository.saveAndFlush(RandomEntities.create(ParentEntity.class));
     var child = RandomEntities.create(ChildEntity.class);
     child.setParent(parent);
